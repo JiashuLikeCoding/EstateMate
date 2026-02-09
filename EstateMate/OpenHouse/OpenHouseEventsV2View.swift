@@ -45,7 +45,7 @@ struct OpenHouseEventsV2View: View {
                 )
 
                 NavigationLink("去创建新表单") {
-                    FormBuilderView()
+                    FormBuilderAdaptiveView()
                 }
             }
 

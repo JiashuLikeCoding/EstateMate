@@ -37,7 +37,7 @@ struct OpenHouseHomeView: View {
                             Divider().overlay(Color.white.opacity(0.12))
 
                             NavigationLink {
-                                FormBuilderView()
+                                FormBuilderAdaptiveView()
                             } label: {
                                 row(title: "表单设计", subtitle: "自定义字段（文本/电话/邮箱/单选）")
                             }
