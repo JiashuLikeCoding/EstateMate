@@ -184,14 +184,18 @@ struct SubmissionV2: Codable, Identifiable, Hashable {
     let eventId: UUID
     let ownerId: UUID?
     let data: [String: String]
+    let tags: [String]?
     let createdAt: Date?
+    let updatedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id
         case eventId = "event_id"
         case ownerId = "owner_id"
         case data
+        case tags
         case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -202,5 +206,15 @@ struct SubmissionInsertV2: Encodable {
     enum CodingKeys: String, CodingKey {
         case eventId = "event_id"
         case data
+    }
+}
+
+struct SubmissionUpdateV2: Encodable {
+    let data: [String: String]
+    let tags: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case data
+        case tags
     }
 }

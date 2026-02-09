@@ -173,5 +173,36 @@ final class DynamicFormService {
             .execute()
             .value
     }
+
+    func updateSubmission(id: UUID, data: [String: String], tags: [String]? = nil) async throws -> SubmissionV2 {
+        let payload = SubmissionUpdateV2(data: data, tags: tags)
+        return try await client
+            .from("openhouse_submissions")
+            .update(payload)
+            .eq("id", value: id.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func updateSubmissionTags(id: UUID, tags: [String]) async throws -> SubmissionV2 {
+        return try await client
+            .from("openhouse_submissions")
+            .update(["tags": tags])
+            .eq("id", value: id.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func deleteSubmission(id: UUID) async throws {
+        _ = try await client
+            .from("openhouse_submissions")
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
 }
 
