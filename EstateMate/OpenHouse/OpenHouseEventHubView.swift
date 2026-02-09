@@ -311,7 +311,6 @@ private struct OpenHouseEventListCardView: View {
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     if ongoingEvents.isEmpty == false {
-                        sectionHeader("进行中")
                         eventList(ongoingEvents)
                     }
 
@@ -320,7 +319,6 @@ private struct OpenHouseEventListCardView: View {
                             Divider().overlay(EMTheme.line)
                                 .padding(.vertical, 8)
                         }
-                        sectionHeader("已结束")
                         eventList(endedEvents)
                     }
 
