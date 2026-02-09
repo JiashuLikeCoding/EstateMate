@@ -12,6 +12,16 @@ struct FormBuilderPropertiesView: View {
     /// Called when user finishes an action (Add/Cancel/Delete) in a context that wants to keep the sheet open.
     var onDone: (() -> Void)? = nil
 
+    private func typeTitle(_ type: FormFieldType) -> String {
+        switch type {
+        case .name: return "姓名"
+        case .text: return "文本"
+        case .phone: return "手机号"
+        case .email: return "邮箱"
+        case .select: return "单选"
+        }
+    }
+
     var body: some View {
         EMScreen {
             if state.draftField != nil {
@@ -96,14 +106,10 @@ struct FormBuilderPropertiesView: View {
             Toggle("必填", isOn: binding.required)
                 .tint(EMTheme.accent)
 
-            Picker("类型", selection: binding.type) {
-                Text("姓名").tag(FormFieldType.name)
-                Text("文本").tag(FormFieldType.text)
-                Text("手机号").tag(FormFieldType.phone)
-                Text("邮箱").tag(FormFieldType.email)
-                Text("单选").tag(FormFieldType.select)
-            }
-            .pickerStyle(.menu)
+            // 类型由“字段库”决定，这里不提供切换，避免 UI 复杂。
+            Text("类型：\(typeTitle(binding.wrappedValue.type))")
+                .font(.footnote)
+                .foregroundStyle(EMTheme.ink2)
 
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
@@ -130,7 +136,7 @@ struct FormBuilderPropertiesView: View {
                         }
                     )) {
                         Text("名+姓").tag(NameFormat.firstLast)
-                        Text("Full Name").tag(NameFormat.fullName)
+                        Text("全名").tag(NameFormat.fullName)
                         Text("带中间名").tag(NameFormat.firstMiddleLast)
                     }
                     .pickerStyle(.segmented)
