@@ -42,12 +42,9 @@ final class FormBuilderState: ObservableObject {
     @Published var isSaving: Bool = false
 
     func seedIfNeeded() {
+        // Start empty: user decides what to include.
         guard fields.isEmpty else { return }
-        fields = [
-            .init(key: "full_name", label: "姓名", type: .text, required: true, options: nil),
-            .init(key: "phone", label: "手机号", type: .phone, required: true, options: nil),
-            .init(key: "email", label: "邮箱", type: .email, required: false, options: nil)
-        ]
+        fields = []
     }
 
     func startDraft(type: FormFieldType) {
@@ -81,6 +78,13 @@ final class FormBuilderState: ObservableObject {
             return (f, keys)
         }()
 
+        let (phoneFormat, phoneKeys): (PhoneFormat?, [String]?) = {
+            guard type == .phone else { return (nil, nil) }
+            let f: PhoneFormat = .plain
+            let keys = makeUniquePhoneKeys(for: f)
+            return (f, keys)
+        }()
+
         draftField = .init(
             key: key,
             label: label,
@@ -89,7 +93,9 @@ final class FormBuilderState: ObservableObject {
             options: options,
             textCase: type == .text ? .none : nil,
             nameFormat: nameFormat,
-            nameKeys: nameKeys
+            nameKeys: nameKeys,
+            phoneFormat: phoneFormat,
+            phoneKeys: phoneKeys
         )
     }
 
@@ -110,6 +116,29 @@ final class FormBuilderState: ObservableObject {
             }
             var i = 2
             while fields.contains(where: { $0.key == "\(key)_\(i)" || ($0.nameKeys ?? []).contains("\(key)_\(i)") }) {
+                i += 1
+            }
+            return "\(key)_\(i)"
+        }
+
+        return base.map(unique)
+    }
+
+    private func makeUniquePhoneKeys(for format: PhoneFormat) -> [String] {
+        let base: [String]
+        switch format {
+        case .plain:
+            base = ["phone"]
+        case .withCountryCode:
+            base = ["country_code", "phone_number"]
+        }
+
+        func unique(_ key: String) -> String {
+            if !fields.contains(where: { $0.key == key || ($0.nameKeys ?? []).contains(key) || ($0.phoneKeys ?? []).contains(key) }) {
+                return key
+            }
+            var i = 2
+            while fields.contains(where: { $0.key == "\(key)_\(i)" || ($0.phoneKeys ?? []).contains("\(key)_\(i)") }) {
                 i += 1
             }
             return "\(key)_\(i)"

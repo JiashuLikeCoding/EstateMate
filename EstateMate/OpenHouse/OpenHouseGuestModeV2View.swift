@@ -102,8 +102,31 @@ struct OpenHouseGuestModeV2View: View {
         case .text:
             TextField(field.label, text: binding(for: field.key, field: field))
         case .phone:
-            TextField(field.label, text: binding(for: field.key, field: field))
-                .keyboardType(.phonePad)
+            let keys = field.phoneKeys ?? [field.key]
+            if (field.phoneFormat ?? .plain) == .withCountryCode, keys.count >= 2 {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(field.label)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    HStack(spacing: 12) {
+                        Picker("区号", selection: binding(for: keys[0], field: field)) {
+                            Text("+1").tag("+1")
+                            Text("+86").tag("+86")
+                            Text("+852").tag("+852")
+                            Text("+81").tag("+81")
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 110, alignment: .leading)
+
+                        TextField("手机号", text: binding(for: keys[1], field: field))
+                            .keyboardType(.phonePad)
+                    }
+                }
+            } else {
+                TextField(field.label, text: binding(for: field.key, field: field))
+                    .keyboardType(.phonePad)
+            }
         case .email:
             TextField(field.label, text: binding(for: field.key, field: field))
                 .keyboardType(.emailAddress)
@@ -174,6 +197,10 @@ struct OpenHouseGuestModeV2View: View {
             for f in form.schema.fields {
                 if f.type == .name {
                     for k in f.nameKeys ?? [] {
+                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                } else if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
+                    for k in f.phoneKeys ?? [] {
                         payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
                     }
                 } else {

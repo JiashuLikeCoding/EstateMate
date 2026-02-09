@@ -43,6 +43,18 @@ enum NameFormat: String, Codable, CaseIterable {
     }
 }
 
+enum PhoneFormat: String, Codable, CaseIterable {
+    case plain
+    case withCountryCode
+
+    var title: String {
+        switch self {
+        case .plain: return "不带区号"
+        case .withCountryCode: return "带区号"
+        }
+    }
+}
+
 struct FormField: Codable, Identifiable, Hashable {
     var id: String { key }
 
@@ -62,6 +74,10 @@ struct FormField: Codable, Identifiable, Hashable {
     // For name
     var nameFormat: NameFormat?
     var nameKeys: [String]?
+
+    // For phone
+    var phoneFormat: PhoneFormat?
+    var phoneKeys: [String]?
 }
 
 struct FormSchema: Codable, Hashable {

@@ -12,9 +12,9 @@ struct FormBuilderView: View {
 
     @State private var formName: String = ""
     @State private var fields: [FormField] = [
-        .init(key: "full_name", label: "Full Name", type: .text, required: true, options: nil),
-        .init(key: "phone", label: "Phone", type: .phone, required: true, options: nil),
-        .init(key: "email", label: "Email", type: .email, required: false, options: nil)
+        .init(key: "full_name", label: "Full Name", type: .name, required: false, options: nil, textCase: nil, nameFormat: .fullName, nameKeys: ["full_name"], phoneFormat: nil, phoneKeys: nil),
+        .init(key: "phone", label: "Phone", type: .phone, required: false, options: nil, textCase: nil, nameFormat: nil, nameKeys: nil, phoneFormat: .plain, phoneKeys: ["phone"]),
+        .init(key: "email", label: "Email", type: .email, required: false, options: nil, textCase: nil, nameFormat: nil, nameKeys: nil, phoneFormat: nil, phoneKeys: nil)
     ]
 
     @State private var errorMessage: String?
@@ -141,7 +141,18 @@ struct FormBuilderView: View {
             options = nil
         }
 
-        fields.append(.init(key: key, label: label, type: newType, required: newRequired, options: options))
+        fields.append(.init(
+            key: key,
+            label: label,
+            type: newType,
+            required: newRequired,
+            options: options,
+            textCase: newType == .text ? .none : nil,
+            nameFormat: newType == .name ? .fullName : nil,
+            nameKeys: newType == .name ? ["full_name"] : nil,
+            phoneFormat: newType == .phone ? .plain : nil,
+            phoneKeys: newType == .phone ? ["phone"] : nil
+        ))
 
         newLabel = ""
         newType = .text

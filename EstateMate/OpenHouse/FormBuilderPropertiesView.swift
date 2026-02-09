@@ -24,7 +24,7 @@ struct FormBuilderPropertiesView: View {
 
     private var draftEditor: some View {
         let binding = Binding<FormField>(
-            get: { state.draftField ?? FormField(key: "tmp", label: "字段", type: .text, required: false, options: nil) },
+            get: { state.draftField ?? FormField(key: "tmp", label: "字段", type: .text, required: false, options: nil, textCase: .none, nameFormat: nil, nameKeys: nil, phoneFormat: nil, phoneKeys: nil) },
             set: { state.draftField = $0 }
         )
 
@@ -142,6 +142,30 @@ struct FormBuilderPropertiesView: View {
                 )) {
                     ForEach(TextCase.allCases, id: \.self) { tc in
                         Text(tc.title).tag(tc)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            if binding.wrappedValue.type == .phone {
+                Divider().overlay(EMTheme.line)
+
+                Picker("电话格式", selection: Binding(
+                    get: { binding.wrappedValue.phoneFormat ?? .plain },
+                    set: { newValue in
+                        binding.wrappedValue.phoneFormat = newValue
+                        let base: [String]
+                        switch newValue {
+                        case .plain: base = ["phone"]
+                        case .withCountryCode: base = ["country_code", "phone_number"]
+                        }
+                        if (binding.wrappedValue.phoneKeys ?? []).count != base.count {
+                            binding.wrappedValue.phoneKeys = base
+                        }
+                    }
+                )) {
+                    ForEach(PhoneFormat.allCases, id: \.self) { f in
+                        Text(f.title).tag(f)
                     }
                 }
                 .pickerStyle(.menu)
