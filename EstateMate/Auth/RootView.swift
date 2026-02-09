@@ -12,6 +12,16 @@ struct RootView: View {
 
     var body: some View {
         Group {
+#if DEBUG
+            // Debug convenience: always land on workspace picker after login.
+            // (Still requires login; we just ensure selectedWorkspace is cleared.)
+            if sessionStore.isLoggedIn {
+                WorkspacePickerView()
+                    .task { sessionStore.selectedWorkspace = nil }
+            } else {
+                LoginView()
+            }
+#else
             if !sessionStore.isLoggedIn {
                 LoginView()
             } else if sessionStore.selectedWorkspace == nil {
@@ -19,6 +29,7 @@ struct RootView: View {
             } else {
                 MainView()
             }
+#endif
         }
     }
 }
