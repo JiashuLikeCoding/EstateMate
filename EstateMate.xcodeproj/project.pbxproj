@@ -6,6 +6,15 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		96FA21F32F3A630300517E8D /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F22F3A630300517E8D /* Auth */; };
+		96FA21F52F3A630300517E8D /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F42F3A630300517E8D /* Functions */; };
+		96FA21F72F3A630300517E8D /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F62F3A630300517E8D /* PostgREST */; };
+		96FA21F92F3A630300517E8D /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F82F3A630300517E8D /* Realtime */; };
+		96FA21FB2F3A630300517E8D /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FA2F3A630300517E8D /* Storage */; };
+		96FA21FD2F3A630300517E8D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FC2F3A630300517E8D /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		96FA21D42F3A591500517E8D /* EstateMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EstateMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +32,12 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				96FA21F72F3A630300517E8D /* PostgREST in Frameworks */,
+				96FA21F52F3A630300517E8D /* Functions in Frameworks */,
+				96FA21FD2F3A630300517E8D /* Supabase in Frameworks */,
+				96FA21F32F3A630300517E8D /* Auth in Frameworks */,
+				96FA21FB2F3A630300517E8D /* Storage in Frameworks */,
+				96FA21F92F3A630300517E8D /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +80,12 @@
 			);
 			name = EstateMate;
 			packageProductDependencies = (
+				96FA21F22F3A630300517E8D /* Auth */,
+				96FA21F42F3A630300517E8D /* Functions */,
+				96FA21F62F3A630300517E8D /* PostgREST */,
+				96FA21F82F3A630300517E8D /* Realtime */,
+				96FA21FA2F3A630300517E8D /* Storage */,
+				96FA21FC2F3A630300517E8D /* Supabase */,
 			);
 			productName = EstateMate;
 			productReference = 96FA21D42F3A591500517E8D /* EstateMate.app */;
@@ -94,6 +115,9 @@
 			);
 			mainGroup = 96FA21CB2F3A591500517E8D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 96FA21D52F3A591500517E8D /* Products */;
 			projectDirPath = "";
@@ -264,7 +288,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -308,7 +332,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.2;
@@ -351,6 +375,50 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		96FA21F22F3A630300517E8D /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		96FA21F42F3A630300517E8D /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		96FA21F62F3A630300517E8D /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		96FA21F82F3A630300517E8D /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		96FA21FA2F3A630300517E8D /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		96FA21FC2F3A630300517E8D /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96FA21F12F3A630300517E8D /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 96FA21CC2F3A591500517E8D /* Project object */;
 }

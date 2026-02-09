@@ -7,18 +7,13 @@
 
 import SwiftUI
 
+/// Legacy placeholder view. App entry now uses RootView.
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        RootView()
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView().environmentObject(SessionStore())
 }
