@@ -309,57 +309,24 @@ private struct OpenHouseEventListCardView: View {
                 Text("暂无活动")
                     .foregroundStyle(EMTheme.ink2)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
-                        NavigationLink {
-                            OpenHouseEventEditView(event: e)
-                        } label: {
-                            HStack(alignment: .top, spacing: 12) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text(e.title)
-                                        .font(.headline)
-                                        .foregroundStyle(EMTheme.ink)
+                VStack(alignment: .leading, spacing: 0) {
+                    if ongoingEvents.isEmpty == false {
+                        sectionHeader("进行中")
+                        eventList(ongoingEvents)
+                    }
 
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        if let location = e.location?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
-                                            metaRow(icon: "mappin.and.ellipse", text: location)
-                                        }
-
-                                        if let timeText = timeText(for: e).nilIfBlank {
-                                            metaRow(icon: "clock", text: timeText)
-                                        }
-
-                                        metaRow(icon: "doc.text", text: "表单：\(formName(for: e))")
-
-                                        if let host = e.host?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
-                                            metaRow(icon: "person", text: "主理人：\(host)")
-                                        }
-
-                                        if let assistant = e.assistant?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
-                                            metaRow(icon: "person.2", text: "助手：\(assistant)")
-                                        }
-
-                                        metaRow(
-                                            icon: e.isActive ? "checkmark.seal.fill" : "seal",
-                                            text: e.isActive ? "已启用" : "未启用",
-                                            tint: e.isActive ? .green : EMTheme.ink2
-                                        )
-                                    }
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(EMTheme.ink2)
-                                    .padding(.top, 2)
-                            }
-                            .padding(.vertical, 12)
-                        }
-                        .buttonStyle(.plain)
-
-                        if idx != events.count - 1 {
+                    if endedEvents.isEmpty == false {
+                        if ongoingEvents.isEmpty == false {
                             Divider().overlay(EMTheme.line)
+                                .padding(.vertical, 8)
                         }
+                        sectionHeader("已结束")
+                        eventList(endedEvents)
+                    }
+
+                    if ongoingEvents.isEmpty && endedEvents.isEmpty {
+                        Text("暂无活动")
+                            .foregroundStyle(EMTheme.ink2)
                     }
                 }
             }
@@ -370,6 +337,99 @@ private struct OpenHouseEventListCardView: View {
             }
         }
         .task { await load() }
+    }
+
+    private var ongoingEvents: [OpenHouseEventV2] {
+        let now = Date()
+        return events
+            .filter { e in
+                if let end = e.endsAt {
+                    return end >= now
+                }
+                return true
+            }
+            .sorted { a, b in
+                (a.startsAt ?? .distantFuture) < (b.startsAt ?? .distantFuture)
+            }
+    }
+
+    private var endedEvents: [OpenHouseEventV2] {
+        let now = Date()
+        return events
+            .filter { e in
+                if let end = e.endsAt {
+                    return end < now
+                }
+                return false
+            }
+            .sorted { a, b in
+                (a.endsAt ?? .distantPast) > (b.endsAt ?? .distantPast)
+            }
+    }
+
+    @ViewBuilder
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(EMTheme.ink2)
+            .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private func eventList(_ list: [OpenHouseEventV2]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(list.enumerated()), id: \.element.id) { idx, e in
+                NavigationLink {
+                    OpenHouseEventEditView(event: e)
+                } label: {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(e.title)
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                if let location = e.location?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                    metaRow(icon: "mappin.and.ellipse", text: location)
+                                }
+
+                                if let timeText = timeText(for: e).nilIfBlank {
+                                    metaRow(icon: "clock", text: timeText)
+                                }
+
+                                metaRow(icon: "doc.text", text: "表单：\(formName(for: e))")
+
+                                if let host = e.host?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                    metaRow(icon: "person", text: "主理人：\(host)")
+                                }
+
+                                if let assistant = e.assistant?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                    metaRow(icon: "person.2", text: "助手：\(assistant)")
+                                }
+
+                                metaRow(
+                                    icon: e.isActive ? "checkmark.seal.fill" : "seal",
+                                    text: e.isActive ? "已启用" : "未启用",
+                                    tint: e.isActive ? .green : EMTheme.ink2
+                                )
+                            }
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .foregroundStyle(EMTheme.ink2)
+                            .padding(.top, 2)
+                    }
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+
+                if idx != list.count - 1 {
+                    Divider().overlay(EMTheme.line)
+                }
+            }
+        }
     }
 
     @ViewBuilder
