@@ -147,7 +147,7 @@ struct FormBuilderView: View {
             type: newType,
             required: newRequired,
             options: options,
-            textCase: newType == .text ? .none : nil,
+            textCase: newType == .text ? TextCase.none : nil,
             nameFormat: newType == .name ? .fullName : nil,
             nameKeys: newType == .name ? ["full_name"] : nil,
             phoneFormat: newType == .phone ? .plain : nil,

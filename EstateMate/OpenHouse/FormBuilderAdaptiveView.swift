@@ -91,7 +91,7 @@ final class FormBuilderState: ObservableObject {
             type: type,
             required: required,
             options: options,
-            textCase: type == .text ? .none : nil,
+            textCase: type == .text ? TextCase.none : nil,
             nameFormat: nameFormat,
             nameKeys: nameKeys,
             phoneFormat: phoneFormat,
@@ -309,7 +309,7 @@ private struct FormBuilderDrawerView: View {
             EMScreen("表单设计") {
                 FormBuilderCanvasView()
                     .environmentObject(state)
-                    .overlay(alignment: .centerTrailing) {
+                    .overlay(alignment: .trailing) {
                         Button {
                             sheet = .palette
                         } label: {

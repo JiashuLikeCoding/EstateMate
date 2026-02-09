@@ -24,7 +24,7 @@ struct FormBuilderPropertiesView: View {
 
     private var draftEditor: some View {
         let binding = Binding<FormField>(
-            get: { state.draftField ?? FormField(key: "tmp", label: "字段", type: .text, required: false, options: nil, textCase: .none, nameFormat: nil, nameKeys: nil, phoneFormat: nil, phoneKeys: nil) },
+            get: { state.draftField ?? FormField(key: "tmp", label: "字段", type: .text, required: false, options: nil, textCase: TextCase.none, nameFormat: nil, nameKeys: nil, phoneFormat: nil, phoneKeys: nil) },
             set: { state.draftField = $0 }
         )
 
