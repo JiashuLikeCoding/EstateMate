@@ -101,9 +101,11 @@ struct EMTextField: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(EMTheme.ink2)
+            if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(title)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+            }
 
             Group {
                 if isSecure {
