@@ -407,28 +407,30 @@ private struct FormBuilderDrawerView: View {
     }
 
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
+        let added = state.fields.contains(where: { $0.type == type })
         Button {
             state.startDraft(type: type)
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage)
+            paletteRowBody(title: title, systemImage: systemImage, added: added)
         }
         .buttonStyle(.plain)
     }
 
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
+        let added = state.fields.contains(where: { $0.type == type })
         Button {
             state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage)
+            paletteRowBody(title: title, systemImage: systemImage, added: added)
         }
         .buttonStyle(.plain)
     }
 
-    private func paletteRowBody(title: String, systemImage: String) -> some View {
+    private func paletteRowBody(title: String, systemImage: String, added: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .frame(width: 28)
@@ -437,8 +439,14 @@ private struct FormBuilderDrawerView: View {
                 .font(.headline)
                 .foregroundStyle(EMTheme.ink)
             Spacer()
-            Image(systemName: "plus.circle.fill")
-                .foregroundStyle(EMTheme.accent)
+
+            if added {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(EMTheme.accent)
+            } else {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(EMTheme.accent)
+            }
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
