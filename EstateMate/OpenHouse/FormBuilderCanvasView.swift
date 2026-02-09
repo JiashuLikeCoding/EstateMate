@@ -6,11 +6,17 @@
 import SwiftUI
 
 struct FormBuilderCanvasView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
 
     /// If provided, shows a plus button attached to the "表单" card (right side).
     var addFieldAction: (() -> Void)? = nil
+
+    /// Called after a successful save.
+    var onSaved: (() -> Void)? = nil
+
+    @State private var showSavedAlert: Bool = false
 
     var body: some View {
         ScrollView {
@@ -92,6 +98,17 @@ struct FormBuilderCanvasView: View {
                 }
                 .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
                 .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .alert("已保存", isPresented: $showSavedAlert) {
+                    Button("好的") {
+                        if let onSaved {
+                            onSaved()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                } message: {
+                    Text("表单已保存")
+                }
 
                 Text("提示：点右侧“＋”添加字段，再点击表单里的字段编辑属性")
                     .font(.footnote)
@@ -126,6 +143,7 @@ struct FormBuilderCanvasView: View {
             let schema = FormSchema(version: 1, fields: state.fields)
             _ = try await service.createForm(name: state.formName, schema: schema)
             state.errorMessage = nil
+            showSavedAlert = true
         } catch {
             state.errorMessage = error.localizedDescription
         }

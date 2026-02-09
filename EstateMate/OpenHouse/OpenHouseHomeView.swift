@@ -25,9 +25,17 @@ struct OpenHouseHomeView: View {
                             Divider().overlay(EMTheme.line)
 
                             NavigationLink {
+                                OpenHouseFormsView()
+                            } label: {
+                                row(title: "表单管理", subtitle: "查看与管理已创建的表单")
+                            }
+
+                            Divider().overlay(EMTheme.line)
+
+                            NavigationLink {
                                 FormBuilderAdaptiveView()
                             } label: {
-                                row(title: "表单设计", subtitle: "极简搭建器：字段库 / 画布 / 属性")
+                                row(title: "表单设计", subtitle: "极简搭建器：字段库 / 表单 / 属性")
                             }
 
                             Divider().overlay(EMTheme.line)

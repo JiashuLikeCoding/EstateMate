@@ -295,6 +295,7 @@ private struct FormBuilderSplitView: View {
 // MARK: - iPhone Drawer View
 
 private struct FormBuilderDrawerView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var state = FormBuilderState()
 
     enum SheetMode {
@@ -309,11 +310,17 @@ private struct FormBuilderDrawerView: View {
     var body: some View {
         NavigationStack {
             EMScreen("表单设计") {
-                FormBuilderCanvasView(addFieldAction: {
-                    mode = .palette
-                    isSheetPresented = true
-                })
-                    .environmentObject(state)
+                FormBuilderCanvasView(
+                    addFieldAction: {
+                        mode = .palette
+                        isSheetPresented = true
+                    },
+                    onSaved: {
+                        // After saving, return to OpenHouse.
+                        dismiss()
+                    }
+                )
+                .environmentObject(state)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
