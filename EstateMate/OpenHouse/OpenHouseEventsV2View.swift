@@ -25,17 +25,17 @@ struct OpenHouseEventsV2View: View {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
 
-            Section("Create") {
-                TextField("Event title", text: $newTitle)
+            Section("创建活动") {
+                TextField("活动标题（例如：123 Main St - 2月10日）", text: $newTitle)
 
-                Picker("Form", selection: $selectedFormId) {
-                    Text("Select a form...").tag(Optional<UUID>.none)
+                Picker("选择表单", selection: $selectedFormId) {
+                    Text("请选择...").tag(Optional<UUID>.none)
                     ForEach(forms) { f in
                         Text(f.name).tag(Optional(f.id))
                     }
                 }
 
-                Button("Create Event") {
+                Button("创建") {
                     Task { await createEvent() }
                 }
                 .disabled(
@@ -44,26 +44,26 @@ struct OpenHouseEventsV2View: View {
                     isLoading
                 )
 
-                NavigationLink("Create a new form") {
+                NavigationLink("去创建新表单") {
                     FormBuilderView()
                 }
             }
 
-            Section("Events") {
+            Section("活动列表") {
                 if events.isEmpty {
-                    Text("No events yet.").foregroundStyle(.secondary)
+                    Text("暂无活动").foregroundStyle(.secondary)
                 } else {
                     ForEach(events) { e in
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(e.title)
-                                Text(e.isActive ? "Active" : "Inactive")
+                                Text(e.isActive ? "已启用" : "未启用")
                                     .font(.caption)
                                     .foregroundStyle(e.isActive ? .green : .secondary)
                             }
                             Spacer()
                             if !e.isActive {
-                                Button("Make Active") {
+                                Button("设为启用") {
                                     Task { await makeActive(e) }
                                 }
                                 .buttonStyle(.bordered)
@@ -73,7 +73,7 @@ struct OpenHouseEventsV2View: View {
                 }
             }
         }
-        .navigationTitle("Events")
+        .navigationTitle("活动管理")
         .overlay {
             if isLoading { ProgressView().controlSize(.large) }
         }

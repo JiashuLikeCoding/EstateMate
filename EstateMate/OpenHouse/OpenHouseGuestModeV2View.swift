@@ -32,19 +32,19 @@ struct OpenHouseGuestModeV2View: View {
 
                 Form {
                     Section(form.name) {
-                        ForEach(form.schema.fields) { field in
+                                ForEach(form.schema.fields) { field in
                             fieldRow(field)
                         }
                     }
 
                     Section {
-                        Button("Submit") {
+                        Button("提交") {
                             Task { await submit(eventId: event.id, form: form) }
                         }
                         .disabled(!canSubmit(form: form) || isLoading)
 
                         if submittedCount > 0 {
-                            Text("Submitted: \(submittedCount)")
+                            Text("已提交：\(submittedCount)")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -55,20 +55,20 @@ struct OpenHouseGuestModeV2View: View {
                 }
             } else {
                 VStack(spacing: 8) {
-                    Text("No active event")
+                    Text("没有启用的活动")
                         .font(.title3.bold())
-                    Text("Create an event and set it active.")
+                    Text("请先在“活动管理”里创建活动并设为启用。")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal)
             }
         }
-        .navigationTitle("Guest Mode")
+        .navigationTitle("访客模式")
         .task { await load() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Reload") { Task { await load() } }
+                Button("刷新") { Task { await load() } }
             }
         }
     }
@@ -88,7 +88,7 @@ struct OpenHouseGuestModeV2View: View {
                 .autocorrectionDisabled(true)
         case .select:
             Picker(field.label, selection: binding(for: field.key)) {
-                Text("Select...").tag("")
+                Text("请选择...").tag("")
                 ForEach(field.options ?? [], id: \.self) { opt in
                     Text(opt).tag(opt)
                 }

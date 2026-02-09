@@ -32,11 +32,11 @@ struct FormBuilderView: View {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
 
-            Section("Form") {
-                TextField("Form name", text: $formName)
+            Section("表单") {
+                TextField("表单名称", text: $formName)
             }
 
-            Section("Fields") {
+            Section("字段") {
                 ForEach(fields) { f in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(f.label)
@@ -55,35 +55,40 @@ struct FormBuilderView: View {
                 }
             }
 
-            Section("Add field") {
-                TextField("Label (e.g., Budget)", text: $newLabel)
+            Section("新增字段") {
+                TextField("字段名称（例如：预算）", text: $newLabel)
 
-                Picker("Type", selection: $newType) {
+                Picker("类型", selection: $newType) {
                     ForEach(FormFieldType.allCases, id: \.self) { t in
                         Text(t.rawValue).tag(t)
                     }
                 }
 
-                Toggle("Required", isOn: $newRequired)
+                Toggle("必填", isOn: $newRequired)
 
                 if newType == .select {
-                    TextField("Options (comma separated)", text: $newOptionsText)
+                    TextField("选项（用逗号分隔）", text: $newOptionsText)
                 }
 
-                Button("Add") {
+                Button("添加") {
                     addField()
                 }
                 .disabled(newLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
             Section {
-                Button(isSaving ? "Saving..." : "Save form") {
+                Button(isSaving ? "保存中..." : "保存表单") {
                     Task { await save() }
                 }
                 .disabled(isSaving || formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .navigationTitle("Form Builder")
+        .navigationTitle("表单设计")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                EditButton()
+            }
+        }
     }
 
     private func addField() {
