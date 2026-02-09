@@ -1,0 +1,40 @@
+{
+  "source": "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/OpenHouse/OpenHouseHomeView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "活动",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 19
+        }
+      },
+      {
+        "comment": "",
+        "key": "表单",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "现场",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "退出登录",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 70
+        }
+      }
+    ]
+  },
+  "version": 1
+}

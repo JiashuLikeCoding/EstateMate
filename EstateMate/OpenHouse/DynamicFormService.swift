@@ -68,6 +68,19 @@ final class DynamicFormService {
             .value
     }
 
+    func updateEvent(id: UUID, title: String, formId: UUID) async throws -> OpenHouseEventV2 {
+        let payload = OpenHouseEventInsertV2(title: title, formId: formId, isActive: false)
+        // We don't overwrite is_active here; use setActive for that.
+        return try await client
+            .from("openhouse_events")
+            .update(payload)
+            .eq("id", value: id.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
     func setActive(eventId: UUID) async throws {
         _ = try await client
             .from("openhouse_events")

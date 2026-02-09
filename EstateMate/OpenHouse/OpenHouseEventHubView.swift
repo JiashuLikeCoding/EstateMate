@@ -161,8 +161,6 @@ private struct OpenHouseEventListCardView: View {
     var body: some View {
         EMCard {
             HStack {
-                Text("活动列表")
-                    .font(.headline)
                 Spacer()
                 Button("刷新") { Task { await load() } }
                     .font(.footnote.weight(.medium))
@@ -180,24 +178,24 @@ private struct OpenHouseEventListCardView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(e.title)
-                                    .font(.headline)
-                                Text(e.isActive ? "已启用" : "未启用")
-                                    .font(.caption)
-                                    .foregroundStyle(e.isActive ? .green : EMTheme.ink2)
-                            }
-                            Spacer()
-                            if !e.isActive {
-                                Button("设为启用") {
-                                    Task { await makeActive(e) }
+                        NavigationLink {
+                            OpenHouseEventEditView(event: e)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(e.title)
+                                        .font(.headline)
+                                    Text(e.isActive ? "已启用" : "未启用")
+                                        .font(.caption)
+                                        .foregroundStyle(e.isActive ? .green : EMTheme.ink2)
                                 }
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(EMTheme.accent)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(EMTheme.ink2)
                             }
+                            .padding(.vertical, 10)
                         }
-                        .padding(.vertical, 10)
+                        .buttonStyle(.plain)
 
                         if idx != events.count - 1 {
                             Divider().overlay(EMTheme.line)

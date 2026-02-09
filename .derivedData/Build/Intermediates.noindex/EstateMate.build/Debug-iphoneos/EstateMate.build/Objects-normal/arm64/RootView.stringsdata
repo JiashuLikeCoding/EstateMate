@@ -1,0 +1,40 @@
+{
+  "source": "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/Auth/RootView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "客户管理",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "内部管理（占位页：后续加线索/房源/任务/设置）",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "CRM 模块开发中…",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 73
+        }
+      },
+      {
+        "comment": "",
+        "key": "退出登录",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 80
+        }
+      }
+    ]
+  },
+  "version": 1
+}

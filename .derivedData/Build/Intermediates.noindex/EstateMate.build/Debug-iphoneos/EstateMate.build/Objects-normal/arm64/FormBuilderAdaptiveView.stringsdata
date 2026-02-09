@@ -1,0 +1,40 @@
+{
+  "source": "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/OpenHouse/FormBuilderAdaptiveView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "字段库",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 220
+        }
+      },
+      {
+        "comment": "",
+        "key": "基础字段",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 240
+        }
+      },
+      {
+        "comment": "",
+        "key": "返回",
+        "location": {
+          "startingColumn": 58,
+          "startingLine": 396
+        }
+      },
+      {
+        "comment": "",
+        "key": "关闭",
+        "location": {
+          "startingColumn": 69,
+          "startingLine": 396
+        }
+      }
+    ]
+  },
+  "version": 1
+}

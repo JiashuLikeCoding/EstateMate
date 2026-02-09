@@ -1,0 +1,23 @@
+{
+  "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/Auth/SupabaseClientProvider.swift" : {
+    "const-values" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/SupabaseClientProvider.swiftconstvalues",
+    "dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/SupabaseClientProvider.d",
+    "diagnostics" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/SupabaseClientProvider.dia",
+    "object" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/SupabaseClientProvider.o",
+    "swift-dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/SupabaseClientProvider.swiftdeps"
+  },
+  "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/DesignSystem/EMChips.swift" : {
+    "const-values" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMChips.swiftconstvalues",
+    "dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMChips.d",
+    "diagnostics" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMChips.dia",
+    "object" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMChips.o",
+    "swift-dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMChips.swiftdeps"
+  },
+  "/Users/jason/Documents/工作/Mobile App/EstateMate/EstateMate/DesignSystem/EMComponents.swift" : {
+    "const-values" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMComponents.swiftconstvalues",
+    "dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMComponents.d",
+    "diagnostics" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMComponents.dia",
+    "object" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMComponents.o",
+    "swift-dependencies" : "/Users/jason/Documents/工作/Mobile App/EstateMate/.derivedData/Build/Intermediates.noindex/EstateMate.build/Debug-iphoneos/EstateMate.build/Objects-normal/arm64/EMComponents.swiftdeps"
+  }
+}
