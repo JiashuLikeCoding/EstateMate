@@ -38,26 +38,6 @@ struct MainView: View {
     }
 }
 
-struct OpenHouseHomeView: View {
-    @EnvironmentObject var sessionStore: SessionStore
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                Text("OpenHouse")
-                    .font(.title.bold())
-                Text("Guest-facing mode (placeholder)")
-                    .foregroundStyle(.secondary)
-
-                Button("Sign out") {
-                    Task { await sessionStore.signOut() }
-                }
-            }
-            .padding()
-        }
-    }
-}
-
 struct CRMHomeView: View {
     @EnvironmentObject var sessionStore: SessionStore
 
