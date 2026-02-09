@@ -22,6 +22,17 @@ struct FormBuilderPropertiesView: View {
         }
     }
 
+    private func nameHint(_ format: NameFormat) -> String {
+        switch format {
+        case .firstLast:
+            return "提示：将显示 2 个输入框（名、姓）"
+        case .fullName:
+            return "提示：将显示 1 个输入框（全名）"
+        case .firstMiddleLast:
+            return "提示：将显示 3 个输入框（名、中间名、姓）"
+        }
+    }
+
     var body: some View {
         EMScreen {
             if state.draftField != nil {
@@ -141,12 +152,9 @@ struct FormBuilderPropertiesView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    Text("默认：名 + 姓")
-                        .font(.footnote)
-                        .foregroundStyle(EMTheme.ink2)
                 }
 
-                Text("提示：姓名字段会拆分为多个输入框，并分别存储。")
+                Text(nameHint(binding.wrappedValue.nameFormat ?? .firstLast))
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
             }
