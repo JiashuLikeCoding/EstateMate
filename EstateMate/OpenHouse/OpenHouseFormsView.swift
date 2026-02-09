@@ -54,7 +54,7 @@ struct OpenHouseFormsView: View {
                                 VStack(spacing: 0) {
                                     ForEach(Array(forms.enumerated()), id: \.element.id) { idx, f in
                                         NavigationLink {
-                                            OpenHouseFormDetailView(form: f)
+                                            FormBuilderAdaptiveView(form: f)
                                         } label: {
                                             HStack {
                                                 VStack(alignment: .leading, spacing: 4) {

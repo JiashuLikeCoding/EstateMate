@@ -34,6 +34,18 @@ final class DynamicFormService {
             .value
     }
 
+    func updateForm(id: UUID, name: String, schema: FormSchema) async throws -> FormRecord {
+        let payload = FormInsert(name: name, schema: schema)
+        return try await client
+            .from("forms")
+            .update(payload)
+            .eq("id", value: id.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
     // MARK: - Events
 
     func listEvents() async throws -> [OpenHouseEventV2] {

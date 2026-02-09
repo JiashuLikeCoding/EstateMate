@@ -10,27 +10,37 @@ import SwiftUI
 import Combine
 
 struct FormBuilderAdaptiveView: View {
+    let form: FormRecord?
+
+    init(form: FormRecord? = nil) {
+        self.form = form
+    }
+
     var body: some View {
-        FormBuilderContainerView()
+        FormBuilderContainerView(form: form)
     }
 }
 
 private struct FormBuilderContainerView: View {
+    let form: FormRecord?
+
     @Environment(\.horizontalSizeClass) private var hSize
 
     var body: some View {
         if hSize == .regular {
-            FormBuilderSplitView()
+            FormBuilderSplitView(form: form)
         } else {
-            FormBuilderDrawerView()
+            FormBuilderDrawerView(form: form)
         }
     }
 }
+
 
 // MARK: - Shared builder state
 
 @MainActor
 final class FormBuilderState: ObservableObject {
+    @Published var formId: UUID? = nil
     @Published var formName: String = ""
     @Published var fields: [FormField] = []
     @Published var selectedFieldKey: String? = nil
@@ -45,6 +55,13 @@ final class FormBuilderState: ObservableObject {
         // Start empty: user decides what to include.
         guard fields.isEmpty else { return }
         fields = []
+    }
+
+    func load(form: FormRecord) {
+        formId = form.id
+        formName = form.name
+        fields = form.schema.fields
+        selectedFieldKey = fields.first?.key
     }
 
     func startDraft(type: FormFieldType) {
@@ -193,6 +210,7 @@ final class FormBuilderState: ObservableObject {
 // MARK: - iPad Split View
 
 private struct FormBuilderSplitView: View {
+    let form: FormRecord?
     @StateObject private var state = FormBuilderState()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
@@ -295,6 +313,7 @@ private struct FormBuilderSplitView: View {
 // MARK: - iPhone Drawer View
 
 private struct FormBuilderDrawerView: View {
+    let form: FormRecord?
     @Environment(\.dismiss) private var dismiss
     @StateObject private var state = FormBuilderState()
 

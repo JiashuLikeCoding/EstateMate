@@ -141,7 +141,14 @@ struct FormBuilderCanvasView: View {
             }
 
             let schema = FormSchema(version: 1, fields: state.fields)
-            _ = try await service.createForm(name: state.formName, schema: schema)
+
+            if let id = state.formId {
+                _ = try await service.updateForm(id: id, name: state.formName, schema: schema)
+            } else {
+                let created = try await service.createForm(name: state.formName, schema: schema)
+                state.formId = created.id
+            }
+
             state.errorMessage = nil
             showSavedAlert = true
         } catch {
