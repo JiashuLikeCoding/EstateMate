@@ -15,6 +15,7 @@ struct OpenHouseEventEditView: View {
     @State private var title: String
     @State private var location: String
     @State private var startsAt: Date
+    @State private var hasTimeRange: Bool
     @State private var endsAt: Date
     @State private var host: String
     @State private var assistant: String
@@ -33,6 +34,7 @@ struct OpenHouseEventEditView: View {
         _location = State(initialValue: event.location ?? "")
         let start = event.startsAt ?? Date()
         _startsAt = State(initialValue: start)
+        _hasTimeRange = State(initialValue: event.endsAt != nil)
         _endsAt = State(initialValue: event.endsAt ?? Calendar.current.date(byAdding: .hour, value: 2, to: start) ?? start)
         _host = State(initialValue: event.host ?? "")
         _assistant = State(initialValue: event.assistant ?? "")
@@ -58,8 +60,12 @@ struct OpenHouseEventEditView: View {
                         DatePicker("开始时间", selection: $startsAt)
                             .datePickerStyle(.compact)
 
-                        DatePicker("结束时间", selection: $endsAt)
-                            .datePickerStyle(.compact)
+                        Toggle("设置时间段", isOn: $hasTimeRange)
+
+                        if hasTimeRange {
+                            DatePicker("结束时间", selection: $endsAt)
+                                .datePickerStyle(.compact)
+                        }
 
                         EMTextField(title: "主理人", text: $host, prompt: "例如：嘉树")
                         EMTextField(title: "助手", text: $assistant, prompt: "例如：Jason")
@@ -149,7 +155,7 @@ struct OpenHouseEventEditView: View {
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 startsAt: startsAt,
-                endsAt: endsAt < startsAt ? startsAt : endsAt,
+                endsAt: hasTimeRange ? (endsAt < startsAt ? startsAt : endsAt) : nil,
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId

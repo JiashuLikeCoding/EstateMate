@@ -56,6 +56,7 @@ private struct OpenHouseEventCreateCardView: View {
     @State private var newTitle: String = ""
     @State private var location: String = ""
     @State private var startsAt: Date = Date()
+    @State private var hasTimeRange: Bool = false
     @State private var endsAt: Date = Calendar.current.date(byAdding: .hour, value: 2, to: Date()) ?? Date()
     @State private var host: String = ""
     @State private var assistant: String = ""
@@ -83,8 +84,12 @@ private struct OpenHouseEventCreateCardView: View {
             DatePicker("开始时间", selection: $startsAt)
                 .datePickerStyle(.compact)
 
-            DatePicker("结束时间", selection: $endsAt)
-                .datePickerStyle(.compact)
+            Toggle("设置时间段", isOn: $hasTimeRange)
+
+            if hasTimeRange {
+                DatePicker("结束时间", selection: $endsAt)
+                    .datePickerStyle(.compact)
+            }
 
             // 从历史活动里提取“主理人/助手”候选，方便快速选择
             let hostOptions = Array(Set(events.compactMap { $0.host?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
@@ -198,7 +203,7 @@ private struct OpenHouseEventCreateCardView: View {
                 title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
                 location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 startsAt: startsAt,
-                endsAt: endsAt < startsAt ? startsAt : endsAt,
+                endsAt: hasTimeRange ? (endsAt < startsAt ? startsAt : endsAt) : nil,
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
@@ -209,6 +214,7 @@ private struct OpenHouseEventCreateCardView: View {
             host = ""
             assistant = ""
             startsAt = Date()
+            hasTimeRange = false
             endsAt = Calendar.current.date(byAdding: .hour, value: 2, to: startsAt) ?? startsAt
             showCreated = true
             errorMessage = nil
