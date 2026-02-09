@@ -61,6 +61,7 @@ final class DynamicFormService {
         title: String,
         location: String?,
         startsAt: Date?,
+        endsAt: Date?,
         host: String?,
         assistant: String?,
         formId: UUID,
@@ -70,6 +71,7 @@ final class DynamicFormService {
             title: title,
             location: location,
             startsAt: startsAt,
+            endsAt: endsAt,
             host: host,
             assistant: assistant,
             formId: formId,
@@ -89,6 +91,7 @@ final class DynamicFormService {
         title: String,
         location: String?,
         startsAt: Date?,
+        endsAt: Date?,
         host: String?,
         assistant: String?,
         formId: UUID
@@ -98,6 +101,7 @@ final class DynamicFormService {
             title: title,
             location: location,
             startsAt: startsAt,
+            endsAt: endsAt,
             host: host,
             assistant: assistant,
             formId: formId

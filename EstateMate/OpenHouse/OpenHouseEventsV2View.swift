@@ -105,6 +105,7 @@ struct OpenHouseEventsV2View: View {
                 title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
                 location: nil,
                 startsAt: nil,
+                endsAt: nil,
                 host: nil,
                 assistant: nil,
                 formId: formId,

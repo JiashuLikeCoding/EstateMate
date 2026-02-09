@@ -56,6 +56,7 @@ private struct OpenHouseEventCreateCardView: View {
     @State private var newTitle: String = ""
     @State private var location: String = ""
     @State private var startsAt: Date = Date()
+    @State private var endsAt: Date = Calendar.current.date(byAdding: .hour, value: 2, to: Date()) ?? Date()
     @State private var host: String = ""
     @State private var assistant: String = ""
 
@@ -79,7 +80,10 @@ private struct OpenHouseEventCreateCardView: View {
             EMTextField(title: "活动标题", text: $newTitle, prompt: "例如：123 Main St - 2月10日")
             EMTextField(title: "活动地点", text: $location, prompt: "例如：123 Main St, Toronto")
 
-            DatePicker("日期与时间", selection: $startsAt)
+            DatePicker("开始时间", selection: $startsAt)
+                .datePickerStyle(.compact)
+
+            DatePicker("结束时间", selection: $endsAt)
                 .datePickerStyle(.compact)
 
             // 从历史活动里提取“主理人/助手”候选，方便快速选择
@@ -194,6 +198,7 @@ private struct OpenHouseEventCreateCardView: View {
                 title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
                 location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 startsAt: startsAt,
+                endsAt: endsAt < startsAt ? startsAt : endsAt,
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
@@ -204,6 +209,7 @@ private struct OpenHouseEventCreateCardView: View {
             host = ""
             assistant = ""
             startsAt = Date()
+            endsAt = Calendar.current.date(byAdding: .hour, value: 2, to: startsAt) ?? startsAt
             showCreated = true
             errorMessage = nil
         } catch {

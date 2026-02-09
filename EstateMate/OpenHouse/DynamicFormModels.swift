@@ -113,6 +113,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
     var title: String
     var location: String?
     var startsAt: Date?
+    var endsAt: Date?
     var host: String?
     var assistant: String?
 
@@ -126,6 +127,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
         case title
         case location
         case startsAt = "starts_at"
+        case endsAt = "ends_at"
         case host
         case assistant
         case formId = "form_id"
@@ -138,6 +140,7 @@ struct OpenHouseEventInsertV2: Encodable {
     var title: String
     var location: String?
     var startsAt: Date?
+    var endsAt: Date?
     var host: String?
     var assistant: String?
 
@@ -148,6 +151,7 @@ struct OpenHouseEventInsertV2: Encodable {
         case title
         case location
         case startsAt = "starts_at"
+        case endsAt = "ends_at"
         case host
         case assistant
         case formId = "form_id"
@@ -159,6 +163,7 @@ struct OpenHouseEventUpdateV2: Encodable {
     var title: String
     var location: String?
     var startsAt: Date?
+    var endsAt: Date?
     var host: String?
     var assistant: String?
     var formId: UUID
@@ -167,6 +172,7 @@ struct OpenHouseEventUpdateV2: Encodable {
         case title
         case location
         case startsAt = "starts_at"
+        case endsAt = "ends_at"
         case host
         case assistant
         case formId = "form_id"

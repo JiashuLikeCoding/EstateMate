@@ -18,6 +18,7 @@ create table if not exists public.openhouse_events (
   title text not null,
   location text,
   starts_at timestamptz,
+  ends_at timestamptz,
   host text,
   assistant text,
   form_id uuid not null references public.forms(id) on delete restrict,
@@ -31,6 +32,9 @@ alter table public.openhouse_events
 
 alter table public.openhouse_events
   add column if not exists starts_at timestamptz;
+
+alter table public.openhouse_events
+  add column if not exists ends_at timestamptz;
 
 alter table public.openhouse_events
   add column if not exists host text;
