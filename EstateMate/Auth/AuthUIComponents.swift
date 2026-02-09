@@ -19,7 +19,7 @@ struct AuthBackground: View {
         )
         .overlay(
             RadialGradient(
-                colors: [Color(red: 0.35, green: 0.18, blue: 0.70).opacity(0.18), .clear],
+                colors: [Color(red: 0.08, green: 0.75, blue: 0.62).opacity(0.18), .clear],
                 center: .topTrailing,
                 startRadius: 20,
                 endRadius: 420
@@ -102,7 +102,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isDisabled ? Color.gray.opacity(0.30) : Color(red: 0.39, green: 0.33, blue: 0.98))
+                    .fill(isDisabled ? Color.gray.opacity(0.30) : Color(red: 0.10, green: 0.78, blue: 0.66))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
