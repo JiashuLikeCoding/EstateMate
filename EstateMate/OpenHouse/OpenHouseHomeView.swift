@@ -58,9 +58,9 @@ struct OpenHouseHomeView: View {
                                 .font(.headline)
 
                             NavigationLink {
-                                OpenHouseGuestModeV2View()
+                                OpenHouseGuestFlowView()
                             } label: {
-                                row(title: "访客模式", subtitle: "现场给客人填写，提交后自动清空")
+                                row(title: "访客模式", subtitle: "选择活动 → 预览表单 → 开始活动")
                             }
                         }
 
