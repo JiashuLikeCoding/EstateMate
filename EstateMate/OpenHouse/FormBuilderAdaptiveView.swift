@@ -297,9 +297,10 @@ private struct FormBuilderSplitView: View {
 private struct FormBuilderDrawerView: View {
     @StateObject private var state = FormBuilderState()
 
-    enum Sheet {
+    enum Sheet: String, Identifiable {
         case palette
         case properties
+        var id: String { rawValue }
     }
 
     @State private var sheet: Sheet? = nil
@@ -333,17 +334,8 @@ private struct FormBuilderDrawerView: View {
                     .opacity(state.selectedFieldKey == nil ? 0.4 : 1)
                 }
             }
-            .sheet(item: Binding(
-                get: {
-                    switch sheet {
-                    case .palette: return SheetItem(kind: .palette)
-                    case .properties: return SheetItem(kind: .properties)
-                    case .none: return nil
-                    }
-                },
-                set: { _ in sheet = nil }
-            )) { item in
-                switch item.kind {
+            .sheet(item: $sheet) { kind in
+                switch kind {
                 case .palette:
                     EMScreen("字段库") {
                         paletteList
@@ -365,7 +357,7 @@ private struct FormBuilderDrawerView: View {
     private var paletteList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                EMSectionHeader("基础字段", subtitle: "点击添加到画布")
+                EMSectionHeader("字段库", subtitle: "点击添加到表单")
 
                 EMCard {
                     palettePresetRow(title: "姓名", systemImage: "person", presetKey: "name", type: .name, required: false)
@@ -386,11 +378,8 @@ private struct FormBuilderDrawerView: View {
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
             state.startDraft(type: type)
-            // Jump into detailed settings (user will Add/Cancel there).
-            sheet = nil
-            DispatchQueue.main.async {
-                sheet = .properties
-            }
+            // Switch to properties in the same sheet (no dismiss/reopen).
+            sheet = .properties
         } label: {
             paletteRowBody(title: title, systemImage: systemImage)
         }
@@ -400,10 +389,8 @@ private struct FormBuilderDrawerView: View {
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         Button {
             state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
-            sheet = nil
-            DispatchQueue.main.async {
-                sheet = .properties
-            }
+            // Switch to properties in the same sheet (no dismiss/reopen).
+            sheet = .properties
         } label: {
             paletteRowBody(title: title, systemImage: systemImage)
         }
@@ -426,9 +413,4 @@ private struct FormBuilderDrawerView: View {
         .contentShape(Rectangle())
     }
 
-    private struct SheetItem: Identifiable {
-        enum Kind { case palette, properties }
-        let id = UUID()
-        let kind: Kind
-    }
 }
