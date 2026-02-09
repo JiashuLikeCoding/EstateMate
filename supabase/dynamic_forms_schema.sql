@@ -37,46 +37,55 @@ alter table public.openhouse_events enable row level security;
 alter table public.openhouse_submissions enable row level security;
 
 -- FORMS: authenticated user can manage their own
-create policy if not exists forms_select_own
+-- Postgres doesn't support CREATE POLICY IF NOT EXISTS, so we drop then create.
+drop policy if exists forms_select_own on public.forms;
+create policy forms_select_own
 on public.forms for select
 to authenticated
 using (owner_id = auth.uid());
 
-create policy if not exists forms_insert_own
+drop policy if exists forms_insert_own on public.forms;
+create policy forms_insert_own
 on public.forms for insert
 to authenticated
 with check (owner_id = auth.uid());
 
-create policy if not exists forms_update_own
+drop policy if exists forms_update_own on public.forms;
+create policy forms_update_own
 on public.forms for update
 to authenticated
 using (owner_id = auth.uid())
 with check (owner_id = auth.uid());
 
 -- EVENTS: authenticated user can manage their own
-create policy if not exists events_select_own_v2
+drop policy if exists events_select_own_v2 on public.openhouse_events;
+create policy events_select_own_v2
 on public.openhouse_events for select
 to authenticated
 using (owner_id = auth.uid());
 
-create policy if not exists events_insert_own_v2
+drop policy if exists events_insert_own_v2 on public.openhouse_events;
+create policy events_insert_own_v2
 on public.openhouse_events for insert
 to authenticated
 with check (owner_id = auth.uid());
 
-create policy if not exists events_update_own_v2
+drop policy if exists events_update_own_v2 on public.openhouse_events;
+create policy events_update_own_v2
 on public.openhouse_events for update
 to authenticated
 using (owner_id = auth.uid())
 with check (owner_id = auth.uid());
 
 -- SUBMISSIONS: kiosk runs under logged-in user; enforce owner_id = auth.uid()
-create policy if not exists subs_select_own_v2
+drop policy if exists subs_select_own_v2 on public.openhouse_submissions;
+create policy subs_select_own_v2
 on public.openhouse_submissions for select
 to authenticated
 using (owner_id = auth.uid());
 
-create policy if not exists subs_insert_own_v2
+drop policy if exists subs_insert_own_v2 on public.openhouse_submissions;
+create policy subs_insert_own_v2
 on public.openhouse_submissions for insert
 to authenticated
 with check (owner_id = auth.uid());
