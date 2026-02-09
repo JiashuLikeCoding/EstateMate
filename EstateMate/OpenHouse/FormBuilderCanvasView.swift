@@ -86,6 +86,7 @@ struct FormBuilderCanvasView: View {
 
     private func summary(_ f: FormField) -> String {
         let type: String = switch f.type {
+        case .name: "姓名"
         case .text: "文本"
         case .phone: "手机号"
         case .email: "邮箱"
