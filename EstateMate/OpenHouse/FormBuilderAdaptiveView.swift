@@ -35,6 +35,9 @@ final class FormBuilderState: ObservableObject {
     @Published var fields: [FormField] = []
     @Published var selectedFieldKey: String? = nil
 
+    /// When adding a new field, we stage it here so user can confirm Add/Cancel.
+    @Published var draftField: FormField? = nil
+
     @Published var errorMessage: String? = nil
     @Published var isSaving: Bool = false
 
@@ -47,7 +50,7 @@ final class FormBuilderState: ObservableObject {
         ]
     }
 
-    func addField(type: FormFieldType) {
+    func startDraft(type: FormFieldType) {
         let baseLabel: String
         switch type {
         case .text: baseLabel = "文本"
@@ -60,8 +63,18 @@ final class FormBuilderState: ObservableObject {
         let key = makeKey(from: label)
         let options: [String]? = (type == .select) ? ["选项 1", "选项 2"] : nil
 
-        fields.append(.init(key: key, label: label, type: type, required: false, options: options))
-        selectedFieldKey = key
+        draftField = .init(key: key, label: label, type: type, required: false, options: options)
+    }
+
+    func confirmDraft() {
+        guard let draftField else { return }
+        fields.append(draftField)
+        selectedFieldKey = draftField.key
+        self.draftField = nil
+    }
+
+    func cancelDraft() {
+        draftField = nil
     }
 
     func deleteSelectedIfPossible() {
@@ -152,7 +165,7 @@ private struct FormBuilderSplitView: View {
 
     private func paletteCard(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
-            state.addField(type: type)
+            state.startDraft(type: type)
         } label: {
             VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: systemImage)
@@ -296,8 +309,8 @@ private struct FormBuilderDrawerView: View {
 
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
-            state.addField(type: type)
-            // After adding, jump straight into detailed settings.
+            state.startDraft(type: type)
+            // Jump into detailed settings (user will Add/Cancel there).
             sheet = nil
             DispatchQueue.main.async {
                 sheet = .properties
