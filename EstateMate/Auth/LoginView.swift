@@ -51,7 +51,7 @@ struct LoginView: View {
                             Divider().overlay(Color.white.opacity(0.12))
 
                             VStack(spacing: 10) {
-                                Text("或使用")
+                                Text("或者")
                                     .font(.caption)
                                     .foregroundStyle(Color.white.opacity(0.65))
                                     .frame(maxWidth: .infinity)

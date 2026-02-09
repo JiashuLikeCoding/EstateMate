@@ -15,15 +15,15 @@ enum Workspace: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .openHouse: return "OpenHouse"
-        case .crm: return "CRM"
+        case .openHouse: return "开放日"
+        case .crm: return "客户管理"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .openHouse: return "Guest-facing experience"
-        case .crm: return "Internal management"
+        case .openHouse: return "现场接待与登记"
+        case .crm: return "内部管理与数据查看"
         }
     }
 }

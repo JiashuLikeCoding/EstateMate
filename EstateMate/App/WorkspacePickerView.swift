@@ -17,10 +17,10 @@ struct WorkspacePickerView: View {
 
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Choose a workspace")
+                        Text("选择系统")
                             .font(.largeTitle.bold())
                             .foregroundStyle(.white)
-                        Text("You can switch by signing out and signing in again.")
+                        Text("如需切换，请退出登录后重新登录再选择。")
                             .font(.subheadline)
                             .foregroundStyle(Color.white.opacity(0.72))
                     }
@@ -54,11 +54,12 @@ struct WorkspacePickerView: View {
                         Button {
                             Task { await sessionStore.signOut() }
                         } label: {
-                            Text("Sign out")
+                            Text("退出登录")
                                 .frame(maxWidth: .infinity)
                         }
                         .padding(.top, 8)
                         .buttonStyle(SecondaryButtonStyle())
+                        .foregroundStyle(.red)
                     }
                 }
                 .padding(.horizontal, 20)

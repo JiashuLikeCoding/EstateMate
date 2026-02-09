@@ -43,17 +43,41 @@ struct CRMHomeView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("CRM")
-                    .font(.title.bold())
-                Text("Internal management (placeholder)")
-                    .foregroundStyle(.secondary)
+            ZStack {
+                AuthBackground()
 
-                Button("Sign out") {
-                    Task { await sessionStore.signOut() }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("客户管理")
+                                .font(.largeTitle.bold())
+                                .foregroundStyle(.white)
+                            Text("内部管理（占位页：后续加线索/房源/任务/设置）")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.white.opacity(0.72))
+                        }
+
+                        AuthCard {
+                            Text("CRM 模块开发中…")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button {
+                                Task { await sessionStore.signOut() }
+                            } label: {
+                                Text("退出登录")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(SecondaryButtonStyle())
+                            .foregroundStyle(.red)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 40)
+                    .padding(.bottom, 30)
                 }
             }
-            .padding()
+            .navigationBarHidden(true)
         }
     }
 }
