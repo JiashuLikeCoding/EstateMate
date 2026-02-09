@@ -359,8 +359,14 @@ private struct FormBuilderDrawerView: View {
                     }
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Button("关闭") { isSheetPresented = false }
-                                .foregroundStyle(EMTheme.ink2)
+                            Button(mode == .properties ? "返回" : "关闭") {
+                                if mode == .properties {
+                                    mode = .palette
+                                } else {
+                                    isSheetPresented = false
+                                }
+                            }
+                            .foregroundStyle(EMTheme.ink2)
                         }
                     }
                 }
