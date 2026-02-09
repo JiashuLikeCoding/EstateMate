@@ -163,4 +163,15 @@ final class DynamicFormService {
             .execute()
             .value
     }
+
+    func listSubmissions(eventId: UUID) async throws -> [SubmissionV2] {
+        try await client
+            .from("openhouse_submissions")
+            .select()
+            .eq("event_id", value: eventId.uuidString)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
 }
+

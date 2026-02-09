@@ -13,7 +13,7 @@ struct OpenHouseHomeView: View {
             EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        EMSectionHeader("开放日", subtitle: "创建表单、创建活动、开启访客填写模式")
+                        EMSectionHeader("开放日", subtitle: "创建表单、创建活动、开始现场填写")
 
                         EMCard {
                             Text("活动")
@@ -53,16 +53,30 @@ struct OpenHouseHomeView: View {
                             }
                         }
 
-                        EMCard {
-                            Text("现场")
-                                .font(.headline)
-
-                            NavigationLink {
-                                OpenHouseGuestFlowView()
-                            } label: {
-                                row(title: "访客模式", subtitle: "选择活动 → 预览表单 → 开始活动")
+                        NavigationLink {
+                            OpenHouseStartActivityView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "play.circle.fill")
+                                    .foregroundStyle(EMTheme.accent)
+                                Text("开始活动")
+                                    .font(.headline)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(EMTheme.ink2)
                             }
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                                    .fill(EMTheme.paper2)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
                         }
+                        .buttonStyle(.plain)
 
                         Button {
                             Task { await sessionStore.signOut() }

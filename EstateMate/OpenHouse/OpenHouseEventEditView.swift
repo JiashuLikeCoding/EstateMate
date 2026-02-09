@@ -32,6 +32,8 @@ struct OpenHouseEventEditView: View {
 
     @State private var showSaved = false
 
+    @State private var showEndEarlyConfirm = false
+
     @State private var isFillingLocation = false
     @State private var locationErrorMessage: String?
     @State private var showLocationError = false
@@ -88,6 +90,21 @@ struct OpenHouseEventEditView: View {
                         if hasTimeRange {
                             DatePicker("结束时间", selection: $endsAt)
                                 .datePickerStyle(.compact)
+
+                            if canEndEarly {
+                                Button("提前结束活动") {
+                                    showEndEarlyConfirm = true
+                                }
+                                .buttonStyle(EMDangerButtonStyle())
+                                .alert("确认提前结束？", isPresented: $showEndEarlyConfirm) {
+                                    Button("取消", role: .cancel) {}
+                                    Button("结束活动", role: .destructive) {
+                                        Task { await endEarly() }
+                                    }
+                                } message: {
+                                    Text("将结束时间设置为当前时间，并把活动移动到“已结束”。")
+                                }
+                            }
                         }
 
                         EMTextField(title: "主理人", text: $host, prompt: "例如：嘉树")
@@ -178,6 +195,11 @@ struct OpenHouseEventEditView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedFormId != nil
     }
 
+    private var canEndEarly: Bool {
+        // Only show when event has a time range and is not yet ended.
+        hasTimeRange && endsAt > Date()
+    }
+
     private var selectedFormName: String {
         guard let selectedFormId else { return "请选择..." }
         return forms.first(where: { $0.id == selectedFormId })?.name ?? "请选择..."
@@ -224,6 +246,33 @@ struct OpenHouseEventEditView: View {
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId
             )
+            errorMessage = nil
+            showSaved = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func endEarly() async {
+        guard let formId = selectedFormId else { return }
+        let now = Date()
+        let end = max(startsAt, now)
+
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            _ = try await service.updateEvent(
+                id: event.id,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                endsAt: end,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                formId: formId
+            )
+            endsAt = end
+            hasTimeRange = true
             errorMessage = nil
             showSaved = true
         } catch {

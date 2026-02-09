@@ -10,6 +10,7 @@
 
 import SwiftUI
 
+@available(*, deprecated, message: "Use OpenHouseStartActivityView instead")
 struct OpenHouseGuestFlowView: View {
     var body: some View {
         NavigationStack {
@@ -116,6 +117,10 @@ private struct OpenHouseEventPreviewView: View {
 
     @State private var showKiosk = false
 
+    @State private var password = ""
+    @State private var showSetPassword = false
+    @State private var passwordDraft = ""
+
     var body: some View {
         EMScreen("活动预览") {
             ZStack {
@@ -154,7 +159,8 @@ private struct OpenHouseEventPreviewView: View {
                             }
 
                             Button("开始活动") {
-                                showKiosk = true
+                                passwordDraft = ""
+                                showSetPassword = true
                             }
                             .buttonStyle(EMPrimaryButtonStyle(disabled: false))
                         } else {
@@ -175,9 +181,24 @@ private struct OpenHouseEventPreviewView: View {
             }
         }
         .task { await load() }
+        .alert("设置密码", isPresented: $showSetPassword) {
+            SecureField("密码", text: $passwordDraft)
+            Button("开始") {
+                password = passwordDraft
+                passwordDraft = ""
+                showKiosk = true
+            }
+            Button("取消", role: .cancel) {
+                passwordDraft = ""
+            }
+        } message: {
+            Text("开始活动前需要输入一个密码。返回或查看已提交列表时也需要此密码。")
+        }
         .fullScreenCover(isPresented: $showKiosk) {
-            NavigationStack {
-                OpenHouseKioskFillView(event: event, form: form)
+            if let form {
+                NavigationStack {
+                    OpenHouseKioskFillView(event: event, form: form, password: password)
+                }
             }
         }
     }
@@ -204,13 +225,14 @@ private struct OpenHouseEventPreviewView: View {
     }
 }
 
-private struct OpenHouseKioskFillView: View {
+struct OpenHouseKioskFillView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
 
     let event: OpenHouseEventV2
-    let form: FormRecord?
+    let form: FormRecord
+    let password: String
 
     @State private var values: [String: String] = [:]
     @State private var submittedCount = 0
@@ -218,69 +240,119 @@ private struct OpenHouseKioskFillView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    @State private var showPasswordCheck = false
+    @State private var passwordCheckDraft = ""
+    @State private var pendingAction: PendingAction?
+
+    @State private var showSubmissions = false
+
+    private enum PendingAction {
+        case back
+        case submissions
+    }
+
     var body: some View {
         EMScreen(nil) {
-            if let form {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text(event.title)
-                                .font(.title3.weight(.semibold))
-                            Spacer()
-                            Text("已提交：\(submittedCount)")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text(event.title)
+                            .font(.title3.weight(.semibold))
+                        Spacer()
+                        Text("已提交：\(submittedCount)")
+                            .font(.footnote)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
 
-                        EMCard {
-                            VStack(spacing: 12) {
-                                ForEach(form.schema.fields) { field in
-                                    fieldRow(field)
-                                }
+                    EMCard {
+                        VStack(spacing: 12) {
+                            ForEach(form.schema.fields) { field in
+                                fieldRow(field)
                             }
                         }
-
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.callout)
-                                .foregroundStyle(.red)
-                        }
-
-                        Button(isLoading ? "提交中..." : "提交") {
-                            Task { await submit(eventId: event.id, form: form) }
-                        }
-                        .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSubmit(form: form)))
-                        .disabled(isLoading || !canSubmit(form: form))
-
-                        Button("结束活动") {
-                            dismiss()
-                        }
-                        .buttonStyle(EMSecondaryButtonStyle())
-
-                        Spacer(minLength: 20)
                     }
-                    .padding(EMTheme.padding)
-                }
-            } else {
-                VStack(spacing: 10) {
-                    Text("无法加载表单")
-                        .font(.headline)
-                    Button("返回") { dismiss() }
-                        .buttonStyle(EMSecondaryButtonStyle())
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                    }
+
+                    Button(isLoading ? "提交中..." : "提交") {
+                        Task { await submit(eventId: event.id, form: form) }
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSubmit(form: form)))
+                    .disabled(isLoading || !canSubmit(form: form))
+
+                    Spacer(minLength: 20)
                 }
                 .padding(EMTheme.padding)
             }
         }
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("返回") { dismiss() }
-                    .foregroundStyle(EMTheme.ink2)
+                Button("返回") {
+                    pendingAction = .back
+                    showPasswordCheck = true
+                }
+                .foregroundStyle(EMTheme.ink2)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    pendingAction = .submissions
+                    showPasswordCheck = true
+                } label: {
+                    Image(systemName: "list.bullet.rectangle")
+                        .foregroundStyle(EMTheme.ink)
+                }
+                .accessibilityLabel("已提交列表")
             }
         }
         .overlay {
             if isLoading {
                 ProgressView()
             }
+        }
+        .alert("输入密码", isPresented: $showPasswordCheck) {
+            SecureField("密码", text: $passwordCheckDraft)
+            Button("确认") {
+                verifyPasswordAndContinue()
+            }
+            Button("取消", role: .cancel) {
+                passwordCheckDraft = ""
+                pendingAction = nil
+            }
+        } message: {
+            Text("返回或查看已提交列表需要输入密码。")
+        }
+        .sheet(isPresented: $showSubmissions) {
+            NavigationStack {
+                OpenHouseSubmissionsListView(event: event)
+            }
+        }
+    }
+
+    private func verifyPasswordAndContinue() {
+        let ok = passwordCheckDraft == password
+        passwordCheckDraft = ""
+
+        guard ok else {
+            errorMessage = "密码错误"
+            pendingAction = nil
+            return
+        }
+
+        errorMessage = nil
+        switch pendingAction {
+        case .back:
+            pendingAction = nil
+            dismiss()
+        case .submissions:
+            pendingAction = nil
+            showSubmissions = true
+        case .none:
+            break
         }
     }
 
