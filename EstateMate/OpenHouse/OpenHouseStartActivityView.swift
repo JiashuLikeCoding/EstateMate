@@ -12,7 +12,6 @@ import SwiftUI
 struct OpenHouseStartActivityView: View {
     private let service = DynamicFormService()
 
-    @State private var activeEvent: OpenHouseEventV2?
     @State private var events: [OpenHouseEventV2] = []
 
     @State private var isLoading = false
@@ -33,7 +32,7 @@ struct OpenHouseStartActivityView: View {
             ZStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        EMSectionHeader("准备开始活动", subtitle: "选择活动并设置密码后进入现场填写")
+                        EMSectionHeader("选择活动", subtitle: "先选择活动，再点击“开始活动”进入现场填写")
 
                         if let errorMessage {
                             Text(errorMessage)
@@ -41,15 +40,60 @@ struct OpenHouseStartActivityView: View {
                                 .foregroundStyle(.red)
                         }
 
-                        if let activeEvent, isOngoing(activeEvent) {
-                            EMCard {
-                                Text("进行中的活动")
-                                    .font(.headline)
+                        EMCard {
+                            Text("活动列表")
+                                .font(.headline)
 
+                            if isLoading {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                            } else if events.isEmpty {
+                                Text("暂无活动")
+                                    .foregroundStyle(EMTheme.ink2)
+                                    .padding(.vertical, 10)
+                            } else {
+                                VStack(spacing: 0) {
+                                    ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
+                                        Button {
+                                            selectedEvent = e
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                Image(systemName: selectedEvent?.id == e.id ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundStyle(selectedEvent?.id == e.id ? EMTheme.accent : EMTheme.ink2)
+
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(e.title)
+                                                        .font(.headline)
+                                                        .foregroundStyle(EMTheme.ink)
+                                                    Text(eventSubtitle(e))
+                                                        .font(.caption)
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                }
+
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 10)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        if idx != events.count - 1 {
+                                            Divider().overlay(EMTheme.line)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        EMCard {
+                            Text("开始")
+                                .font(.headline)
+
+                            if let selectedEvent {
                                 VStack(alignment: .leading, spacing: 6) {
-                                    Text(activeEvent.title)
+                                    Text(selectedEvent.title)
                                         .font(.title3.weight(.semibold))
-                                    if let location = activeEvent.location?.nilIfBlank {
+                                    if let location = selectedEvent.location?.nilIfBlank {
                                         Text(location)
                                             .font(.footnote)
                                             .foregroundStyle(EMTheme.ink2)
@@ -59,59 +103,25 @@ struct OpenHouseStartActivityView: View {
                                 Divider().overlay(EMTheme.line)
 
                                 Button("开始活动") {
-                                    Task { await start(event: activeEvent) }
+                                    Task { await startSelectedEvent() }
                                 }
-                                .buttonStyle(EMPrimaryButtonStyle(disabled: false))
-                            }
-                        } else {
-                            EMCard {
-                                Text("选择活动")
-                                    .font(.headline)
+                                .buttonStyle(EMPrimaryButtonStyle(disabled: !canStart(selectedEvent)))
+                                .disabled(!canStart(selectedEvent))
 
-                                if isLoading {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                } else if events.isEmpty {
-                                    Text("暂无可开始的活动")
+                                if !canStart(selectedEvent) {
+                                    Text("该活动尚未开始或已结束，暂时不能开始。")
+                                        .font(.footnote)
                                         .foregroundStyle(EMTheme.ink2)
-                                        .padding(.vertical, 10)
-                                } else {
-                                    VStack(spacing: 0) {
-                                        ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
-                                            Button {
-                                                Task { await start(event: e) }
-                                            } label: {
-                                                HStack {
-                                                    VStack(alignment: .leading, spacing: 4) {
-                                                        Text(e.title)
-                                                            .font(.headline)
-                                                            .foregroundStyle(EMTheme.ink)
-                                                        Text(eventSubtitle(e))
-                                                            .font(.caption)
-                                                            .foregroundStyle(EMTheme.ink2)
-                                                    }
-                                                    Spacer()
-                                                    Image(systemName: "chevron.right")
-                                                        .foregroundStyle(EMTheme.ink2)
-                                                }
-                                                .padding(.vertical, 10)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .disabled(!canStart(e))
-                                            .opacity(canStart(e) ? 1 : 0.45)
-
-                                            if idx != events.count - 1 {
-                                                Divider().overlay(EMTheme.line)
-                                            }
-                                        }
-                                    }
                                 }
-                            }
+                            } else {
+                                Text("请先在上方选择一个活动")
+                                    .foregroundStyle(EMTheme.ink2)
+                                    .padding(.vertical, 6)
 
-                            Text("提示：只能开始“未结束且已开始”的活动。")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
+                                Button("开始活动") {}
+                                    .buttonStyle(EMPrimaryButtonStyle(disabled: true))
+                                    .disabled(true)
+                            }
                         }
 
                         Spacer(minLength: 20)
@@ -135,7 +145,6 @@ struct OpenHouseStartActivityView: View {
             }
             Button("取消", role: .cancel) {
                 passwordDraft = ""
-                selectedEvent = nil
                 selectedForm = nil
             }
         } message: {
@@ -147,7 +156,6 @@ struct OpenHouseStartActivityView: View {
                     OpenHouseKioskFillView(event: event, form: form, password: password)
                 }
             } else {
-                // Defensive: should never happen.
                 Text("无法开始活动")
                     .padding()
             }
@@ -158,19 +166,22 @@ struct OpenHouseStartActivityView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            activeEvent = try await service.getActiveEvent()
             let all = try await service.listEvents()
-            // Only show events that are not ended; and prefer started ones.
             let now = Date()
             events = all
                 .filter { !isEnded($0, now: now) }
                 .sorted { (a, b) in
-                    // Started first
+                    // started first, then newest
                     let aStarted = (a.startsAt ?? .distantPast) <= now
                     let bStarted = (b.startsAt ?? .distantPast) <= now
                     if aStarted != bStarted { return aStarted && !bStarted }
                     return (a.createdAt ?? .distantPast) > (b.createdAt ?? .distantPast)
                 }
+
+            // keep selection if still exists
+            if let selectedId = selectedEvent?.id {
+                selectedEvent = events.first(where: { $0.id == selectedId })
+            }
 
             errorMessage = nil
         } catch {
@@ -178,7 +189,11 @@ struct OpenHouseStartActivityView: View {
         }
     }
 
-    private func start(event: OpenHouseEventV2) async {
+    private func startSelectedEvent() async {
+        guard let event = selectedEvent else {
+            errorMessage = "请先选择活动。"
+            return
+        }
         guard canStart(event) else {
             errorMessage = "该活动尚未开始或已结束，无法开始。"
             return
@@ -187,15 +202,12 @@ struct OpenHouseStartActivityView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            selectedEvent = event
             selectedForm = try await service.getForm(id: event.formId)
             errorMessage = nil
-
             passwordDraft = ""
             showSetPassword = true
         } catch {
             errorMessage = error.localizedDescription
-            selectedEvent = nil
             selectedForm = nil
         }
     }
@@ -207,14 +219,7 @@ struct OpenHouseStartActivityView: View {
         return false
     }
 
-    private func isOngoing(_ e: OpenHouseEventV2, now: Date = Date()) -> Bool {
-        if isEnded(e, now: now) { return false }
-        if let startsAt = e.startsAt, startsAt > now { return false }
-        return true
-    }
-
     private func canStart(_ e: OpenHouseEventV2, now: Date = Date()) -> Bool {
-        // Must not be ended, and must not be in the future.
         if isEnded(e, now: now) { return false }
         if let startsAt = e.startsAt, startsAt > now { return false }
         return true
