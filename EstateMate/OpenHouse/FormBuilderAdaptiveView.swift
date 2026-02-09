@@ -73,7 +73,7 @@ final class FormBuilderState: ObservableObject {
 
         let (nameFormat, nameKeys): (NameFormat?, [String]?) = {
             guard type == .name else { return (nil, nil) }
-            let f: NameFormat = .fullName
+            let f: NameFormat = .firstLast
             let keys = makeUniqueNameKeys(for: f)
             return (f, keys)
         }()

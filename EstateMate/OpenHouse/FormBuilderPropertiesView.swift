@@ -108,28 +108,37 @@ struct FormBuilderPropertiesView: View {
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
 
-                Picker("姓名格式", selection: Binding(
-                    get: { binding.wrappedValue.nameFormat ?? .fullName },
-                    set: { newValue in
-                        binding.wrappedValue.nameFormat = newValue
-                        // Generate default keys if missing or mismatched count.
-                        let base: [String]
-                        switch newValue {
-                        case .fullName: base = ["full_name"]
-                        case .firstLast: base = ["first_name", "last_name"]
-                        case .firstMiddleLast: base = ["first_name", "middle_name", "last_name"]
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("姓名格式")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    Picker("姓名格式", selection: Binding(
+                        get: { binding.wrappedValue.nameFormat ?? .firstLast },
+                        set: { newValue in
+                            binding.wrappedValue.nameFormat = newValue
+                            // Generate default keys if missing or mismatched count.
+                            let base: [String]
+                            switch newValue {
+                            case .firstLast: base = ["first_name", "last_name"]
+                            case .fullName: base = ["full_name"]
+                            case .firstMiddleLast: base = ["first_name", "middle_name", "last_name"]
+                            }
+                            if (binding.wrappedValue.nameKeys ?? []).count != base.count {
+                                binding.wrappedValue.nameKeys = base
+                            }
                         }
-                        // Keep existing keys when possible, otherwise re-init.
-                        if (binding.wrappedValue.nameKeys ?? []).count != base.count {
-                            binding.wrappedValue.nameKeys = base
-                        }
+                    )) {
+                        Text("名+姓").tag(NameFormat.firstLast)
+                        Text("Full Name").tag(NameFormat.fullName)
+                        Text("带中间名").tag(NameFormat.firstMiddleLast)
                     }
-                )) {
-                    ForEach(NameFormat.allCases, id: \.self) { f in
-                        Text(f.title).tag(f)
-                    }
+                    .pickerStyle(.segmented)
+
+                    Text("默认：名 + 姓")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
                 }
-                .pickerStyle(.menu)
 
                 Text("提示：姓名字段会拆分为多个输入框，并分别存储。")
                     .font(.footnote)

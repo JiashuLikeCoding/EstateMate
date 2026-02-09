@@ -88,13 +88,13 @@ struct OpenHouseGuestModeV2View: View {
 
                     HStack(spacing: 12) {
                         if keys.indices.contains(0) {
-                            TextField("First", text: binding(for: keys[0], field: field))
+                            TextField("名", text: binding(for: keys[0], field: field))
                         }
                         if keys.indices.contains(1) {
-                            TextField(keys.count == 2 ? "Last" : "Middle", text: binding(for: keys[1], field: field))
+                            TextField(keys.count == 2 ? "姓" : "中间名", text: binding(for: keys[1], field: field))
                         }
                         if keys.indices.contains(2) {
-                            TextField("Last", text: binding(for: keys[2], field: field))
+                            TextField("姓", text: binding(for: keys[2], field: field))
                         }
                     }
                 }
