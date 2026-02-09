@@ -63,7 +63,7 @@ final class FormBuilderState: ObservableObject {
         let key = makeKey(from: label)
         let options: [String]? = (type == .select) ? ["选项 1", "选项 2"] : nil
 
-        draftField = .init(key: key, label: label, type: type, required: false, options: options)
+        draftField = .init(key: key, label: label, type: type, required: false, options: options, textCase: type == .text ? .none : nil)
     }
 
     func confirmDraft() {

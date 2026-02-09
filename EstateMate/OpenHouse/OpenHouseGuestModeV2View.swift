@@ -77,17 +77,17 @@ struct OpenHouseGuestModeV2View: View {
     private func fieldRow(_ field: FormField) -> some View {
         switch field.type {
         case .text:
-            TextField(field.label, text: binding(for: field.key))
+            TextField(field.label, text: binding(for: field.key, field: field))
         case .phone:
-            TextField(field.label, text: binding(for: field.key))
+            TextField(field.label, text: binding(for: field.key, field: field))
                 .keyboardType(.phonePad)
         case .email:
-            TextField(field.label, text: binding(for: field.key))
+            TextField(field.label, text: binding(for: field.key, field: field))
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled(true)
         case .select:
-            Picker(field.label, selection: binding(for: field.key)) {
+            Picker(field.label, selection: binding(for: field.key, field: field)) {
                 Text("请选择...").tag("")
                 ForEach(field.options ?? [], id: \.self) { opt in
                     Text(opt).tag(opt)
@@ -96,10 +96,23 @@ struct OpenHouseGuestModeV2View: View {
         }
     }
 
-    private func binding(for key: String) -> Binding<String> {
+    private func binding(for key: String, field: FormField? = nil) -> Binding<String> {
         Binding(
             get: { values[key, default: ""] },
-            set: { values[key] = $0 }
+            set: { newValue in
+                if let field, field.type == .text {
+                    switch field.textCase ?? .none {
+                    case .none:
+                        values[key] = newValue
+                    case .upper:
+                        values[key] = newValue.uppercased()
+                    case .lower:
+                        values[key] = newValue.lowercased()
+                    }
+                } else {
+                    values[key] = newValue
+                }
+            }
         )
     }
 

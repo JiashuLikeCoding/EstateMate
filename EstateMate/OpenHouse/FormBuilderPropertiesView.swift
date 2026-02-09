@@ -88,7 +88,7 @@ struct FormBuilderPropertiesView: View {
 
     private func fieldCard(binding: Binding<FormField>) -> some View {
         EMCard {
-            EMTextField(title: "字段标题", text: binding.label)
+            EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
 
             Toggle("必填", isOn: binding.required)
                 .tint(EMTheme.accent)
@@ -100,6 +100,20 @@ struct FormBuilderPropertiesView: View {
                 Text("单选").tag(FormFieldType.select)
             }
             .pickerStyle(.menu)
+
+            if binding.wrappedValue.type == .text {
+                Divider().overlay(EMTheme.line)
+
+                Picker("文本格式", selection: Binding(
+                    get: { binding.wrappedValue.textCase ?? .none },
+                    set: { binding.wrappedValue.textCase = $0 }
+                )) {
+                    ForEach(TextCase.allCases, id: \.self) { tc in
+                        Text(tc.title).tag(tc)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
 
             if binding.wrappedValue.type == .select {
                 Divider().overlay(EMTheme.line)

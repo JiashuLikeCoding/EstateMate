@@ -75,6 +75,7 @@ struct EMSectionHeader: View {
 struct EMTextField: View {
     let title: String
     var text: Binding<String>
+    var prompt: String? = nil
     var keyboard: UIKeyboardType = .default
     var isSecure: Bool = false
 
@@ -86,12 +87,12 @@ struct EMTextField: View {
 
             Group {
                 if isSecure {
-                    SecureField("", text: text)
+                    SecureField(prompt ?? "", text: text)
                 } else {
-                    TextField("", text: text)
+                    TextField(prompt ?? "", text: text)
                         .keyboardType(keyboard)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled(true)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
                 }
             }
             .padding(.horizontal, 12)

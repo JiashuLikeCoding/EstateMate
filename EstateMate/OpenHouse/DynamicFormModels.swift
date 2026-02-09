@@ -14,6 +14,20 @@ enum FormFieldType: String, Codable, CaseIterable {
     case select
 }
 
+enum TextCase: String, Codable, CaseIterable {
+    case none
+    case upper
+    case lower
+
+    var title: String {
+        switch self {
+        case .none: return "默认"
+        case .upper: return "全大写"
+        case .lower: return "全小写"
+        }
+    }
+}
+
 struct FormField: Codable, Identifiable, Hashable {
     var id: String { key }
 
@@ -21,7 +35,12 @@ struct FormField: Codable, Identifiable, Hashable {
     var label: String
     var type: FormFieldType
     var required: Bool
+
+    // For select
     var options: [String]?
+
+    // For text
+    var textCase: TextCase?
 }
 
 struct FormSchema: Codable, Hashable {
