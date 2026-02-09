@@ -41,7 +41,7 @@ struct FormBuilderCanvasView: View {
                     }
 
                     VStack(spacing: 0) {
-                        ForEach(Array(state.fields.enumerated()), id: \.(element.key)) { idx, f in
+                        ForEach(Array(state.fields.enumerated()), id: \.element.key) { idx, f in
                             Button {
                                 state.selectedFieldKey = f.key
                             } label: {
