@@ -304,6 +304,7 @@ private struct FormBuilderDrawerView: View {
 
     @State private var isSheetPresented: Bool = false
     @State private var mode: SheetMode = .palette
+    @State private var sheetHeight: CGFloat = 520
 
     var body: some View {
         NavigationStack {
@@ -344,6 +345,10 @@ private struct FormBuilderDrawerView: View {
                             EMScreen("字段库") {
                                 paletteList
                                     .environmentObject(state)
+                                    .emReadHeight { h in
+                                        // Clamp to reasonable range so it doesn't get tiny/huge.
+                                        sheetHeight = min(max(h + 80, 360), 720)
+                                    }
                             }
                         case .properties:
                             EMScreen("属性") {
@@ -354,6 +359,9 @@ private struct FormBuilderDrawerView: View {
                                     }
                                 )
                                 .environmentObject(state)
+                                .emReadHeight { h in
+                                    sheetHeight = min(max(h + 80, 420), 820)
+                                }
                             }
                         }
                     }
@@ -370,7 +378,8 @@ private struct FormBuilderDrawerView: View {
                         }
                     }
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.height(sheetHeight), .large])
+                .presentationDragIndicator(.visible)
             }
         }
         .task { state.seedIfNeeded() }
