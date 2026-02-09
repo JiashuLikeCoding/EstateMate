@@ -292,17 +292,13 @@ private struct OpenHouseEventListCardView: View {
     private let service = DynamicFormService()
 
     @State private var events: [OpenHouseEventV2] = []
+    @State private var forms: [FormRecord] = []
+
     @State private var isLoading = false
     @State private var errorMessage: String?
 
     var body: some View {
         EMCard {
-            HStack {
-                Spacer()
-                Button("刷新") { Task { await load() } }
-                    .font(.footnote.weight(.medium))
-            }
-
             if let errorMessage {
                 Text(errorMessage)
                     .font(.callout)
@@ -318,19 +314,46 @@ private struct OpenHouseEventListCardView: View {
                         NavigationLink {
                             OpenHouseEventEditView(event: e)
                         } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 8) {
                                     Text(e.title)
                                         .font(.headline)
-                                    Text(e.isActive ? "已启用" : "未启用")
-                                        .font(.caption)
-                                        .foregroundStyle(e.isActive ? .green : EMTheme.ink2)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        if let location = e.location?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                            metaRow(icon: "mappin.and.ellipse", text: location)
+                                        }
+
+                                        if let timeText = timeText(for: e).nilIfBlank {
+                                            metaRow(icon: "clock", text: timeText)
+                                        }
+
+                                        metaRow(icon: "doc.text", text: "表单：\(formName(for: e))")
+
+                                        if let host = e.host?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                            metaRow(icon: "person", text: "主理人：\(host)")
+                                        }
+
+                                        if let assistant = e.assistant?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                            metaRow(icon: "person.2", text: "助手：\(assistant)")
+                                        }
+
+                                        metaRow(
+                                            icon: e.isActive ? "checkmark.seal.fill" : "seal",
+                                            text: e.isActive ? "已启用" : "未启用",
+                                            tint: e.isActive ? .green : EMTheme.ink2
+                                        )
+                                    }
                                 }
+
                                 Spacer()
+
                                 Image(systemName: "chevron.right")
                                     .foregroundStyle(EMTheme.ink2)
+                                    .padding(.top, 2)
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 12)
                         }
                         .buttonStyle(.plain)
 
@@ -349,23 +372,43 @@ private struct OpenHouseEventListCardView: View {
         .task { await load() }
     }
 
+    @ViewBuilder
+    private func metaRow(icon: String, text: String, tint: Color? = nil) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(tint ?? EMTheme.ink2)
+                .frame(width: 16)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(tint ?? EMTheme.ink2)
+                .lineLimit(2)
+        }
+    }
+
+    private func formName(for event: OpenHouseEventV2) -> String {
+        forms.first(where: { $0.id == event.formId })?.name ?? "（未知表单）"
+    }
+
+    private func timeText(for event: OpenHouseEventV2) -> String {
+        guard let start = event.startsAt else { return "" }
+        let startText = start.formatted(date: .abbreviated, time: .shortened)
+        if let end = event.endsAt {
+            let endText = end.formatted(date: .omitted, time: .shortened)
+            return "\(startText) – \(endText)"
+        } else {
+            return startText
+        }
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            events = try await service.listEvents()
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    private func makeActive(_ event: OpenHouseEventV2) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            try await service.setActive(eventId: event.id)
-            events = try await service.listEvents()
+            async let eventsTask = service.listEvents()
+            async let formsTask = service.listForms()
+            events = try await eventsTask
+            forms = try await formsTask
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
