@@ -61,6 +61,7 @@ final class FormBuilderState: ObservableObject {
         case .phone: baseLabel = presetLabel ?? "手机号"
         case .email: baseLabel = presetLabel ?? "邮箱"
         case .select: baseLabel = presetLabel ?? "单选"
+        case .name: baseLabel = presetLabel ?? "姓名"
         }
 
         let label = uniqueLabel(baseLabel)
@@ -73,14 +74,48 @@ final class FormBuilderState: ObservableObject {
 
         let options: [String]? = (type == .select) ? ["选项 1", "选项 2"] : nil
 
+        let (nameFormat, nameKeys): (NameFormat?, [String]?) = {
+            guard type == .name else { return (nil, nil) }
+            let f: NameFormat = .fullName
+            let keys = makeUniqueNameKeys(for: f)
+            return (f, keys)
+        }()
+
         draftField = .init(
             key: key,
             label: label,
             type: type,
             required: required,
             options: options,
-            textCase: type == .text ? .none : nil
+            textCase: type == .text ? .none : nil,
+            nameFormat: nameFormat,
+            nameKeys: nameKeys
         )
+    }
+
+    private func makeUniqueNameKeys(for format: NameFormat) -> [String] {
+        let base: [String]
+        switch format {
+        case .fullName:
+            base = ["full_name"]
+        case .firstLast:
+            base = ["first_name", "last_name"]
+        case .firstMiddleLast:
+            base = ["first_name", "middle_name", "last_name"]
+        }
+
+        func unique(_ key: String) -> String {
+            if !fields.contains(where: { $0.key == key || ($0.nameKeys ?? []).contains(key) }) {
+                return key
+            }
+            var i = 2
+            while fields.contains(where: { $0.key == "\(key)_\(i)" || ($0.nameKeys ?? []).contains("\(key)_\(i)") }) {
+                i += 1
+            }
+            return "\(key)_\(i)"
+        }
+
+        return base.map(unique)
     }
 
     func confirmDraft() {
@@ -167,7 +202,7 @@ private struct FormBuilderSplitView: View {
                         ],
                         spacing: 12
                     ) {
-                        palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "full_name", type: .text, required: false)
+                        palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "name", type: .name, required: false)
                         paletteCard(title: "文本输入", systemImage: "text.cursor", type: .text)
                         paletteCard(title: "手机号", systemImage: "phone", type: .phone)
                         paletteCard(title: "邮箱", systemImage: "envelope", type: .email)
@@ -325,7 +360,7 @@ private struct FormBuilderDrawerView: View {
                 EMSectionHeader("基础字段", subtitle: "点击添加到画布")
 
                 EMCard {
-                    palettePresetRow(title: "姓名", systemImage: "person", presetKey: "full_name", type: .text, required: false)
+                    palettePresetRow(title: "姓名", systemImage: "person", presetKey: "name", type: .name, required: false)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "文本输入", systemImage: "text.cursor", type: .text)
                     Divider().overlay(EMTheme.line)

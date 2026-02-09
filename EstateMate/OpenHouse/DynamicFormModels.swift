@@ -12,6 +12,7 @@ enum FormFieldType: String, Codable, CaseIterable {
     case phone
     case email
     case select
+    case name
 }
 
 enum TextCase: String, Codable, CaseIterable {
@@ -28,9 +29,25 @@ enum TextCase: String, Codable, CaseIterable {
     }
 }
 
+enum NameFormat: String, Codable, CaseIterable {
+    case fullName
+    case firstLast
+    case firstMiddleLast
+
+    var title: String {
+        switch self {
+        case .fullName: return "Full Name"
+        case .firstLast: return "First + Last"
+        case .firstMiddleLast: return "First + Middle + Last"
+        }
+    }
+}
+
 struct FormField: Codable, Identifiable, Hashable {
     var id: String { key }
 
+    /// For most field types, this is the value key stored in submission JSON.
+    /// For `.name`, this is a stable identifier; `nameKeys` holds the actual storage keys.
     var key: String
     var label: String
     var type: FormFieldType
@@ -41,6 +58,10 @@ struct FormField: Codable, Identifiable, Hashable {
 
     // For text
     var textCase: TextCase?
+
+    // For name
+    var nameFormat: NameFormat?
+    var nameKeys: [String]?
 }
 
 struct FormSchema: Codable, Hashable {

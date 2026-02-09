@@ -76,6 +76,29 @@ struct OpenHouseGuestModeV2View: View {
     @ViewBuilder
     private func fieldRow(_ field: FormField) -> some View {
         switch field.type {
+        case .name:
+            let keys = field.nameKeys ?? ["full_name"]
+            if keys.count == 1 {
+                TextField(field.label, text: binding(for: keys[0], field: field))
+            } else {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(field.label)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    HStack(spacing: 12) {
+                        if keys.indices.contains(0) {
+                            TextField("First", text: binding(for: keys[0], field: field))
+                        }
+                        if keys.indices.contains(1) {
+                            TextField(keys.count == 2 ? "Last" : "Middle", text: binding(for: keys[1], field: field))
+                        }
+                        if keys.indices.contains(2) {
+                            TextField("Last", text: binding(for: keys[2], field: field))
+                        }
+                    }
+                }
+            }
         case .text:
             TextField(field.label, text: binding(for: field.key, field: field))
         case .phone:
@@ -149,7 +172,13 @@ struct OpenHouseGuestModeV2View: View {
             // Only keep keys from schema to avoid junk
             var payload: [String: String] = [:]
             for f in form.schema.fields {
-                payload[f.key] = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                if f.type == .name {
+                    for k in f.nameKeys ?? [] {
+                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                } else {
+                    payload[f.key] = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                }
             }
 
             _ = try await service.createSubmission(eventId: eventId, data: payload)

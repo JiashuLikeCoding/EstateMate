@@ -94,12 +94,44 @@ struct FormBuilderPropertiesView: View {
                 .tint(EMTheme.accent)
 
             Picker("类型", selection: binding.type) {
+                Text("姓名").tag(FormFieldType.name)
                 Text("文本").tag(FormFieldType.text)
                 Text("手机号").tag(FormFieldType.phone)
                 Text("邮箱").tag(FormFieldType.email)
                 Text("单选").tag(FormFieldType.select)
             }
             .pickerStyle(.menu)
+
+            if binding.wrappedValue.type == .name {
+                Divider().overlay(EMTheme.line)
+
+                Picker("姓名格式", selection: Binding(
+                    get: { binding.wrappedValue.nameFormat ?? .fullName },
+                    set: { newValue in
+                        binding.wrappedValue.nameFormat = newValue
+                        // Generate default keys if missing or mismatched count.
+                        let base: [String]
+                        switch newValue {
+                        case .fullName: base = ["full_name"]
+                        case .firstLast: base = ["first_name", "last_name"]
+                        case .firstMiddleLast: base = ["first_name", "middle_name", "last_name"]
+                        }
+                        // Keep existing keys when possible, otherwise re-init.
+                        if (binding.wrappedValue.nameKeys ?? []).count != base.count {
+                            binding.wrappedValue.nameKeys = base
+                        }
+                    }
+                )) {
+                    ForEach(NameFormat.allCases, id: \.self) { f in
+                        Text(f.title).tag(f)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Text("提示：姓名字段会拆分为多个输入框，并分别存储。")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
+            }
 
             if binding.wrappedValue.type == .text {
                 Divider().overlay(EMTheme.line)
