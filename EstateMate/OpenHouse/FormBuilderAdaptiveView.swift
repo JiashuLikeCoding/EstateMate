@@ -51,19 +51,36 @@ final class FormBuilderState: ObservableObject {
     }
 
     func startDraft(type: FormFieldType) {
+        startDraft(presetLabel: nil, presetKey: nil, type: type, required: false)
+    }
+
+    func startDraft(presetLabel: String?, presetKey: String?, type: FormFieldType, required: Bool) {
         let baseLabel: String
         switch type {
-        case .text: baseLabel = "文本"
-        case .phone: baseLabel = "手机号"
-        case .email: baseLabel = "邮箱"
-        case .select: baseLabel = "单选"
+        case .text: baseLabel = presetLabel ?? "文本"
+        case .phone: baseLabel = presetLabel ?? "手机号"
+        case .email: baseLabel = presetLabel ?? "邮箱"
+        case .select: baseLabel = presetLabel ?? "单选"
         }
 
         let label = uniqueLabel(baseLabel)
-        let key = makeKey(from: label)
+        let key = {
+            if let presetKey, !fields.contains(where: { $0.key == presetKey }) {
+                return presetKey
+            }
+            return makeKey(from: label)
+        }()
+
         let options: [String]? = (type == .select) ? ["选项 1", "选项 2"] : nil
 
-        draftField = .init(key: key, label: label, type: type, required: false, options: options, textCase: type == .text ? .none : nil)
+        draftField = .init(
+            key: key,
+            label: label,
+            type: type,
+            required: required,
+            options: options,
+            textCase: type == .text ? .none : nil
+        )
     }
 
     func confirmDraft() {
@@ -150,6 +167,7 @@ private struct FormBuilderSplitView: View {
                         ],
                         spacing: 12
                     ) {
+                        palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "full_name", type: .text, required: true)
                         paletteCard(title: "文本输入", systemImage: "text.cursor", type: .text)
                         paletteCard(title: "手机号", systemImage: "phone", type: .phone)
                         paletteCard(title: "邮箱", systemImage: "envelope", type: .email)
@@ -167,33 +185,46 @@ private struct FormBuilderSplitView: View {
         Button {
             state.startDraft(type: type)
         } label: {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: systemImage)
-                    .font(.title3)
-                    .foregroundStyle(EMTheme.accent)
-
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(EMTheme.ink)
-
-                Text("点击添加")
-                    .font(.caption)
-                    .foregroundStyle(EMTheme.ink2)
-
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
-                    .fill(Color.white)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
-                    .stroke(EMTheme.line, lineWidth: 1)
-            )
+            paletteCardBody(title: title, subtitle: "点击添加", systemImage: systemImage)
         }
         .buttonStyle(.plain)
+    }
+
+    private func palettePresetCard(title: String, subtitle: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
+        Button {
+            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+        } label: {
+            paletteCardBody(title: title, subtitle: subtitle, systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func paletteCardBody(title: String, subtitle: String, systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundStyle(EMTheme.accent)
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(EMTheme.ink)
+
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(EMTheme.ink2)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                .fill(Color.white)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                .stroke(EMTheme.line, lineWidth: 1)
+        )
     }
 }
 
@@ -294,6 +325,8 @@ private struct FormBuilderDrawerView: View {
                 EMSectionHeader("基础字段", subtitle: "点击添加到画布")
 
                 EMCard {
+                    palettePresetRow(title: "姓名", systemImage: "person", presetKey: "full_name", type: .text, required: true)
+                    Divider().overlay(EMTheme.line)
                     paletteRow(title: "文本输入", systemImage: "text.cursor", type: .text)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "手机号", systemImage: "phone", type: .phone)
@@ -316,21 +349,38 @@ private struct FormBuilderDrawerView: View {
                 sheet = .properties
             }
         } label: {
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .frame(width: 28)
-                    .foregroundStyle(EMTheme.accent)
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(EMTheme.ink)
-                Spacer()
-                Image(systemName: "plus.circle.fill")
-                    .foregroundStyle(EMTheme.accent)
-            }
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            paletteRowBody(title: title, systemImage: systemImage)
         }
         .buttonStyle(.plain)
+    }
+
+    private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
+        Button {
+            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+            sheet = nil
+            DispatchQueue.main.async {
+                sheet = .properties
+            }
+        } label: {
+            paletteRowBody(title: title, systemImage: systemImage)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func paletteRowBody(title: String, systemImage: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .frame(width: 28)
+                .foregroundStyle(EMTheme.accent)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(EMTheme.ink)
+            Spacer()
+            Image(systemName: "plus.circle.fill")
+                .foregroundStyle(EMTheme.accent)
+        }
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 
     private struct SheetItem: Identifiable {
