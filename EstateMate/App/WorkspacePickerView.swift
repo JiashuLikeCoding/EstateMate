@@ -2,8 +2,6 @@
 //  WorkspacePickerView.swift
 //  EstateMate
 //
-//  Created by OpenClaw on 2026-02-09.
-//
 
 import SwiftUI
 
@@ -12,42 +10,36 @@ struct WorkspacePickerView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AuthBackground()
+            EMScreen {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        EMSectionHeader("选择系统", subtitle: "如需切换，请退出登录后重新登录再选择")
 
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("选择系统")
-                            .font(.largeTitle.bold())
-                            .foregroundStyle(.white)
-                        Text("如需切换，请退出登录后重新登录再选择。")
-                            .font(.subheadline)
-                            .foregroundStyle(Color.white.opacity(0.72))
-                    }
-
-                    AuthCard {
-                        ForEach(Workspace.allCases) { w in
-                            Button {
-                                sessionStore.selectedWorkspace = w
-                            } label: {
-                                HStack(alignment: .center, spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(w.title)
-                                            .font(.headline)
-                                        Text(w.subtitle)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
+                        EMCard {
+                            ForEach(Workspace.allCases) { w in
+                                Button {
+                                    sessionStore.selectedWorkspace = w
+                                } label: {
+                                    HStack(alignment: .center, spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(w.title)
+                                                .font(.headline)
+                                            Text(w.subtitle)
+                                                .font(.caption)
+                                                .foregroundStyle(EMTheme.ink2)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(EMTheme.ink2)
                                     }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(.secondary)
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 6)
                                 }
-                                .padding(.vertical, 6)
-                            }
-                            .buttonStyle(.plain)
+                                .buttonStyle(.plain)
 
-                            if w != Workspace.allCases.last {
-                                Divider().overlay(Color.white.opacity(0.12))
+                                if w != Workspace.allCases.last {
+                                    Divider().overlay(EMTheme.line)
+                                }
                             }
                         }
 
@@ -55,18 +47,12 @@ struct WorkspacePickerView: View {
                             Task { await sessionStore.signOut() }
                         } label: {
                             Text("退出登录")
-                                .frame(maxWidth: .infinity)
                         }
-                        .padding(.top, 8)
-                        .buttonStyle(SecondaryButtonStyle())
-                        .foregroundStyle(.red)
+                        .buttonStyle(EMDangerButtonStyle())
                     }
+                    .padding(EMTheme.padding)
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 40)
-                .padding(.bottom, 30)
             }
-            .navigationBarHidden(true)
         }
     }
 }

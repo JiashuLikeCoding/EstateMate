@@ -10,71 +10,78 @@ struct FormBuilderCanvasView: View {
     private let service = DynamicFormService()
 
     var body: some View {
-        VStack(spacing: 0) {
-            if let msg = state.errorMessage {
-                Text(msg)
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-            }
-
-            List {
-                Section("表单信息") {
-                    TextField("表单名称", text: $state.formName)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if let msg = state.errorMessage {
+                    Text(msg)
+                        .font(.callout)
+                        .foregroundStyle(.red)
                 }
 
-                Section("画布（可拖动排序）") {
-                    if state.fields.isEmpty {
-                        Text("从左侧字段库添加字段")
-                            .foregroundStyle(.secondary)
+                EMCard {
+                    Text("表单信息")
+                        .font(.headline)
+
+                    EMTextField(title: "表单名称", text: $state.formName)
+                }
+
+                EMCard {
+                    HStack {
+                        Text("画布")
+                            .font(.headline)
+                        Spacer()
+                        Text("长按拖动排序")
+                            .font(.caption)
+                            .foregroundStyle(EMTheme.ink2)
                     }
 
-                    ForEach(state.fields) { f in
-                        Button {
-                            state.selectedFieldKey = f.key
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(f.label)
-                                        .font(.headline)
-                                    Text(summary(f))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                    if state.fields.isEmpty {
+                        Text("从字段库添加字段")
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(state.fields.enumerated()), id: \.(element.key)) { idx, f in
+                            Button {
+                                state.selectedFieldKey = f.key
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(f.label)
+                                            .font(.headline)
+                                            .foregroundStyle(EMTheme.ink)
+                                        Text(summary(f))
+                                            .font(.caption)
+                                            .foregroundStyle(EMTheme.ink2)
+                                    }
+                                    Spacer()
+                                    Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
+                                        .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
                                 }
-                                Spacer()
-                                if state.selectedFieldKey == f.key {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Color(red: 0.10, green: 0.78, blue: 0.66))
-                                } else {
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(.secondary)
-                                }
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+
+                            if idx != state.fields.count - 1 {
+                                Divider().overlay(EMTheme.line)
                             }
                         }
-                        .buttonStyle(.plain)
-                    }
-                    .onMove { from, to in
-                        state.move(from: from, to: to)
-                    }
-                    .onDelete { idx in
-                        state.fields.remove(atOffsets: idx)
-                        if let sel = state.selectedFieldKey, !state.fields.contains(where: { $0.key == sel }) {
-                            state.selectedFieldKey = nil
-                        }
                     }
                 }
 
-                Section {
-                    Button(state.isSaving ? "保存中..." : "保存表单") {
-                        Task { await save() }
-                    }
-                    .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button(state.isSaving ? "保存中..." : "保存表单") {
+                    Task { await save() }
                 }
+                .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+                .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Text("提示：在 iPhone 上使用底部抽屉添加字段与编辑属性")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
             }
+            .padding(EMTheme.padding)
         }
-        .toolbar { EditButton() }
     }
 
     private func summary(_ f: FormField) -> String {

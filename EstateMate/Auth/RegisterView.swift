@@ -2,8 +2,6 @@
 //  RegisterView.swift
 //  EstateMate
 //
-//  Created by OpenClaw on 2026-02-09.
-//
 
 import SwiftUI
 
@@ -23,59 +21,45 @@ struct RegisterView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AuthBackground()
-
+            EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("创建账号")
-                                .font(.largeTitle.bold())
-                                .foregroundStyle(.white)
-                            Text("用邮箱注册，后续可绑定 Apple / Google / 手机号")
-                                .font(.subheadline)
-                                .foregroundStyle(Color.white.opacity(0.72))
-                        }
+                        EMSectionHeader("注册", subtitle: "使用邮箱创建账号")
 
-                        AuthCard {
+                        EMCard {
                             if let msg = sessionStore.errorMessage {
                                 Text(msg)
                                     .font(.callout)
                                     .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
 
-                            AuthTextField(title: "邮箱", text: $email, keyboard: .emailAddress)
-                            AuthTextField(title: "密码", text: $password, isSecure: true)
-                            AuthTextField(title: "确认密码", text: $confirm, isSecure: true)
+                            EMTextField(title: "邮箱", text: $email, keyboard: .emailAddress)
+                            EMTextField(title: "密码", text: $password, isSecure: true)
+                            EMTextField(title: "确认密码", text: $confirm, isSecure: true)
 
                             Button {
                                 Task { await signUp() }
                             } label: {
-                                Text("注册")
+                                Text("创建账号")
                             }
-                            .buttonStyle(PrimaryButtonStyle(isDisabled: !canSubmit || sessionStore.isLoading))
+                            .buttonStyle(EMPrimaryButtonStyle(disabled: !canSubmit || sessionStore.isLoading))
                             .disabled(!canSubmit || sessionStore.isLoading)
 
                             Button {
                                 dismiss()
                             } label: {
-                                Text("已有账号？返回登录")
+                                Text("返回登录")
+                                    .font(.footnote.weight(.medium))
                                     .frame(maxWidth: .infinity)
                             }
-                            .padding(.top, 4)
                             .buttonStyle(.plain)
-                            .foregroundStyle(Color.white.opacity(0.85))
+                            .foregroundStyle(EMTheme.ink2)
+                            .padding(.top, 6)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 40)
-                    .padding(.bottom, 30)
+                    .padding(EMTheme.padding)
                 }
-
-                LoadingOverlay(isPresented: sessionStore.isLoading)
             }
-            .navigationBarHidden(true)
         }
     }
 

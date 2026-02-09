@@ -2,7 +2,7 @@
 //  LoginView.swift
 //  EstateMate
 //
-//  Created by OpenClaw on 2026-02-09.
+//  Minimal (Japanese-inspired) login UI.
 //
 
 import SwiftUI
@@ -22,95 +22,70 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AuthBackground()
-
+            EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        header
+                        EMSectionHeader("登录", subtitle: "使用邮箱或 Google 登录")
 
-                        AuthCard {
+                        EMCard {
                             if let msg = sessionStore.errorMessage {
                                 Text(msg)
                                     .font(.callout)
                                     .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
 
-                            AuthTextField(title: "邮箱", text: $email, keyboard: .emailAddress)
-                            AuthTextField(title: "密码", text: $password, isSecure: true)
+                            EMTextField(title: "邮箱", text: $email, keyboard: .emailAddress)
+                            EMTextField(title: "密码", text: $password, isSecure: true)
 
                             Button {
                                 Task { await signInEmail() }
                             } label: {
                                 Text("登录")
                             }
-                            .buttonStyle(PrimaryButtonStyle(isDisabled: !canSubmit || sessionStore.isLoading))
+                            .buttonStyle(EMPrimaryButtonStyle(disabled: !canSubmit || sessionStore.isLoading))
                             .disabled(!canSubmit || sessionStore.isLoading)
 
-                            Divider().overlay(Color.white.opacity(0.12))
+                            Text("或者")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 6)
 
-                            VStack(spacing: 10) {
-                                Text("或者")
-                                    .font(.caption)
-                                    .foregroundStyle(Color.white.opacity(0.65))
-                                    .frame(maxWidth: .infinity)
-
-                                Button {
-                                    Task { await signInOAuth(Provider.google) }
-                                } label: {
-                                    Label("使用 Google 登录", systemImage: "g.circle")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(SecondaryButtonStyle())
-                                .disabled(sessionStore.isLoading)
+                            Button {
+                                Task { await signInOAuth(Provider.google) }
+                            } label: {
+                                Label("使用 Google 登录", systemImage: "g.circle")
                             }
+                            .buttonStyle(EMSecondaryButtonStyle())
+                            .disabled(sessionStore.isLoading)
 
                             Button {
                                 showRegister = true
                             } label: {
                                 Text("没有账号？注册")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .padding(.top, 4)
-                            .buttonStyle(.plain)
-                            .foregroundStyle(Color.white.opacity(0.85))
-
-                            Button {
-                                // TODO: wire to supabase reset password
-                            } label: {
-                                Text("忘记密码")
-                                    .font(.footnote)
+                                    .font(.footnote.weight(.medium))
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.plain)
-                            .foregroundStyle(Color.white.opacity(0.70))
+                            .foregroundStyle(EMTheme.ink2)
+                            .padding(.top, 6)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 40)
-                    .padding(.bottom, 30)
+                    .padding(EMTheme.padding)
                 }
-
-                LoadingOverlay(isPresented: sessionStore.isLoading)
+                .overlay {
+                    if sessionStore.isLoading {
+                        ProgressView()
+                            .padding(16)
+                            .background(.thinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                }
             }
-            .navigationBarHidden(true)
             .sheet(isPresented: $showRegister) {
                 RegisterView().environmentObject(sessionStore)
             }
         }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("EstateMate")
-                .font(.largeTitle.bold())
-                .foregroundStyle(.white)
-            Text("专业的房产管理助手")
-                .font(.subheadline)
-                .foregroundStyle(Color.white.opacity(0.72))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func signInEmail() async {

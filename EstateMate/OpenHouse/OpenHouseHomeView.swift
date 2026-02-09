@@ -2,8 +2,6 @@
 //  OpenHouseHomeView.swift
 //  EstateMate
 //
-//  Created by OpenClaw on 2026-02-09.
-//
 
 import SwiftUI
 
@@ -12,88 +10,64 @@ struct OpenHouseHomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AuthBackground()
-
+            EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("开放日")
-                                .font(.largeTitle.bold())
-                                .foregroundStyle(.white)
-                            Text("创建表单、创建活动、开启访客填写模式")
-                                .font(.subheadline)
-                                .foregroundStyle(Color.white.opacity(0.72))
-                        }
+                        EMSectionHeader("开放日", subtitle: "创建表单、创建活动、开启访客填写模式")
 
-                        AuthCard {
+                        EMCard {
                             NavigationLink {
                                 OpenHouseEventsV2View()
                             } label: {
                                 row(title: "活动管理", subtitle: "创建活动并绑定表单")
                             }
-                            .tint(.clear)
 
-                            Divider().overlay(Color.white.opacity(0.12))
+                            Divider().overlay(EMTheme.line)
 
                             NavigationLink {
                                 FormBuilderAdaptiveView()
                             } label: {
-                                row(title: "表单设计", subtitle: "自定义字段（文本/电话/邮箱/单选）")
+                                row(title: "表单设计", subtitle: "极简搭建器：字段库 / 画布 / 属性")
                             }
-                            .tint(.clear)
 
-                            Divider().overlay(Color.white.opacity(0.12))
+                            Divider().overlay(EMTheme.line)
 
                             NavigationLink {
                                 OpenHouseGuestModeV2View()
                             } label: {
                                 row(title: "访客模式", subtitle: "现场给客人填写，提交后自动清空")
                             }
-                            .tint(.clear)
                         }
 
-                        AuthCard {
-                            Button {
-                                Task { await sessionStore.signOut() }
-                            } label: {
-                                Text("退出登录")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(SecondaryButtonStyle())
-                            .foregroundStyle(.red)
+                        Button {
+                            Task { await sessionStore.signOut() }
+                        } label: {
+                            Text("退出登录")
                         }
+                        .buttonStyle(EMDangerButtonStyle())
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 40)
-                    .padding(.bottom, 30)
+                    .padding(EMTheme.padding)
                 }
             }
-            .navigationBarHidden(true)
         }
     }
 
     private func row(title: String, subtitle: String) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.white)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.70))
+                    .foregroundStyle(EMTheme.ink2)
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .foregroundStyle(Color.white.opacity(0.60))
+                .foregroundStyle(EMTheme.ink2)
         }
         .contentShape(Rectangle())
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
     }
-}
-
-#Preview {
-    OpenHouseHomeView().environmentObject(SessionStore())
 }
 
 #Preview {
