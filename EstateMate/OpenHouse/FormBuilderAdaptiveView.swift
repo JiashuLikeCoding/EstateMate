@@ -167,7 +167,7 @@ private struct FormBuilderSplitView: View {
                         ],
                         spacing: 12
                     ) {
-                        palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "full_name", type: .text, required: true)
+                        palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "full_name", type: .text, required: false)
                         paletteCard(title: "文本输入", systemImage: "text.cursor", type: .text)
                         paletteCard(title: "手机号", systemImage: "phone", type: .phone)
                         paletteCard(title: "邮箱", systemImage: "envelope", type: .email)
@@ -325,7 +325,7 @@ private struct FormBuilderDrawerView: View {
                 EMSectionHeader("基础字段", subtitle: "点击添加到画布")
 
                 EMCard {
-                    palettePresetRow(title: "姓名", systemImage: "person", presetKey: "full_name", type: .text, required: true)
+                    palettePresetRow(title: "姓名", systemImage: "person", presetKey: "full_name", type: .text, required: false)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "文本输入", systemImage: "text.cursor", type: .text)
                     Divider().overlay(EMTheme.line)
