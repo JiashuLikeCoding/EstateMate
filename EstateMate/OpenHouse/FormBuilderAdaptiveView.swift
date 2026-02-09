@@ -309,31 +309,22 @@ private struct FormBuilderDrawerView: View {
             EMScreen("表单设计") {
                 FormBuilderCanvasView()
                     .environmentObject(state)
+                    .overlay(alignment: .centerTrailing) {
+                        Button {
+                            sheet = .palette
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(Circle().fill(EMTheme.accent))
+                                .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 6)
+                        }
+                        .padding(.trailing, 16)
+                        .accessibilityLabel("添加字段")
+                    }
             }
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        sheet = .palette
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "plus")
-                            Text("添加字段")
-                                .font(.subheadline.weight(.semibold))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(EMTheme.accent.opacity(0.12))
-                        )
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .stroke(EMTheme.accent.opacity(0.25), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         sheet = .properties

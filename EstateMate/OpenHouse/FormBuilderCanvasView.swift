@@ -27,7 +27,7 @@ struct FormBuilderCanvasView: View {
 
                 EMCard {
                     HStack {
-                        Text("画布")
+                        Text("表单")
                             .font(.headline)
                         Spacer()
                         Text("长按拖动排序")
@@ -76,7 +76,7 @@ struct FormBuilderCanvasView: View {
                 .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
                 .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                Text("提示：点左上角“添加字段”，再点击画布里的字段编辑属性")
+                Text("提示：点右侧“＋”添加字段，再点击表单里的字段编辑属性")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
             }
