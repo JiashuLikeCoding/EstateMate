@@ -36,22 +36,52 @@ struct FormBuilderView: View {
                 TextField("表单名称", text: $formName)
             }
 
-            Section("字段") {
-                ForEach(fields) { f in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(f.label)
-                        Text("key: \(f.key) • type: \(f.type.rawValue) • \(f.required ? "required" : "optional")")
+            Section("字段（可拖动排序）") {
+                ForEach($fields) { $f in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            TextField("字段标题", text: $f.label)
+
+                            Spacer()
+
+                            Picker("类型", selection: $f.type) {
+                                Text("text").tag(FormFieldType.text)
+                                Text("phone").tag(FormFieldType.phone)
+                                Text("email").tag(FormFieldType.email)
+                                Text("select").tag(FormFieldType.select)
+                            }
+                            .pickerStyle(.menu)
+                        }
+
+                        Toggle("必填", isOn: $f.required)
+
+                        if f.type == .select {
+                            TextField(
+                                "选项（用逗号分隔）",
+                                text: Binding(
+                                    get: { (f.options ?? []).joined(separator: ",") },
+                                    set: { newValue in
+                                        let opts = newValue
+                                            .split(separator: ",")
+                                            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                            .filter { !$0.isEmpty }
+                                        f.options = opts
+                                    }
+                                )
+                            )
+                        }
+
+                        Text("key: \(f.key)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        if f.type == .select, let opts = f.options {
-                            Text("options: \(opts.joined(separator: ", "))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
+                    .padding(.vertical, 6)
                 }
                 .onDelete { idxSet in
                     fields.remove(atOffsets: idxSet)
+                }
+                .onMove { from, to in
+                    fields.move(fromOffsets: from, toOffset: to)
                 }
             }
 
@@ -59,9 +89,10 @@ struct FormBuilderView: View {
                 TextField("字段名称（例如：预算）", text: $newLabel)
 
                 Picker("类型", selection: $newType) {
-                    ForEach(FormFieldType.allCases, id: \.self) { t in
-                        Text(t.rawValue).tag(t)
-                    }
+                    Text("text").tag(FormFieldType.text)
+                    Text("phone").tag(FormFieldType.phone)
+                    Text("email").tag(FormFieldType.email)
+                    Text("select").tag(FormFieldType.select)
                 }
 
                 Toggle("必填", isOn: $newRequired)
@@ -97,6 +128,7 @@ struct FormBuilderView: View {
             .lowercased()
             .replacingOccurrences(of: " ", with: "_")
             .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: "__", with: "_")
 
         let options: [String]?
         if newType == .select {
