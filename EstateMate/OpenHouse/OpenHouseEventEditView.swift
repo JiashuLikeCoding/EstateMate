@@ -22,6 +22,7 @@ struct OpenHouseEventEditView: View {
 
     @State private var forms: [FormRecord] = []
     @State private var selectedFormId: UUID?
+    @State private var isFormSheetPresented: Bool = false
 
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -75,11 +76,23 @@ struct OpenHouseEventEditView: View {
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
-                            Picker("选择表单", selection: $selectedFormId) {
-                                Text("请选择...").tag(Optional<UUID>.none)
-                                ForEach(forms) { f in
-                                    Text(f.name).tag(Optional(f.id))
+                            Button {
+                                isFormSheetPresented = true
+                            } label: {
+                                HStack {
+                                    Text(selectedFormName)
+                                        .foregroundStyle(selectedFormId == nil ? EMTheme.ink2 : EMTheme.ink)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .foregroundStyle(EMTheme.ink2)
                                 }
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(forms.isEmpty)
+                            .opacity(forms.isEmpty ? 0.4 : 1)
+                            .overlay(alignment: .bottom) {
+                                Divider().overlay(EMTheme.line)
                             }
                         }
 
@@ -125,10 +138,18 @@ struct OpenHouseEventEditView: View {
             }
         }
         .task { await load() }
+        .sheet(isPresented: $isFormSheetPresented) {
+            FormPickerSheetView(forms: forms, selectedFormId: $selectedFormId)
+        }
     }
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && selectedFormId != nil
+    }
+
+    private var selectedFormName: String {
+        guard let selectedFormId else { return "请选择..." }
+        return forms.first(where: { $0.id == selectedFormId })?.name ?? "请选择..."
     }
 
     private func load() async {
