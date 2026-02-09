@@ -297,6 +297,11 @@ private struct FormBuilderDrawerView: View {
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
             state.addField(type: type)
+            // After adding, jump straight into detailed settings.
+            sheet = nil
+            DispatchQueue.main.async {
+                sheet = .properties
+            }
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: systemImage)
