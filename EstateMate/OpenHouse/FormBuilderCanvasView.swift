@@ -9,6 +9,9 @@ struct FormBuilderCanvasView: View {
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
 
+    /// If provided, shows a plus button attached to the "表单" card (right side).
+    var addFieldAction: (() -> Void)? = nil
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -25,48 +28,64 @@ struct FormBuilderCanvasView: View {
                     EMTextField(title: "表单名称", text: $state.formName)
                 }
 
-                EMCard {
-                    HStack {
-                        Text("表单")
-                            .font(.headline)
-                        Spacer()
-                        Text("长按拖动排序")
-                            .font(.caption)
-                            .foregroundStyle(EMTheme.ink2)
-                    }
+                ZStack(alignment: .trailing) {
+                    EMCard {
+                        HStack {
+                            Text("表单")
+                                .font(.headline)
+                            Spacer()
+                            Text("长按拖动排序")
+                                .font(.caption)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
 
-                    if state.fields.isEmpty {
-                        Text("从字段库添加字段")
-                            .foregroundStyle(EMTheme.ink2)
-                    }
+                        if state.fields.isEmpty {
+                            Text("从字段库添加字段")
+                                .foregroundStyle(EMTheme.ink2)
+                        }
 
-                    VStack(spacing: 0) {
-                        ForEach(Array(state.fields.enumerated()), id: \.element.key) { idx, f in
-                            Button {
-                                state.selectedFieldKey = f.key
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(f.label)
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-                                        Text(summary(f))
-                                            .font(.caption)
-                                            .foregroundStyle(EMTheme.ink2)
+                        VStack(spacing: 0) {
+                            ForEach(Array(state.fields.enumerated()), id: \.element.key) { idx, f in
+                                Button {
+                                    state.selectedFieldKey = f.key
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(f.label)
+                                                .font(.headline)
+                                                .foregroundStyle(EMTheme.ink)
+                                            Text(summary(f))
+                                                .font(.caption)
+                                                .foregroundStyle(EMTheme.ink2)
+                                        }
+                                        Spacer()
+                                        Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
+                                            .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
                                     }
-                                    Spacer()
-                                    Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
-                                        .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 10)
                                 }
-                                .contentShape(Rectangle())
-                                .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.plain)
+                                .buttonStyle(.plain)
 
-                            if idx != state.fields.count - 1 {
-                                Divider().overlay(EMTheme.line)
+                                if idx != state.fields.count - 1 {
+                                    Divider().overlay(EMTheme.line)
+                                }
                             }
                         }
+                    }
+
+                    if let addFieldAction {
+                        Button(action: addFieldAction) {
+                            Image(systemName: "plus")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 46, height: 46)
+                                .background(Circle().fill(EMTheme.accent))
+                                .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 6)
+                        }
+                        // Attach to the right side of the form card.
+                        .offset(x: 10)
+                        .accessibilityLabel("添加字段")
                     }
                 }
 

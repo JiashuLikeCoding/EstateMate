@@ -307,22 +307,10 @@ private struct FormBuilderDrawerView: View {
     var body: some View {
         NavigationStack {
             EMScreen("表单设计") {
-                FormBuilderCanvasView()
+                FormBuilderCanvasView(addFieldAction: {
+                    sheet = .palette
+                })
                     .environmentObject(state)
-                    .overlay(alignment: .trailing) {
-                        Button {
-                            sheet = .palette
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.title3.weight(.bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                                .background(Circle().fill(EMTheme.accent))
-                                .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 6)
-                        }
-                        .padding(.trailing, 16)
-                        .accessibilityLabel("添加字段")
-                    }
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
