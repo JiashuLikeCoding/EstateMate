@@ -40,46 +40,89 @@ struct OpenHouseStartActivityView: View {
                                 .foregroundStyle(.red)
                         }
 
-                        EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text("活动列表")
                                 .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+                                .padding(.horizontal, 4)
 
                             if isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
+                                EMCard {
+                                    ProgressView()
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                }
                             } else if events.isEmpty {
-                                Text("暂无活动")
-                                    .foregroundStyle(EMTheme.ink2)
-                                    .padding(.vertical, 10)
+                                EMCard {
+                                    Text("暂无活动")
+                                        .foregroundStyle(EMTheme.ink2)
+                                        .padding(.vertical, 10)
+                                }
                             } else {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
+                                VStack(spacing: 10) {
+                                    ForEach(events) { e in
                                         Button {
                                             selectedEvent = e
                                         } label: {
-                                            HStack(spacing: 10) {
-                                                Image(systemName: selectedEvent?.id == e.id ? "checkmark.circle.fill" : "circle")
-                                                    .foregroundStyle(selectedEvent?.id == e.id ? EMTheme.accent : EMTheme.ink2)
+                                            EMCard {
+                                                VStack(alignment: .leading, spacing: 10) {
+                                                    HStack(alignment: .top, spacing: 10) {
+                                                        VStack(alignment: .leading, spacing: 6) {
+                                                            Text(e.title)
+                                                                .font(.headline)
+                                                                .foregroundStyle(EMTheme.ink)
 
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text(e.title)
-                                                        .font(.headline)
-                                                        .foregroundStyle(EMTheme.ink)
-                                                    Text(eventSubtitle(e))
-                                                        .font(.caption)
-                                                        .foregroundStyle(EMTheme.ink2)
+                                                            if let location = e.location?.nilIfBlank {
+                                                                HStack(spacing: 6) {
+                                                                    Image(systemName: "mappin.and.ellipse")
+                                                                        .foregroundStyle(EMTheme.ink2)
+                                                                    Text(location)
+                                                                        .font(.footnote)
+                                                                        .foregroundStyle(EMTheme.ink2)
+                                                                }
+                                                            }
+
+                                                            HStack(spacing: 6) {
+                                                                Image(systemName: "clock")
+                                                                    .foregroundStyle(EMTheme.ink2)
+                                                                Text(eventTimeText(e))
+                                                                    .font(.footnote)
+                                                                    .foregroundStyle(EMTheme.ink2)
+                                                            }
+                                                        }
+
+                                                        Spacer(minLength: 0)
+
+                                                        Image(systemName: selectedEvent?.id == e.id ? "checkmark.circle.fill" : "circle")
+                                                            .foregroundStyle(selectedEvent?.id == e.id ? EMTheme.accent : EMTheme.ink2)
+                                                            .font(.title3)
+                                                    }
+
+                                                    if let host = e.host?.nilIfBlank {
+                                                        HStack(spacing: 6) {
+                                                            Image(systemName: "person.fill")
+                                                                .foregroundStyle(EMTheme.ink2)
+                                                            Text("主理人：\(host)")
+                                                                .font(.footnote)
+                                                                .foregroundStyle(EMTheme.ink2)
+                                                        }
+                                                    }
+
+                                                    if let assistant = e.assistant?.nilIfBlank {
+                                                        HStack(spacing: 6) {
+                                                            Image(systemName: "person.2.fill")
+                                                                .foregroundStyle(EMTheme.ink2)
+                                                            Text("助手：\(assistant)")
+                                                                .font(.footnote)
+                                                                .foregroundStyle(EMTheme.ink2)
+                                                        }
+                                                    }
                                                 }
-
-                                                Spacer()
                                             }
-                                            .padding(.vertical, 10)
                                         }
                                         .buttonStyle(.plain)
-
-                                        if idx != events.count - 1 {
-                                            Divider().overlay(EMTheme.line)
-                                        }
+                                        .disabled(!canStart(e))
+                                        .opacity(canStart(e) ? 1 : 0.45)
                                     }
                                 }
                             }
@@ -225,7 +268,18 @@ struct OpenHouseStartActivityView: View {
         return true
     }
 
+    private func eventTimeText(_ e: OpenHouseEventV2) -> String {
+        if let starts = e.startsAt, let ends = e.endsAt {
+            return "\(starts.formatted(date: .abbreviated, time: .shortened)) ~ \(ends.formatted(date: .omitted, time: .shortened))"
+        }
+        if let starts = e.startsAt {
+            return starts.formatted(date: .abbreviated, time: .shortened)
+        }
+        return "未设置"
+    }
+
     private func eventSubtitle(_ e: OpenHouseEventV2) -> String {
+        // Legacy helper (kept for possible reuse)
         var parts: [String] = []
         if let starts = e.startsAt {
             parts.append(starts.formatted(date: .abbreviated, time: .shortened))
