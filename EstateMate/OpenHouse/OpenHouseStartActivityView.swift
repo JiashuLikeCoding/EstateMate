@@ -29,11 +29,11 @@ struct OpenHouseStartActivityView: View {
     @State private var showKiosk = false
 
     var body: some View {
-        EMScreen("开始活动") {
+        EMScreen("准备开始活动") {
             ZStack {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        EMSectionHeader("开始活动", subtitle: "选择活动并设置密码后进入现场填写")
+                        EMSectionHeader("准备开始活动", subtitle: "选择活动并设置密码后进入现场填写")
 
                         if let errorMessage {
                             Text(errorMessage)

@@ -56,27 +56,10 @@ struct OpenHouseHomeView: View {
                         NavigationLink {
                             OpenHouseStartActivityView()
                         } label: {
-                            HStack {
-                                Image(systemName: "play.circle.fill")
-                                    .foregroundStyle(EMTheme.accent)
-                                Text("开始活动")
-                                    .font(.headline)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundStyle(EMTheme.ink2)
-                            }
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
-                                    .fill(EMTheme.paper2)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
-                                    .stroke(EMTheme.line, lineWidth: 1)
-                            )
+                            Text("准备开始活动")
+                                .frame(maxWidth: .infinity)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
 
                         Button {
                             Task { await sessionStore.signOut() }
