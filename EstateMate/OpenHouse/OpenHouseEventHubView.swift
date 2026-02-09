@@ -408,9 +408,9 @@ private struct OpenHouseEventListCardView: View {
                                 }
 
                                 metaRow(
-                                    icon: e.isActive ? "checkmark.seal.fill" : "seal",
-                                    text: e.isActive ? "已启用" : "未启用",
-                                    tint: e.isActive ? .green : EMTheme.ink2
+                                    icon: isEnded(e) ? "xmark.seal.fill" : "checkmark.seal.fill",
+                                    text: isEnded(e) ? "已结束" : "进行中",
+                                    tint: isEnded(e) ? .red : .green
                                 )
                             }
                         }
@@ -448,6 +448,11 @@ private struct OpenHouseEventListCardView: View {
 
     private func formName(for event: OpenHouseEventV2) -> String {
         forms.first(where: { $0.id == event.formId })?.name ?? "（未知表单）"
+    }
+
+    private func isEnded(_ event: OpenHouseEventV2) -> Bool {
+        guard let end = event.endsAt else { return false }
+        return end < Date()
     }
 
     private func timeText(for event: OpenHouseEventV2) -> String {

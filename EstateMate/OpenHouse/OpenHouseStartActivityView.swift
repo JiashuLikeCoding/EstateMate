@@ -82,12 +82,14 @@ struct OpenHouseStartActivityView: View {
                                                                 }
                                                             }
 
-                                                            HStack(spacing: 6) {
-                                                                Image(systemName: "clock")
-                                                                    .foregroundStyle(EMTheme.ink2)
-                                                                Text(eventTimeText(e))
-                                                                    .font(.footnote)
-                                                                    .foregroundStyle(EMTheme.ink2)
+                                                            if let timeText = eventTimeText(e) {
+                                                                HStack(spacing: 6) {
+                                                                    Image(systemName: "clock")
+                                                                        .foregroundStyle(EMTheme.ink2)
+                                                                    Text(timeText)
+                                                                        .font(.footnote)
+                                                                        .foregroundStyle(EMTheme.ink2)
+                                                                }
                                                             }
                                                         }
 
@@ -268,14 +270,14 @@ struct OpenHouseStartActivityView: View {
         return true
     }
 
-    private func eventTimeText(_ e: OpenHouseEventV2) -> String {
+    private func eventTimeText(_ e: OpenHouseEventV2) -> String? {
         if let starts = e.startsAt, let ends = e.endsAt {
             return "\(starts.formatted(date: .abbreviated, time: .shortened)) ~ \(ends.formatted(date: .omitted, time: .shortened))"
         }
         if let starts = e.startsAt {
             return starts.formatted(date: .abbreviated, time: .shortened)
         }
-        return "未设置"
+        return nil
     }
 
     private func eventSubtitle(_ e: OpenHouseEventV2) -> String {
