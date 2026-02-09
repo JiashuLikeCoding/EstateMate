@@ -144,11 +144,20 @@ private struct OpenHouseEventCreateCardView: View {
                 Button {
                     isFormSheetPresented = true
                 } label: {
-                    HStack {
-                        Text(selectedFormName)
-                            .foregroundStyle(selectedFormId == nil ? EMTheme.ink2 : EMTheme.ink)
+                    HStack(spacing: 10) {
+                        if selectedFormId == nil {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(EMTheme.accent)
+                            Text("绑定表单")
+                                .foregroundStyle(EMTheme.ink)
+                        } else {
+                            Text(selectedFormName)
+                                .foregroundStyle(EMTheme.ink)
+                        }
+
                         Spacer()
-                        Image(systemName: "chevron.up.chevron.down")
+
+                        Image(systemName: "chevron.right")
                             .foregroundStyle(EMTheme.ink2)
                     }
                     .padding(.vertical, 10)
@@ -206,9 +215,7 @@ private struct OpenHouseEventCreateCardView: View {
         do {
             forms = try await service.listForms()
             events = try await service.listEvents()
-            if selectedFormId == nil {
-                selectedFormId = forms.first?.id
-            }
+            // 不默认选择表单，让用户明确绑定
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
