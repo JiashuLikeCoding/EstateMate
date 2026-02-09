@@ -3,12 +3,15 @@
 //  EstateMate
 //
 
+import Foundation
 import SwiftUI
 
 struct OpenHouseEventEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
+
+    @State private var locationService = LocationAddressService()
 
     let event: OpenHouseEventV2
 
@@ -28,6 +31,10 @@ struct OpenHouseEventEditView: View {
     @State private var errorMessage: String?
 
     @State private var showSaved = false
+
+    @State private var isFillingLocation = false
+    @State private var locationErrorMessage: String?
+    @State private var showLocationError = false
 
     init(event: OpenHouseEventV2) {
         self.event = event
@@ -56,7 +63,22 @@ struct OpenHouseEventEditView: View {
 
                     EMCard {
                         EMTextField(title: "活动标题", text: $title, prompt: "例如：123 Main St - 2月10日")
-                        EMTextField(title: "活动地点", text: $location, prompt: "例如：123 Main St, Toronto")
+
+                        EMLocationField(
+                            title: "活动地点",
+                            text: $location,
+                            prompt: "例如：123 Main St, Toronto",
+                            isLoading: isFillingLocation,
+                            onFillFromCurrentLocation: {
+                                hideKeyboard()
+                                Task { await fillLocationFromCurrent() }
+                            }
+                        )
+                        .alert("无法获取当前位置", isPresented: $showLocationError) {
+                            Button("好的", role: .cancel) {}
+                        } message: {
+                            Text(locationErrorMessage ?? "请稍后重试")
+                        }
 
                         DatePicker("开始时间", selection: $startsAt)
                             .datePickerStyle(.compact)
@@ -173,6 +195,20 @@ struct OpenHouseEventEditView: View {
         }
     }
 
+    private func fillLocationFromCurrent() async {
+        isFillingLocation = true
+        defer { isFillingLocation = false }
+        do {
+            let addr = try await locationService.fillCurrentAddress()
+            if !addr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                location = addr
+            }
+        } catch {
+            locationErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            showLocationError = true
+        }
+    }
+
     private func save() async {
         guard let formId = selectedFormId else { return }
         isLoading = true
@@ -204,6 +240,55 @@ struct OpenHouseEventEditView: View {
             showSaved = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct EMLocationField: View {
+    let title: String
+    @Binding var text: String
+    var prompt: String
+
+    var isLoading: Bool
+    var onFillFromCurrentLocation: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(EMTheme.ink2)
+
+            HStack(spacing: 10) {
+                TextField(prompt, text: $text)
+                    .textInputAutocapitalization(.sentences)
+                    .autocorrectionDisabled(false)
+
+                Button {
+                    onFillFromCurrentLocation()
+                } label: {
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "location.fill")
+                            .font(.callout.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EMTheme.accent)
+                .disabled(isLoading)
+                .accessibilityLabel("使用当前位置")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .fill(EMTheme.paper2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .stroke(EMTheme.line, lineWidth: 1)
+            )
         }
     }
 }
