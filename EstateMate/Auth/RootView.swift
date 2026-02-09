@@ -13,13 +13,14 @@ struct RootView: View {
     var body: some View {
         Group {
 #if DEBUG
-            // Debug convenience: always land on workspace picker after login.
-            // (Still requires login; we just ensure selectedWorkspace is cleared.)
-            if sessionStore.isLoggedIn {
-                WorkspacePickerView()
-                    .task { sessionStore.selectedWorkspace = nil }
-            } else {
+            // Debug convenience: show workspace picker right after login,
+            // but don't keep clearing the selection (otherwise taps won't stick).
+            if !sessionStore.isLoggedIn {
                 LoginView()
+            } else if sessionStore.selectedWorkspace == nil {
+                WorkspacePickerView()
+            } else {
+                MainView()
             }
 #else
             if !sessionStore.isLoggedIn {
