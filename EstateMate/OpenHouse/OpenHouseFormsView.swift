@@ -56,11 +56,27 @@ struct OpenHouseFormsView: View {
                                         NavigationLink {
                                             FormBuilderAdaptiveView(form: f)
                                         } label: {
-                                            HStack {
-                                                VStack(alignment: .leading, spacing: 4) {
+                                            HStack(alignment: .top) {
+                                                VStack(alignment: .leading, spacing: 8) {
                                                     Text(f.name)
                                                         .font(.headline)
                                                         .foregroundStyle(EMTheme.ink)
+
+                                                    if f.schema.fields.isEmpty {
+                                                        Text("暂无字段")
+                                                            .font(.caption)
+                                                            .foregroundStyle(EMTheme.ink2)
+                                                    } else {
+                                                        ScrollView(.horizontal, showsIndicators: false) {
+                                                            HStack(spacing: 8) {
+                                                                ForEach(fieldChips(for: f), id: \.self) { t in
+                                                                    EMChip(text: t, isOn: false)
+                                                                }
+                                                            }
+                                                            .padding(.vertical, 2)
+                                                        }
+                                                    }
+
                                                     Text("字段数：\(f.schema.fields.count)")
                                                         .font(.caption)
                                                         .foregroundStyle(EMTheme.ink2)
@@ -68,6 +84,7 @@ struct OpenHouseFormsView: View {
                                                 Spacer()
                                                 Image(systemName: "chevron.right")
                                                     .foregroundStyle(EMTheme.ink2)
+                                                    .padding(.top, 2)
                                             }
                                             .padding(.vertical, 10)
                                         }
@@ -100,6 +117,35 @@ struct OpenHouseFormsView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func fieldChips(for form: FormRecord) -> [String] {
+        // Show up to 6 chips; if more, append "+N".
+        let maxCount = 6
+        let fields = form.schema.fields
+
+        func typeTitle(_ type: FormFieldType) -> String {
+            switch type {
+            case .name: return "姓名"
+            case .text: return "文本"
+            case .phone: return "手机号"
+            case .email: return "邮箱"
+            case .select: return "单选"
+            }
+        }
+
+        var chips: [String] = []
+        for f in fields.prefix(maxCount) {
+            let required = f.required ? "*" : ""
+            // 例：姓名*（姓名） / 邮箱（邮箱）
+            chips.append("\(f.label)\(required)（\(typeTitle(f.type))）")
+        }
+
+        if fields.count > maxCount {
+            chips.append("+\(fields.count - maxCount)")
+        }
+
+        return chips
     }
 }
 
