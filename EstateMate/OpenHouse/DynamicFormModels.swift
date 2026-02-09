@@ -109,7 +109,13 @@ struct FormInsert: Encodable {
 struct OpenHouseEventV2: Codable, Identifiable, Hashable {
     let id: UUID
     let ownerId: UUID?
+
     var title: String
+    var location: String?
+    var startsAt: Date?
+    var host: String?
+    var assistant: String?
+
     var formId: UUID
     var isActive: Bool
     var createdAt: Date?
@@ -118,6 +124,10 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
         case id
         case ownerId = "owner_id"
         case title
+        case location
+        case startsAt = "starts_at"
+        case host
+        case assistant
         case formId = "form_id"
         case isActive = "is_active"
         case createdAt = "created_at"
@@ -126,13 +136,40 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
 
 struct OpenHouseEventInsertV2: Encodable {
     var title: String
+    var location: String?
+    var startsAt: Date?
+    var host: String?
+    var assistant: String?
+
     var formId: UUID
     var isActive: Bool
 
     enum CodingKeys: String, CodingKey {
         case title
+        case location
+        case startsAt = "starts_at"
+        case host
+        case assistant
         case formId = "form_id"
         case isActive = "is_active"
+    }
+}
+
+struct OpenHouseEventUpdateV2: Encodable {
+    var title: String
+    var location: String?
+    var startsAt: Date?
+    var host: String?
+    var assistant: String?
+    var formId: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case location
+        case startsAt = "starts_at"
+        case host
+        case assistant
+        case formId = "form_id"
     }
 }
 

@@ -83,6 +83,7 @@
 				96FA21D02F3A591500517E8D /* Sources */,
 				96FA21D12F3A591500517E8D /* Frameworks */,
 				96FA21D22F3A591500517E8D /* Resources */,
+				25ABBBD866F3ED06C604F9C2 /* Strip Xattrs */,
 			);
 			buildRules = (
 			);
@@ -151,6 +152,23 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		25ABBBD866F3ED06C604F9C2 /* Strip Xattrs */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Strip Xattrs";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "xattr -cr \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		96FA21D02F3A591500517E8D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -200,7 +218,7 @@
 				DEVELOPMENT_TEAM = WZD3CQPDRT;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -262,7 +280,7 @@
 				DEVELOPMENT_TEAM = WZD3CQPDRT;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;

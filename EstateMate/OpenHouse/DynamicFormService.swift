@@ -57,8 +57,24 @@ final class DynamicFormService {
             .value
     }
 
-    func createEvent(title: String, formId: UUID, isActive: Bool) async throws -> OpenHouseEventV2 {
-        let payload = OpenHouseEventInsertV2(title: title, formId: formId, isActive: isActive)
+    func createEvent(
+        title: String,
+        location: String?,
+        startsAt: Date?,
+        host: String?,
+        assistant: String?,
+        formId: UUID,
+        isActive: Bool
+    ) async throws -> OpenHouseEventV2 {
+        let payload = OpenHouseEventInsertV2(
+            title: title,
+            location: location,
+            startsAt: startsAt,
+            host: host,
+            assistant: assistant,
+            formId: formId,
+            isActive: isActive
+        )
         return try await client
             .from("openhouse_events")
             .insert(payload)
@@ -68,9 +84,24 @@ final class DynamicFormService {
             .value
     }
 
-    func updateEvent(id: UUID, title: String, formId: UUID) async throws -> OpenHouseEventV2 {
-        let payload = OpenHouseEventInsertV2(title: title, formId: formId, isActive: false)
+    func updateEvent(
+        id: UUID,
+        title: String,
+        location: String?,
+        startsAt: Date?,
+        host: String?,
+        assistant: String?,
+        formId: UUID
+    ) async throws -> OpenHouseEventV2 {
         // We don't overwrite is_active here; use setActive for that.
+        let payload = OpenHouseEventUpdateV2(
+            title: title,
+            location: location,
+            startsAt: startsAt,
+            host: host,
+            assistant: assistant,
+            formId: formId
+        )
         return try await client
             .from("openhouse_events")
             .update(payload)

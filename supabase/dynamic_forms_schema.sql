@@ -16,10 +16,27 @@ create table if not exists public.openhouse_events (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid(),
   title text not null,
+  location text,
+  starts_at timestamptz,
+  host text,
+  assistant text,
   form_id uuid not null references public.forms(id) on delete restrict,
   is_active boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Backfill / migrate (safe if you already created the table earlier)
+alter table public.openhouse_events
+  add column if not exists location text;
+
+alter table public.openhouse_events
+  add column if not exists starts_at timestamptz;
+
+alter table public.openhouse_events
+  add column if not exists host text;
+
+alter table public.openhouse_events
+  add column if not exists assistant text;
 
 -- 3) Submissions: JSON payload per submission
 create table if not exists public.openhouse_submissions (

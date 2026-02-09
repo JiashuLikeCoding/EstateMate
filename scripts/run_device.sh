@@ -18,7 +18,8 @@ if [[ -z "$DEVICE_UDID" ]]; then
 fi
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DERIVED="$ROOT_DIR/.derivedData"
+# Use a temp (non-iCloud/non-FileProvider) DerivedData path to avoid codesign failures caused by extended attributes.
+DERIVED="${TMPDIR:-/tmp}/EstateMateDerivedData"
 
 echo "==> Building ($SCHEME) for device $DEVICE_UDID..."
 xcodebuild \

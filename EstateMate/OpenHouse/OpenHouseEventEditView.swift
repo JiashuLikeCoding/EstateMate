@@ -13,6 +13,11 @@ struct OpenHouseEventEditView: View {
     let event: OpenHouseEventV2
 
     @State private var title: String
+    @State private var location: String
+    @State private var startsAt: Date
+    @State private var host: String
+    @State private var assistant: String
+
     @State private var forms: [FormRecord] = []
     @State private var selectedFormId: UUID?
 
@@ -24,6 +29,10 @@ struct OpenHouseEventEditView: View {
     init(event: OpenHouseEventV2) {
         self.event = event
         _title = State(initialValue: event.title)
+        _location = State(initialValue: event.location ?? "")
+        _startsAt = State(initialValue: event.startsAt ?? Date())
+        _host = State(initialValue: event.host ?? "")
+        _assistant = State(initialValue: event.assistant ?? "")
         _selectedFormId = State(initialValue: event.formId)
     }
 
@@ -41,6 +50,13 @@ struct OpenHouseEventEditView: View {
 
                     EMCard {
                         EMTextField(title: "活动标题", text: $title, prompt: "例如：123 Main St - 2月10日")
+                        EMTextField(title: "活动地点", text: $location, prompt: "例如：123 Main St, Toronto")
+
+                        DatePicker("日期与时间", selection: $startsAt)
+                            .datePickerStyle(.compact)
+
+                        EMTextField(title: "主理人", text: $host, prompt: "例如：嘉树")
+                        EMTextField(title: "助手", text: $assistant, prompt: "例如：Jason")
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("绑定表单")
@@ -125,6 +141,10 @@ struct OpenHouseEventEditView: View {
             _ = try await service.updateEvent(
                 id: event.id,
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId
             )
             errorMessage = nil

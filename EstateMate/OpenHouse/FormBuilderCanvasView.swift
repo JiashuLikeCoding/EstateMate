@@ -10,6 +10,8 @@ struct FormBuilderCanvasView: View {
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
 
+    @State private var isPreviewPresented: Bool = false
+
     /// If provided, shows a plus button attached to the "表单" card (right side).
     var addFieldAction: (() -> Void)? = nil
 
@@ -115,6 +117,33 @@ struct FormBuilderCanvasView: View {
                     .foregroundStyle(EMTheme.ink2)
             }
             .padding(EMTheme.padding)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    isPreviewPresented = true
+                } label: {
+                    Image(systemName: "eye")
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.white)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(EMTheme.line, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("预览")
+                .disabled(state.fields.isEmpty)
+                .opacity(state.fields.isEmpty ? 0.4 : 1)
+            }
+        }
+        .sheet(isPresented: $isPreviewPresented) {
+            NavigationStack {
+                FormPreviewView(formName: state.formName, fields: state.fields)
+            }
         }
     }
 

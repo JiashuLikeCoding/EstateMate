@@ -229,7 +229,13 @@ private struct FormBuilderSplitView: View {
                     .environmentObject(state)
             }
         }
-        .task { state.seedIfNeeded() }
+        .task {
+            if let form {
+                state.load(form: form)
+            } else {
+                state.seedIfNeeded()
+            }
+        }
         .environmentObject(state)
     }
 
@@ -408,7 +414,13 @@ private struct FormBuilderDrawerView: View {
                 .presentationDragIndicator(.visible)
             }
         }
-        .task { state.seedIfNeeded() }
+        .task {
+            if let form {
+                state.load(form: form)
+            } else {
+                state.seedIfNeeded()
+            }
+        }
     }
 
     private var paletteList: some View {

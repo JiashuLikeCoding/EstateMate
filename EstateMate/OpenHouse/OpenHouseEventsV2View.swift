@@ -103,6 +103,10 @@ struct OpenHouseEventsV2View: View {
         do {
             _ = try await service.createEvent(
                 title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: nil,
+                startsAt: nil,
+                host: nil,
+                assistant: nil,
                 formId: formId,
                 isActive: events.isEmpty
             )

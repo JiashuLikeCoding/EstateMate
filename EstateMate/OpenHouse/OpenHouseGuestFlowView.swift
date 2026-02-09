@@ -39,8 +39,6 @@ private struct OpenHouseEventPickerView: View {
 
                     EMCard {
                         HStack {
-                            Text("活动列表")
-                                .font(.headline)
                             Spacer()
                             Button("刷新") { Task { await load() } }
                                 .font(.footnote.weight(.medium))

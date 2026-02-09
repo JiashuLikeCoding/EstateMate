@@ -54,6 +54,11 @@ private struct OpenHouseEventCreateCardView: View {
     @State private var events: [OpenHouseEventV2] = []
 
     @State private var newTitle: String = ""
+    @State private var location: String = ""
+    @State private var startsAt: Date = Date()
+    @State private var host: String = ""
+    @State private var assistant: String = ""
+
     @State private var selectedFormId: UUID?
 
     @State private var isLoading = false
@@ -72,6 +77,54 @@ private struct OpenHouseEventCreateCardView: View {
             }
 
             EMTextField(title: "活动标题", text: $newTitle, prompt: "例如：123 Main St - 2月10日")
+            EMTextField(title: "活动地点", text: $location, prompt: "例如：123 Main St, Toronto")
+
+            DatePicker("日期与时间", selection: $startsAt)
+                .datePickerStyle(.compact)
+
+            // 从历史活动里提取“主理人/助手”候选，方便快速选择
+            let hostOptions = Array(Set(events.compactMap { $0.host?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+            let assistantOptions = Array(Set(events.compactMap { $0.assistant?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })).sorted()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("主理人")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                if hostOptions.isEmpty {
+                    EMTextField(title: "", text: $host, prompt: "例如：嘉树")
+                } else {
+                    Picker("主理人", selection: $host) {
+                        Text("（手动输入）").tag("")
+                        ForEach(hostOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+
+                    if host.isEmpty {
+                        EMTextField(title: "", text: $host, prompt: "例如：嘉树")
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("助手")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                if assistantOptions.isEmpty {
+                    EMTextField(title: "", text: $assistant, prompt: "例如：Jason")
+                } else {
+                    Picker("助手", selection: $assistant) {
+                        Text("（手动输入）").tag("")
+                        ForEach(assistantOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+
+                    if assistant.isEmpty {
+                        EMTextField(title: "", text: $assistant, prompt: "例如：Jason")
+                    }
+                }
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("绑定表单")
@@ -139,10 +192,18 @@ private struct OpenHouseEventCreateCardView: View {
         do {
             _ = try await service.createEvent(
                 title: newTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
                 isActive: events.isEmpty
             )
             newTitle = ""
+            location = ""
+            host = ""
+            assistant = ""
+            startsAt = Date()
             showCreated = true
             errorMessage = nil
         } catch {
