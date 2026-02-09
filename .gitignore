@@ -1,0 +1,20 @@
+# Xcode
+.DS_Store
+
+# Local build artifacts
+.derivedData/
+DerivedData/
+build/
+*.xcresult/
+*.dSYM/
+
+# SwiftPM
+.swiftpm/
+.build/
+
+# User-specific Xcode settings
+*.xcuserstate
+xcuserdata/
+
+# Logs
+*.log
