@@ -210,11 +210,29 @@ struct SubmissionInsertV2: Encodable {
 }
 
 struct SubmissionUpdateV2: Encodable {
-    let data: [String: String]
+    let data: [String: String]?
     let tags: [String]?
 
     enum CodingKeys: String, CodingKey {
         case data
         case tags
     }
+}
+
+struct OpenHouseTag: Codable, Identifiable, Hashable {
+    let id: UUID
+    let ownerId: UUID?
+    let name: String
+    let createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case ownerId = "owner_id"
+        case name
+        case createdAt = "created_at"
+    }
+}
+
+struct OpenHouseTagInsert: Encodable {
+    let name: String
 }

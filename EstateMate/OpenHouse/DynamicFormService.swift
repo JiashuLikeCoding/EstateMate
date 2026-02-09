@@ -204,5 +204,27 @@ final class DynamicFormService {
             .eq("id", value: id.uuidString)
             .execute()
     }
+
+    // MARK: - Tags
+
+    func listTags() async throws -> [OpenHouseTag] {
+        try await client
+            .from("openhouse_tags")
+            .select()
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func createTag(name: String) async throws -> OpenHouseTag {
+        let payload = OpenHouseTagInsert(name: name)
+        return try await client
+            .from("openhouse_tags")
+            .insert(payload)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
 }
 

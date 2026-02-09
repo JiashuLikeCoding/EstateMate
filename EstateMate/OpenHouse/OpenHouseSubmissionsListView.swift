@@ -22,8 +22,7 @@ struct OpenHouseSubmissionsListView: View {
 
     @State private var showDeleteConfirm = false
 
-    @State private var showTagEditor = false
-    @State private var tagDraft = ""
+    @State private var showTagPicker = false
 
     var body: some View {
         EMScreen("已提交") {
@@ -63,8 +62,7 @@ struct OpenHouseSubmissionsListView: View {
                                         HStack(spacing: 10) {
                                             Button {
                                                 selectedSubmission = s
-                                                tagDraft = (s.tags ?? []).joined(separator: ", ")
-                                                showTagEditor = true
+                                                showTagPicker = true
                                             } label: {
                                                 Image(systemName: "tag")
                                                     .foregroundStyle(EMTheme.ink2)
@@ -165,17 +163,18 @@ struct OpenHouseSubmissionsListView: View {
         } message: {
             Text("删除后无法恢复")
         }
-        .alert("添加标签", isPresented: $showTagEditor) {
-            TextField("例如：意向强, 预算高", text: $tagDraft)
-            Button("保存") {
-                Task { await saveTags() }
+        .sheet(isPresented: $showTagPicker) {
+            NavigationStack {
+                SubmissionTagPickerView(
+                    service: service,
+                    submission: selectedSubmission,
+                    onSaved: { updated in
+                        if let idx = submissions.firstIndex(where: { $0.id == updated.id }) {
+                            submissions[idx] = updated
+                        }
+                    }
+                )
             }
-            Button("取消", role: .cancel) {
-                tagDraft = ""
-                selectedSubmission = nil
-            }
-        } message: {
-            Text("用逗号分隔多个标签")
         }
     }
 
@@ -209,33 +208,156 @@ struct OpenHouseSubmissionsListView: View {
         }
     }
 
-    private func saveTags() async {
-        guard let s = selectedSubmission else { return }
-        let tags = parseTags(tagDraft)
+}
 
-        isLoading = true
-        defer {
-            isLoading = false
-            tagDraft = ""
-            selectedSubmission = nil
-        }
+private struct SubmissionTagPickerView: View {
+    @Environment(\.dismiss) private var dismiss
 
-        do {
-            let updated = try await service.updateSubmissionTags(id: s.id, tags: tags)
-            if let idx = submissions.firstIndex(where: { $0.id == updated.id }) {
-                submissions[idx] = updated
+    let service: DynamicFormService
+    let submission: SubmissionV2?
+    let onSaved: (SubmissionV2) -> Void
+
+    @State private var tags: [OpenHouseTag] = []
+    @State private var selected: Set<String> = []
+
+    @State private var newTagName: String = ""
+
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        EMScreen("标签") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    EMSectionHeader("选择标签", subtitle: "点选标签，也可以创建新标签")
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                    }
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("创建新标签")
+                                .font(.headline)
+
+                            HStack(spacing: 10) {
+                                TextField("例如：意向强", text: $newTagName)
+                                    .textFieldStyle(.roundedBorder)
+
+                                Button(isLoading ? "创建中" : "创建") {
+                                    hideKeyboard()
+                                    Task { await createTag() }
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(isLoading || newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                    }
+
+                    if tags.isEmpty {
+                        EMCard {
+                            Text("暂无标签")
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.vertical, 8)
+                        }
+                    } else {
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("点选标签")
+                                    .font(.headline)
+
+                                FlowLayout(maxPerRow: 3, spacing: 8) {
+                                    ForEach(tags) { t in
+                                        Button {
+                                            toggle(t.name)
+                                        } label: {
+                                            EMChip(text: t.name, isOn: selected.contains(t.name))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Button(isLoading ? "保存中..." : "保存") {
+                        Task { await save() }
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || submission == nil))
+                    .disabled(isLoading || submission == nil)
+
+                    Spacer(minLength: 20)
+                }
+                .padding(EMTheme.padding)
             }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("关闭") { dismiss() }
+                    .foregroundStyle(EMTheme.ink2)
+            }
+        }
+        .task { await load() }
+        .onAppear {
+            if let submission {
+                selected = Set(submission.tags ?? [])
+            }
+        }
+    }
+
+    private func toggle(_ name: String) {
+        if selected.contains(name) {
+            selected.remove(name)
+        } else {
+            selected.insert(name)
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            tags = try await service.listTags()
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func parseTags(_ input: String) -> [String] {
-        input
-            .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "\n" })
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+    private func createTag() async {
+        let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.isEmpty == false else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let created = try await service.createTag(name: name)
+            // Put at front
+            tags.insert(created, at: 0)
+            selected.insert(created.name)
+            newTagName = ""
+            errorMessage = nil
+        } catch {
+            // Unique constraint might fail; still refresh list.
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            await load()
+        }
+    }
+
+    private func save() async {
+        guard let submission else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let updated = try await service.updateSubmissionTags(id: submission.id, tags: Array(selected).sorted())
+            onSaved(updated)
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
