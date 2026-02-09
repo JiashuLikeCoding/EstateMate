@@ -14,6 +14,7 @@ final class SessionStore: ObservableObject {
     @Published var session: Session?
     @Published var errorMessage: String?
     @Published var isLoading: Bool = false
+    @Published var selectedWorkspace: Workspace? = nil
 
     var isLoggedIn: Bool { session != nil }
 
@@ -29,6 +30,7 @@ final class SessionStore: ObservableObject {
         do {
             try await SupabaseClientProvider.client.auth.signOut()
             self.session = nil
+            self.selectedWorkspace = nil
         } catch {
             self.errorMessage = error.localizedDescription
         }
