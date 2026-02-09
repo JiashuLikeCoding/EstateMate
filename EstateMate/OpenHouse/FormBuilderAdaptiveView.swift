@@ -207,17 +207,43 @@ private struct FormBuilderDrawerView: View {
                     Button {
                         sheet = .palette
                     } label: {
-                        Label("字段", systemImage: "plus")
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus")
+                            Text("添加字段")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(EMTheme.accent.opacity(0.12))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(EMTheme.accent.opacity(0.25), lineWidth: 1)
+                        )
                     }
+                    .buttonStyle(.plain)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         sheet = .properties
                     } label: {
-                        Label("属性", systemImage: "slider.horizontal.3")
+                        Image(systemName: "slider.horizontal.3")
+                            .padding(10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
                     }
+                    .buttonStyle(.plain)
                     .disabled(state.selectedFieldKey == nil)
+                    .opacity(state.selectedFieldKey == nil ? 0.4 : 1)
                 }
             }
             .sheet(item: Binding(
@@ -250,14 +276,43 @@ private struct FormBuilderDrawerView: View {
     }
 
     private var paletteList: some View {
-        List {
-            Section("基础字段") {
-                Button { state.addField(type: .text) } label: { Label("文本输入", systemImage: "text.cursor") }
-                Button { state.addField(type: .phone) } label: { Label("手机号", systemImage: "phone") }
-                Button { state.addField(type: .email) } label: { Label("邮箱", systemImage: "envelope") }
-                Button { state.addField(type: .select) } label: { Label("单选", systemImage: "list.bullet") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                EMSectionHeader("基础字段", subtitle: "点击添加到画布")
+
+                EMCard {
+                    paletteRow(title: "文本输入", systemImage: "text.cursor", type: .text)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "手机号", systemImage: "phone", type: .phone)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "邮箱", systemImage: "envelope", type: .email)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "单选", systemImage: "list.bullet", type: .select)
+                }
             }
+            .padding(EMTheme.padding)
         }
+    }
+
+    private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
+        Button {
+            state.addField(type: type)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .frame(width: 28)
+                    .foregroundStyle(EMTheme.accent)
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(EMTheme.ink)
+                Spacer()
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(EMTheme.accent)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private struct SheetItem: Identifiable {

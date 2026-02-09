@@ -76,7 +76,7 @@ struct FormBuilderCanvasView: View {
                 .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
                 .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                Text("提示：在 iPhone 上使用底部抽屉添加字段与编辑属性")
+                Text("提示：点左上角“添加字段”，再点击画布里的字段编辑属性")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
             }
