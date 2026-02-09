@@ -297,26 +297,28 @@ private struct FormBuilderSplitView: View {
 private struct FormBuilderDrawerView: View {
     @StateObject private var state = FormBuilderState()
 
-    enum Sheet: String, Identifiable {
+    enum SheetMode {
         case palette
         case properties
-        var id: String { rawValue }
     }
 
-    @State private var sheet: Sheet? = nil
+    @State private var isSheetPresented: Bool = false
+    @State private var mode: SheetMode = .palette
 
     var body: some View {
         NavigationStack {
             EMScreen("表单设计") {
                 FormBuilderCanvasView(addFieldAction: {
-                    sheet = .palette
+                    mode = .palette
+                    isSheetPresented = true
                 })
                     .environmentObject(state)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        sheet = .properties
+                        mode = .properties
+                        isSheetPresented = true
                     } label: {
                         Image(systemName: "slider.horizontal.3")
                             .padding(10)
@@ -334,21 +336,35 @@ private struct FormBuilderDrawerView: View {
                     .opacity(state.selectedFieldKey == nil ? 0.4 : 1)
                 }
             }
-            .sheet(item: $sheet) { kind in
-                switch kind {
-                case .palette:
-                    EMScreen("字段库") {
-                        paletteList
-                            .environmentObject(state)
+            .sheet(isPresented: $isSheetPresented) {
+                NavigationStack {
+                    Group {
+                        switch mode {
+                        case .palette:
+                            EMScreen("字段库") {
+                                paletteList
+                                    .environmentObject(state)
+                            }
+                        case .properties:
+                            EMScreen("属性") {
+                                FormBuilderPropertiesView(
+                                    onDone: {
+                                        // keep sheet open, go back to palette for continuous adding
+                                        mode = .palette
+                                    }
+                                )
+                                .environmentObject(state)
+                            }
+                        }
                     }
-                    .presentationDetents([.medium, .large])
-                case .properties:
-                    EMScreen("属性") {
-                        FormBuilderPropertiesView()
-                            .environmentObject(state)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("关闭") { isSheetPresented = false }
+                                .foregroundStyle(EMTheme.ink2)
+                        }
                     }
-                    .presentationDetents([.medium, .large])
                 }
+                .presentationDetents([.medium, .large])
             }
         }
         .task { state.seedIfNeeded() }
@@ -378,8 +394,8 @@ private struct FormBuilderDrawerView: View {
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
             state.startDraft(type: type)
-            // Switch to properties in the same sheet (no dismiss/reopen).
-            sheet = .properties
+            mode = .properties
+            isSheetPresented = true
         } label: {
             paletteRowBody(title: title, systemImage: systemImage)
         }
@@ -389,8 +405,8 @@ private struct FormBuilderDrawerView: View {
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         Button {
             state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
-            // Switch to properties in the same sheet (no dismiss/reopen).
-            sheet = .properties
+            mode = .properties
+            isSheetPresented = true
         } label: {
             paletteRowBody(title: title, systemImage: systemImage)
         }

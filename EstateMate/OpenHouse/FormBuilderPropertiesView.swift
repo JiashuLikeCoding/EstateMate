@@ -9,6 +9,9 @@ struct FormBuilderPropertiesView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
 
+    /// Called when user finishes an action (Add/Cancel/Delete) in a context that wants to keep the sheet open.
+    var onDone: (() -> Void)? = nil
+
     var body: some View {
         EMScreen {
             if state.draftField != nil {
@@ -37,7 +40,7 @@ struct FormBuilderPropertiesView: View {
                 HStack(spacing: 12) {
                     Button {
                         state.cancelDraft()
-                        dismiss()
+                        if let onDone { onDone() } else { dismiss() }
                     } label: {
                         Text("取消")
                     }
@@ -50,7 +53,7 @@ struct FormBuilderPropertiesView: View {
                             return
                         }
                         state.confirmDraft()
-                        dismiss()
+                        if let onDone { onDone() } else { dismiss() }
                     } label: {
                         Text("添加")
                     }
@@ -74,7 +77,7 @@ struct FormBuilderPropertiesView: View {
 
                 Button {
                     state.deleteSelectedIfPossible()
-                    dismiss()
+                    if let onDone { onDone() } else { dismiss() }
                 } label: {
                     Text("删除字段")
                 }
