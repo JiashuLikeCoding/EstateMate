@@ -408,7 +408,7 @@ private struct FormBuilderDrawerView: View {
 
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         let added = state.fields.contains(where: { $0.type == type })
-        Button {
+        return Button {
             state.startDraft(type: type)
             mode = .properties
             isSheetPresented = true
@@ -420,7 +420,7 @@ private struct FormBuilderDrawerView: View {
 
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         let added = state.fields.contains(where: { $0.type == type })
-        Button {
+        return Button {
             state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
             mode = .properties
             isSheetPresented = true

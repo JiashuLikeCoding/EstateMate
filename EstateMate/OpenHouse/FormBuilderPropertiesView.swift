@@ -163,7 +163,7 @@ struct FormBuilderPropertiesView: View {
                 Divider().overlay(EMTheme.line)
 
                 Picker("文本格式", selection: Binding(
-                    get: { binding.wrappedValue.textCase ?? .none },
+                    get: { binding.wrappedValue.textCase ?? TextCase.none },
                     set: { binding.wrappedValue.textCase = $0 }
                 )) {
                     ForEach(TextCase.allCases, id: \.self) { tc in
