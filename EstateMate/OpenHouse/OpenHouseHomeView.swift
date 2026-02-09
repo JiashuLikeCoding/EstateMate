@@ -13,12 +13,26 @@ struct OpenHouseHomeView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    NavigationLink("OpenHouse Events") {
-                        OpenHouseEventsView()
+                Section("Dynamic Forms (MVP)") {
+                    NavigationLink("Events") {
+                        OpenHouseEventsV2View()
                     }
 
                     NavigationLink("Start Guest Mode") {
+                        OpenHouseGuestModeV2View()
+                    }
+
+                    NavigationLink("Form Builder") {
+                        FormBuilderView()
+                    }
+                }
+
+                Section("Legacy (fixed fields)") {
+                    NavigationLink("Events (legacy)") {
+                        OpenHouseEventsView()
+                    }
+
+                    NavigationLink("Guest Mode (legacy)") {
                         OpenHouseGuestModeView()
                     }
                 }
