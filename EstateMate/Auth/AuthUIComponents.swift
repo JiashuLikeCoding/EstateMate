@@ -11,18 +11,26 @@ struct AuthBackground: View {
     var body: some View {
         LinearGradient(
             colors: [
-                Color(red: 0.10, green: 0.12, blue: 0.18),
-                Color(red: 0.06, green: 0.07, blue: 0.11)
+                Color(red: 0.05, green: 0.07, blue: 0.12),
+                Color(red: 0.03, green: 0.04, blue: 0.08)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
         .overlay(
             RadialGradient(
-                colors: [Color.white.opacity(0.10), .clear],
-                center: .top,
-                startRadius: 10,
-                endRadius: 380
+                colors: [Color(red: 0.35, green: 0.18, blue: 0.70).opacity(0.18), .clear],
+                center: .topTrailing,
+                startRadius: 20,
+                endRadius: 420
+            )
+        )
+        .overlay(
+            RadialGradient(
+                colors: [Color(red: 0.10, green: 0.70, blue: 0.70).opacity(0.10), .clear],
+                center: .bottomLeading,
+                startRadius: 20,
+                endRadius: 520
             )
         )
         .ignoresSafeArea()
@@ -94,8 +102,13 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isDisabled ? Color.gray.opacity(0.35) : Color(red: 0.22, green: 0.50, blue: 0.98))
+                    .fill(isDisabled ? Color.gray.opacity(0.30) : Color(red: 0.39, green: 0.33, blue: 0.98))
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.25), radius: 16, x: 0, y: 10)
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: configuration.isPressed)
     }

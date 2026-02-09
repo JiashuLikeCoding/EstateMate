@@ -32,6 +32,7 @@ struct OpenHouseHomeView: View {
                             } label: {
                                 row(title: "活动管理", subtitle: "创建活动并绑定表单")
                             }
+                            .tint(.clear)
 
                             Divider().overlay(Color.white.opacity(0.12))
 
@@ -40,6 +41,7 @@ struct OpenHouseHomeView: View {
                             } label: {
                                 row(title: "表单设计", subtitle: "自定义字段（文本/电话/邮箱/单选）")
                             }
+                            .tint(.clear)
 
                             Divider().overlay(Color.white.opacity(0.12))
 
@@ -48,6 +50,7 @@ struct OpenHouseHomeView: View {
                             } label: {
                                 row(title: "访客模式", subtitle: "现场给客人填写，提交后自动清空")
                             }
+                            .tint(.clear)
                         }
 
                         AuthCard {
@@ -75,16 +78,17 @@ struct OpenHouseHomeView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.headline)
+                    .foregroundStyle(.white)
                 Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.white.opacity(0.70))
             }
             Spacer()
             Image(systemName: "chevron.right")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.white.opacity(0.60))
         }
         .contentShape(Rectangle())
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
     }
 }
 
