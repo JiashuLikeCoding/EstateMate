@@ -121,22 +121,64 @@ private struct FormBuilderSplitView: View {
     }
 
     private var palette: some View {
-        List {
-            Section("基础字段") {
-                paletteButton("文本输入", systemImage: "text.cursor", type: .text)
-                paletteButton("手机号", systemImage: "phone", type: .phone)
-                paletteButton("邮箱", systemImage: "envelope", type: .email)
-                paletteButton("单选", systemImage: "list.bullet", type: .select)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("基础字段")
+                    .font(.headline)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ],
+                    spacing: 12
+                ) {
+                    paletteCard(title: "文本输入", systemImage: "text.cursor", type: .text)
+                    paletteCard(title: "手机号", systemImage: "phone", type: .phone)
+                    paletteCard(title: "邮箱", systemImage: "envelope", type: .email)
+                    paletteCard(title: "单选", systemImage: "list.bullet", type: .select)
+                }
+                .padding(.horizontal, 16)
+
+                Spacer(minLength: 20)
             }
         }
+        .background(Color.clear)
     }
 
-    private func paletteButton(_ title: String, systemImage: String, type: FormFieldType) -> some View {
+    private func paletteCard(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
             state.addField(type: type)
         } label: {
-            Label(title, systemImage: systemImage)
+            VStack(alignment: .leading, spacing: 10) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .foregroundStyle(Color(red: 0.10, green: 0.78, blue: 0.66))
+
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+
+                Text("点击添加")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
     }
 
     private var canvas: some View {
