@@ -67,19 +67,18 @@ struct OpenHouseFormsView: View {
                                                             .font(.caption)
                                                             .foregroundStyle(EMTheme.ink2)
                                                     } else {
-                                                        ScrollView(.horizontal, showsIndicators: false) {
-                                                            HStack(spacing: 8) {
-                                                                ForEach(fieldChips(for: f), id: \.self) { t in
-                                                                    EMChip(text: t, isOn: false)
+                                                        VStack(alignment: .leading, spacing: 6) {
+                                                            ForEach(chunks(of: fieldChips(for: f), size: 3), id: \.self) { row in
+                                                                HStack(spacing: 8) {
+                                                                    ForEach(row, id: \.self) { t in
+                                                                        EMChip(text: t, isOn: false)
+                                                                    }
+                                                                    Spacer(minLength: 0)
                                                                 }
                                                             }
-                                                            .padding(.vertical, 2)
                                                         }
+                                                        .padding(.vertical, 2)
                                                     }
-
-                                                    Text("字段数：\(f.schema.fields.count)")
-                                                        .font(.caption)
-                                                        .foregroundStyle(EMTheme.ink2)
                                                 }
                                                 Spacer()
                                                 Image(systemName: "chevron.right")
@@ -120,7 +119,7 @@ struct OpenHouseFormsView: View {
     }
 
     private func fieldChips(for form: FormRecord) -> [String] {
-        // Show up to 6 chips; if more, append "+N".
+        // Keep it compact: show up to 6 chips, no count label.
         let maxCount = 6
         let fields = form.schema.fields
 
@@ -137,7 +136,6 @@ struct OpenHouseFormsView: View {
         var chips: [String] = []
         for f in fields.prefix(maxCount) {
             let required = f.required ? "*" : ""
-            // 例：姓名*（姓名） / 邮箱（邮箱）
             chips.append("\(f.label)\(required)（\(typeTitle(f.type))）")
         }
 
@@ -146,6 +144,18 @@ struct OpenHouseFormsView: View {
         }
 
         return chips
+    }
+
+    private func chunks<T: Hashable>(of items: [T], size: Int) -> [[T]] {
+        guard size > 0 else { return [items] }
+        var result: [[T]] = []
+        var i = 0
+        while i < items.count {
+            let end = min(items.count, i + size)
+            result.append(Array(items[i..<end]))
+            i = end
+        }
+        return result
     }
 }
 

@@ -49,9 +49,7 @@ struct FormPickerSheetView: View {
                                         .padding(.vertical, 2)
                                     }
 
-                                    Text("字段数：\(f.schema.fields.count)")
-                                        .font(.caption)
-                                        .foregroundStyle(EMTheme.ink2)
+                                    EmptyView()
                                 }
                                 Spacer()
 
