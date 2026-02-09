@@ -279,6 +279,7 @@ struct OpenHouseKioskFillView: View {
                     }
 
                     Button(isLoading ? "提交中..." : "提交") {
+                        hideKeyboard()
                         Task { await submit(eventId: event.id, form: form) }
                     }
                     .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSubmit(form: form)))
@@ -488,6 +489,12 @@ struct OpenHouseKioskFillView: View {
     }
 
     private func submit(eventId: UUID, form: FormRecord) async {
+        // Email format validation: if user typed something, it must look like an email.
+        if let msg = validateEmailFields(form: form) {
+            errorMessage = msg
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
         do {
@@ -513,5 +520,22 @@ struct OpenHouseKioskFillView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func validateEmailFields(form: FormRecord) -> String? {
+        for f in form.schema.fields where f.type == .email {
+            let raw = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard raw.isEmpty == false else { continue }
+            if isValidEmail(raw) == false {
+                return "邮箱格式不正确，请检查后再提交"
+            }
+        }
+        return nil
+    }
+
+    private func isValidEmail(_ s: String) -> Bool {
+        // Simple, practical email check (not fully RFC-complete, but good UX).
+        let pattern = "^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        return s.range(of: pattern, options: .regularExpression) != nil
     }
 }
