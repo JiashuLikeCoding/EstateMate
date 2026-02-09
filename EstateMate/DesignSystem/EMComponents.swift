@@ -23,7 +23,27 @@ struct EMScreen<Content: View>: View {
         .tint(EMTheme.accent)
         .navigationTitle(title ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        // Dismiss keyboard when tapping anywhere.
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                hideKeyboard()
+            }
+        )
     }
+}
+
+// MARK: - Keyboard
+
+@MainActor
+func hideKeyboard() {
+#if canImport(UIKit)
+    UIApplication.shared.sendAction(
+        #selector(UIResponder.resignFirstResponder),
+        to: nil,
+        from: nil,
+        for: nil
+    )
+#endif
 }
 
 struct EMCard<Content: View>: View {
