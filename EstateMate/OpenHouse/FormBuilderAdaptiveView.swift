@@ -206,9 +206,69 @@ final class FormBuilderState: ObservableObject {
 
     func confirmDraft() {
         guard let draftField else { return }
-        fields.append(draftField)
+
+        // Apply change (append or update) into a proposed array first, so we can validate before mutating state.
+        var proposed = fields
+        if let editingKey = editingFieldKey,
+           let idx = proposed.firstIndex(where: { $0.key == editingKey }) {
+            proposed[idx] = draftField
+        } else {
+            proposed.append(draftField)
+        }
+
+        if let msg = spliceValidationError(in: proposed) {
+            errorMessage = msg
+            return
+        }
+
+        errorMessage = nil
+        fields = proposed
         selectedFieldKey = draftField.key
         self.draftField = nil
+        self.editingFieldKey = nil
+    }
+
+    private func spliceValidationError(in fields: [FormField]) -> String? {
+        // Rule recap:
+        // - No leading/trailing splice.
+        // - No adjacent splice.
+        // - Max 4 non-splice fields in a splice-connected chain (i.e. max 3 splices between them).
+        guard !fields.isEmpty else { return nil }
+
+        var currentFieldCount = 0
+        var currentSpliceCount = 0
+
+        for i in fields.indices {
+            let f = fields[i]
+
+            if f.type == .splice {
+                if i == fields.startIndex || i == fields.index(before: fields.endIndex) {
+                    return "拼接不能放在开头或结尾"
+                }
+
+                if fields[i - 1].type == .splice {
+                    return "不允许两个拼接挨在一起"
+                }
+
+                currentSpliceCount += 1
+                if currentSpliceCount > 3 {
+                    return "拼接最大支持一行 4 个字段（字段 拼接 字段 拼接 字段 拼接 字段）"
+                }
+            } else {
+                if i > fields.startIndex, fields[i - 1].type == .splice {
+                    currentFieldCount += 1
+                } else {
+                    currentFieldCount = 1
+                    currentSpliceCount = 0
+                }
+
+                if currentFieldCount > 4 {
+                    return "拼接最大支持一行 4 个字段（字段 拼接 字段 拼接 字段 拼接 字段）"
+                }
+            }
+        }
+
+        return nil
     }
 
     func deleteSelectedIfPossible() {
