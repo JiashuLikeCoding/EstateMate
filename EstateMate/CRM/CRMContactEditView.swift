@@ -8,6 +8,15 @@
 import SwiftUI
 
 struct CRMContactEditView: View {
+    /// If edit hits unique constraint (email/phone already used by another contact),
+    /// we will merge-update the existing contact and report its id via this callback.
+    var onMergedIntoExisting: ((UUID) -> Void)? = nil
+
+    init(mode: Mode, onMergedIntoExisting: ((UUID) -> Void)? = nil) {
+        self.mode = mode
+        self.onMergedIntoExisting = onMergedIntoExisting
+    }
+
     enum Mode: Equatable {
         case create
         case edit(UUID)
@@ -238,21 +247,76 @@ struct CRMContactEditView: View {
                 dismiss()
 
             case let .edit(id):
-                _ = try await service.updateContact(
-                    id: id,
-                    patch: CRMContactUpdate(
-                        fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines),
-                        phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
-                        email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                        notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                        address: joinInterestedAddresses(interestedAddresses),
-                        tags: tags.isEmpty ? [] : tags,
-                        stage: stage,
-                        source: source,
-                        lastContactedAt: nil
+                do {
+                    _ = try await service.updateContact(
+                        id: id,
+                        patch: CRMContactUpdate(
+                            fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines),
+                            phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
+                            email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                            address: joinInterestedAddresses(interestedAddresses),
+                            tags: tags.isEmpty ? [] : tags,
+                            stage: stage,
+                            source: source,
+                            lastContactedAt: nil
+                        )
                     )
-                )
-                dismiss()
+                    dismiss()
+                } catch {
+                    // If email/phone conflicts with another existing contact, automatically merge-update that contact.
+                    if service.isUniqueConstraintViolation(error) {
+                        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let normalizedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        if let existing = try await service.findExistingContact(
+                            email: normalizedEmail,
+                            phone: normalizedPhone,
+                            excluding: id
+                        ) {
+                            let server = try await service.getContact(id: existing.id)
+
+                            let mergedFullName = fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? server.fullName : fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let mergedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? server.notes : notes.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                            let mergedEmail = normalizedEmail.isEmpty ? server.email : normalizedEmail.lowercased()
+                            let mergedPhone = normalizedPhone.isEmpty ? server.phone : normalizedPhone
+
+                            // Merge addresses/tags by union.
+                            let mergedAddresses = unionAddresses(
+                                splitInterestedAddresses(server.address),
+                                interestedAddresses
+                            )
+
+                            let mergedTagsSet = Set((server.tags ?? []) + Array(selectedTags))
+                            let mergedTags = mergedTagsSet
+                                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                                .filter { !$0.isEmpty }
+                                .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+
+                            _ = try await service.updateContact(
+                                id: server.id,
+                                patch: CRMContactUpdate(
+                                    fullName: mergedFullName,
+                                    phone: mergedPhone,
+                                    email: mergedEmail,
+                                    notes: mergedNotes,
+                                    address: joinInterestedAddresses(mergedAddresses),
+                                    tags: mergedTags,
+                                    stage: stage,
+                                    source: source,
+                                    lastContactedAt: nil
+                                )
+                            )
+
+                            onMergedIntoExisting?(server.id)
+                            dismiss()
+                            return
+                        }
+                    }
+
+                    throw error
+                }
             }
         } catch {
             errorMessage = "保存失败：\(error.localizedDescription)"
@@ -361,6 +425,20 @@ struct CRMContactEditView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: "\n")
+    }
+
+    private func unionAddresses(_ a: [String], _ b: [String]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for x in (a + b) {
+            let t = x.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty else { continue }
+            if !seen.contains(t) {
+                seen.insert(t)
+                out.append(t)
+            }
+        }
+        return out
     }
 }
 

@@ -14,7 +14,12 @@ struct CRMContactDetailView: View {
     @State private var errorMessage: String?
     @State private var contact: CRMContact?
 
+    struct ContactNavTarget: Identifiable, Equatable, Hashable {
+        let id: UUID
+    }
+
     @State private var isEditPresented = false
+    @State private var mergedIntoContact: ContactNavTarget? = nil
 
     private let service = CRMService()
 
@@ -133,6 +138,9 @@ struct CRMContactDetailView: View {
         }
         .navigationTitle("客户")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $mergedIntoContact) { target in
+            CRMContactDetailView(contactId: target.id)
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("编辑") {
@@ -145,7 +153,11 @@ struct CRMContactDetailView: View {
             Task { await reload() }
         }) {
             NavigationStack {
-                CRMContactEditView(mode: .edit(contactId))
+                CRMContactEditView(mode: .edit(contactId)) { mergedId in
+                    // A different contact already exists with this unique key (email/phone).
+                    // We merged updates into that contact; navigate to it.
+                    mergedIntoContact = ContactNavTarget(id: mergedId)
+                }
             }
         }
         .task {

@@ -136,7 +136,7 @@ final class CRMService {
         }
     }
 
-    private func isUniqueConstraintViolation(_ error: Error) -> Bool {
+    func isUniqueConstraintViolation(_ error: Error) -> Bool {
         let msg = error.localizedDescription.lowercased()
         return msg.contains("duplicate key value violates unique constraint")
             || msg.contains("23505")
@@ -162,6 +162,23 @@ final class CRMService {
             .execute()
             .value
         return rows.first
+    }
+
+    /// Find an existing contact by email/phone (priority: email -> phone), excluding a specific id.
+    /// Used for "unique constraint" conflict resolution when editing.
+    func findExistingContact(email: String, phone: String, excluding excludedId: UUID?) async throws -> CRMContact? {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !normalizedEmail.isEmpty, let c = try await findContactByEmail(normalizedEmail) {
+            if excludedId == nil || c.id != excludedId { return c }
+        }
+
+        if !normalizedPhone.isEmpty, let c = try await findContactByPhone(normalizedPhone) {
+            if excludedId == nil || c.id != excludedId { return c }
+        }
+
+        return nil
     }
 
     func updateContact(id: UUID, patch: CRMContactUpdate) async throws -> CRMContact {
