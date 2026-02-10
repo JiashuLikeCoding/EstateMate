@@ -239,7 +239,10 @@ struct FormBuilderCanvasView: View {
     }
 
     private func fieldRow(field f: FormField) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        let isSplice = (f.type == .splice)
+        let isDivider = (f.type == .divider)
+
+        return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
                 switch f.type {
                 case .divider:
@@ -342,16 +345,24 @@ struct FormBuilderCanvasView: View {
                 .accessibilityLabel("拖动排序")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 12)
+        .padding(.vertical, isSplice ? 10 : 12)
         .background(
             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                .fill(EMTheme.paper2)
+                .fill(isSplice ? EMTheme.paper : EMTheme.paper2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                .stroke(state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line, lineWidth: 1)
+                .strokeBorder(
+                    state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line,
+                    style: StrokeStyle(
+                        lineWidth: 1,
+                        dash: (isSplice || isDivider) ? [6, 4] : []
+                    )
+                )
         )
         .contentShape(Rectangle())
+        // Make splice/divider visually "stand apart" so they don't look like the adjacent fields are merged.
+        .padding(.vertical, (isSplice || isDivider) ? 2 : 0)
     }
 
     private func previewPlaceholder(for f: FormField) -> String {
