@@ -457,22 +457,6 @@ struct FormBuilderCanvasView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                if isSelected {
-                    HStack(alignment: .center, spacing: 8) {
-                        Text("插入锚点")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(EMTheme.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 999, style: .continuous)
-                                    .fill(EMTheme.accent.opacity(0.10))
-                            )
-
-                        Spacer(minLength: 0)
-                    }
-                }
-
                 switch f.type {
                 case .divider:
                     HStack(spacing: 10) {
@@ -484,25 +468,6 @@ struct FormBuilderCanvasView: View {
                             .foregroundStyle(EMTheme.ink)
 
                         Spacer(minLength: 0)
-
-                        // A tiny preview line
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color.white)
-                            .frame(width: 140, height: 22)
-                            .overlay(
-                                VStack {
-                                    Spacer()
-                                    Rectangle()
-                                        .fill(EMTheme.line)
-                                        .frame(height: max(1, CGFloat(f.dividerThickness ?? 1)))
-                                    Spacer()
-                                }
-                                .padding(.horizontal, 12)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(EMTheme.line, lineWidth: 1)
-                            )
                     }
 
                 case .splice:
@@ -515,28 +480,6 @@ struct FormBuilderCanvasView: View {
                             .foregroundStyle(EMTheme.ink)
 
                         Spacer(minLength: 0)
-
-                        HStack(spacing: 6) {
-                            Text("1/2")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(EMTheme.ink2)
-                            Image(systemName: "arrow.left.and.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(EMTheme.accent)
-                            Text("1/2")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 999, style: .continuous)
-                                .fill(Color.white)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 999, style: .continuous)
-                                .stroke(EMTheme.line, lineWidth: 1)
-                        )
                     }
 
                 default:
@@ -545,10 +488,6 @@ struct FormBuilderCanvasView: View {
                             .font(.callout)
                             .foregroundStyle(EMTheme.ink)
                             .frame(width: 86, alignment: .leading)
-
-                        Text(previewPlaceholder(for: f))
-                            .font(.callout)
-                            .foregroundStyle(EMTheme.ink2)
 
                         Spacer(minLength: 0)
                     }
@@ -622,36 +561,7 @@ struct FormBuilderCanvasView: View {
         return isHint ? EMTheme.ink2 : .red
     }
 
-    private func previewPlaceholder(for f: FormField) -> String {
-        switch f.type {
-        case .name:
-            return "点击输入..."
-        case .text:
-            return "点击输入..."
-        case .multilineText:
-            return "输入多行内容..."
-        case .phone:
-            return (f.phoneFormat ?? .plain) == .withCountryCode ? "+1 123456789" : "123456789"
-        case .email:
-            return "name@email.com"
-        case .select:
-            return (f.options?.first).map { "请选择（例如：\($0)）" } ?? "请选择..."
-        case .dropdown:
-            return (f.options?.first).map { "下拉选择（例如：\($0)）" } ?? "下拉选择..."
-        case .multiSelect:
-            return (f.options?.first).map { "可多选（例如：\($0)）" } ?? "可多选..."
-        case .checkbox:
-            return "点一下切换"
-        case .sectionTitle:
-            return ""
-        case .sectionSubtitle:
-            return ""
-        case .divider:
-            return ""
-        case .splice:
-            return ""
-        }
-    }
+    // Intentionally no placeholder preview in the builder list (keeps the canvas clean).
 
     private struct FieldDropDelegate: DropDelegate {
         let field: FormField
