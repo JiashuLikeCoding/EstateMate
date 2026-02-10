@@ -56,6 +56,10 @@ private struct OpenHouseEventCreateCardView: View {
     @State private var forms: [FormRecord] = []
     @State private var events: [OpenHouseEventV2] = []
 
+    @State private var templates: [EmailTemplateRecord] = []
+    @State private var selectedEmailTemplateId: UUID?
+    @State private var isEmailTemplateSheetPresented: Bool = false
+
     @State private var newTitle: String = ""
     @State private var location: String = ""
     @State private var startsAt: Date = Date()
@@ -195,6 +199,37 @@ private struct OpenHouseEventCreateCardView: View {
                 }
             }
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text("绑定邮件模版")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                Button {
+                    isEmailTemplateSheetPresented = true
+                } label: {
+                    HStack(spacing: 10) {
+                        if selectedEmailTemplateId == nil {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(EMTheme.accent)
+                            Text("绑定邮件模版")
+                                .foregroundStyle(EMTheme.ink)
+                        } else {
+                            Text(selectedEmailTemplateName)
+                                .foregroundStyle(EMTheme.ink)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+                .disabled(templates.isEmpty)
+                .opacity(templates.isEmpty ? 0.4 : 1)
+                .overlay(alignment: .bottom) {
+                    Divider().overlay(EMTheme.line)
+                }
+            }
+
             Button(isLoading ? "创建中..." : "创建") {
                 Task { await createEvent() }
             }
@@ -215,6 +250,11 @@ private struct OpenHouseEventCreateCardView: View {
         .sheet(isPresented: $isFormSheetPresented) {
             FormPickerSheetView(forms: forms, selectedFormId: $selectedFormId)
         }
+        .sheet(isPresented: $isEmailTemplateSheetPresented) {
+            NavigationStack {
+                EmailTemplatePickerSheetView(templates: templates, selectedTemplateId: $selectedEmailTemplateId)
+            }
+        }
     }
 
     private var canCreate: Bool {
@@ -226,12 +266,20 @@ private struct OpenHouseEventCreateCardView: View {
         return forms.first(where: { $0.id == selectedFormId })?.name ?? "请选择..."
     }
 
+    private var selectedEmailTemplateName: String {
+        guard let selectedEmailTemplateId else { return "请选择..." }
+        let t = templates.first(where: { $0.id == selectedEmailTemplateId })
+        let name = (t?.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "（未命名模版）" : name
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
             forms = try await service.listForms()
             events = try await service.listEvents()
+            templates = try await EmailTemplateService().listTemplates(workspace: nil)
             // 不默认选择表单，让用户明确绑定
             errorMessage = nil
         } catch {
@@ -266,12 +314,14 @@ private struct OpenHouseEventCreateCardView: View {
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
+                emailTemplateId: selectedEmailTemplateId,
                 isActive: events.isEmpty
             )
             newTitle = ""
             location = ""
             host = ""
             assistant = ""
+            selectedEmailTemplateId = nil
             startsAt = Date()
             hasTimeRange = false
             endsAt = Calendar.current.date(byAdding: .hour, value: 2, to: startsAt) ?? startsAt

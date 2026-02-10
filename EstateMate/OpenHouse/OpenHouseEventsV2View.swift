@@ -19,6 +19,10 @@ struct OpenHouseEventsV2View: View {
     @State private var newTitle: String = ""
     @State private var selectedFormId: UUID?
 
+    @State private var templates: [EmailTemplateRecord] = []
+    @State private var selectedEmailTemplateId: UUID?
+    @State private var isEmailTemplateSheetPresented: Bool = false
+
     var body: some View {
         List {
             if let errorMessage {
@@ -33,6 +37,10 @@ struct OpenHouseEventsV2View: View {
                     ForEach(forms) { f in
                         Text(f.name).tag(Optional(f.id))
                     }
+                }
+
+                Button("绑定邮件模版（可选）") {
+                    isEmailTemplateSheetPresented = true
                 }
 
                 Button("创建") {
@@ -79,6 +87,11 @@ struct OpenHouseEventsV2View: View {
         }
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $isEmailTemplateSheetPresented) {
+            NavigationStack {
+                EmailTemplatePickerSheetView(templates: templates, selectedTemplateId: $selectedEmailTemplateId)
+            }
+        }
     }
 
     private func load() async {
@@ -87,6 +100,7 @@ struct OpenHouseEventsV2View: View {
         do {
             forms = try await service.listForms()
             events = try await service.listEvents()
+            templates = try await EmailTemplateService().listTemplates(workspace: nil)
             if selectedFormId == nil {
                 selectedFormId = forms.first?.id
             }
@@ -109,6 +123,7 @@ struct OpenHouseEventsV2View: View {
                 host: nil,
                 assistant: nil,
                 formId: formId,
+                emailTemplateId: selectedEmailTemplateId,
                 isActive: events.isEmpty
             )
             newTitle = ""
