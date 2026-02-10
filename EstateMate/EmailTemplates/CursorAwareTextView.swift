@@ -12,6 +12,7 @@ import UIKit
 struct CursorAwareTextView: UIViewRepresentable {
     @Binding var text: String
     @Binding var selection: NSRange
+    @Binding var isFocused: Bool
 
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
@@ -43,22 +44,32 @@ struct CursorAwareTextView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, selection: $selection)
+        Coordinator(text: $text, selection: $selection, isFocused: $isFocused)
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {
         @Binding var text: String
         @Binding var selection: NSRange
+        @Binding var isFocused: Bool
 
         var isUpdatingSelectionFromUser = false
 
-        init(text: Binding<String>, selection: Binding<NSRange>) {
+        init(text: Binding<String>, selection: Binding<NSRange>, isFocused: Binding<Bool>) {
             _text = text
             _selection = selection
+            _isFocused = isFocused
         }
 
         func textViewDidChange(_ textView: UITextView) {
             text = textView.text
+        }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            isFocused = true
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            isFocused = false
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {

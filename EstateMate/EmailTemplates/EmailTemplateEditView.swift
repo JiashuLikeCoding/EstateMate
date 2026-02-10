@@ -51,8 +51,12 @@ struct EmailTemplateEditView: View {
 
     @State private var name: String = ""
     @State private var subject: String = ""
+    @State private var subjectSelection: NSRange = NSRange(location: 0, length: 0)
+    @State private var isSubjectFocused: Bool = false
+
     @State private var bodyText: String = ""
     @State private var bodySelection: NSRange = NSRange(location: 0, length: 0)
+    @State private var isBodyFocused: Bool = false
 
     @State private var variables: [EmailTemplateVariable] = []
 
@@ -104,14 +108,41 @@ struct EmailTemplateEditView: View {
 
                     EMCard {
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
-                        EMTextField(title: "主题", text: $subject, prompt: "例如：很高兴见到您，{{client_name}}")
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("主题")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            CursorAwareTextField(
+                                text: $subject,
+                                selection: $subjectSelection,
+                                isFocused: $isSubjectFocused,
+                                placeholder: "例如：很高兴见到您，{{client_name}}"
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                isSubjectFocused = true
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .fill(EMTheme.paper2)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
+                        }
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("正文")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
-                            CursorAwareTextView(text: $bodyText, selection: $bodySelection)
+                            CursorAwareTextView(text: $bodyText, selection: $bodySelection, isFocused: $isBodyFocused)
                                 .frame(minHeight: 180)
                                 .padding(10)
                                 .background(
@@ -355,7 +386,34 @@ struct EmailTemplateEditView: View {
     private func insertVariableToken(_ key: String) {
         let token = "{{\(key)}}"
 
-        // Insert at cursor/selection instead of always appending to the end.
+        // If the subject field is focused, insert into subject; otherwise insert into body.
+        if isSubjectFocused {
+            insertTokenIntoSubject(token)
+        } else {
+            insertTokenIntoBody(token)
+        }
+    }
+
+    private func insertTokenIntoSubject(_ token: String) {
+        let ns = subject as NSString
+        let safeLoc = min(max(subjectSelection.location, 0), ns.length)
+        let safeLen = min(max(subjectSelection.length, 0), ns.length - safeLoc)
+        let range = NSRange(location: safeLoc, length: safeLen)
+
+        let needsLeadingSpace: Bool = {
+            guard range.location > 0 else { return false }
+            let prev = ns.substring(with: NSRange(location: range.location - 1, length: 1))
+            return prev != " " && prev != "\n"
+        }()
+
+        let insertion = (needsLeadingSpace ? " " : "") + token
+        subject = ns.replacingCharacters(in: range, with: insertion)
+
+        let newCursor = range.location + (insertion as NSString).length
+        subjectSelection = NSRange(location: newCursor, length: 0)
+    }
+
+    private func insertTokenIntoBody(_ token: String) {
         let ns = bodyText as NSString
         let safeLoc = min(max(bodySelection.location, 0), ns.length)
         let safeLen = min(max(bodySelection.length, 0), ns.length - safeLoc)
@@ -368,10 +426,8 @@ struct EmailTemplateEditView: View {
         }()
 
         let insertion = (needsLeadingSpace ? " " : "") + token
-        let updated = ns.replacingCharacters(in: range, with: insertion)
-        bodyText = updated
+        bodyText = ns.replacingCharacters(in: range, with: insertion)
 
-        // Move cursor to the end of inserted token
         let newCursor = range.location + (insertion as NSString).length
         bodySelection = NSRange(location: newCursor, length: 0)
     }
