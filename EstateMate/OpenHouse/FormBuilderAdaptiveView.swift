@@ -671,7 +671,12 @@ private struct FormBuilderDrawerView: View {
                         dismiss()
                     },
                     onEditFieldRequested: {
-                        // Tapping a field in preview/list should jump to properties.
+                        // Tapping a field should jump to properties.
+                        // If the user was in the middle of adding/updating via the palette, cancel that draft;
+                        // otherwise the Properties sheet will incorrectly show "更新字段" for unrelated edits.
+                        state.cancelDraft()
+                        state.editingFieldKey = nil
+
                         mode = .properties
                         isSheetPresented = true
                     }
