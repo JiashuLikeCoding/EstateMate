@@ -15,7 +15,6 @@ struct CRMContactDetailView: View {
     @State private var contact: CRMContact?
 
     @State private var isEditPresented = false
-    @State private var isUpdatingStage = false
 
     private let service = CRMService()
 
@@ -45,20 +44,18 @@ struct CRMContactDetailView: View {
                     }
 
                     if let contact {
-                        EMSectionHeader(contact.fullName.isEmpty ? "（未命名）" : contact.fullName)
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(contact.fullName.isEmpty ? "（未命名）" : contact.fullName)
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(EMTheme.ink)
+
+                            Spacer(minLength: 0)
+
+                            // 阶段只展示当前值（编辑请进右上角“编辑”）。
+                            EMChip(text: contact.stage.displayName, isOn: true)
+                        }
 
                         EMCard {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("阶段")
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(EMTheme.ink2)
-
-                                stageTabs(current: contact.stage) { newStage in
-                                    await updateStage(newStage)
-                                }
-                            }
-
-                            Divider().overlay(EMTheme.line)
                             infoRow(label: "手机号", value: contact.phone)
 
                             Divider().overlay(EMTheme.line)
@@ -183,70 +180,7 @@ struct CRMContactDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func stageTabs(
-        current: CRMContactStage,
-        onSelect: @escaping (CRMContactStage) async -> Void
-    ) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(CRMContactStage.allCases, id: \.self) { s in
-                    Button {
-                        guard !isUpdatingStage else { return }
-                        guard s != current else { return }
-                        Task { await onSelect(s) }
-                    } label: {
-                        EMChip(text: s.displayName, isOn: s == current)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isUpdatingStage)
-                }
-
-                if isUpdatingStage {
-                    ProgressView()
-                        .scaleEffect(0.9)
-                        .padding(.leading, 4)
-                }
-            }
-            .padding(.vertical, 2)
-        }
-    }
-
-    private func updateStage(_ newStage: CRMContactStage) async {
-        guard let existing = contact else { return }
-        guard existing.stage != newStage else { return }
-
-        isUpdatingStage = true
-        errorMessage = nil
-        defer { isUpdatingStage = false }
-
-        // optimistic UI
-        var optimistic = existing
-        optimistic.stage = newStage
-        optimistic.updatedAt = Date()
-        contact = optimistic
-
-        do {
-            _ = try await service.updateContact(
-                id: existing.id,
-                patch: CRMContactUpdate(
-                    fullName: nil,
-                    phone: nil,
-                    email: nil,
-                    notes: nil,
-                    tags: nil,
-                    stage: newStage,
-                    source: nil,
-                    lastContactedAt: nil
-                )
-            )
-
-            // re-fetch to keep server truth (updatedAt, etc.)
-            contact = try await service.getContact(id: existing.id)
-        } catch {
-            errorMessage = "更新阶段失败：\(error.localizedDescription)"
-            contact = existing
-        }
-    }
+    // 阶段在详情页只展示当前值（见标题右侧 chip），修改请进“编辑”。
 
     private func linkRow(icon: String, title: String) -> some View {
         HStack(spacing: 12) {
@@ -277,15 +211,17 @@ struct CRMContactDetailView: View {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.isEmpty { return [] }
 
-        let replaced = s
-            .replacingOccurrences(of: "\n", with: ",")
-            .replacingOccurrences(of: "，", with: ",")
-            .replacingOccurrences(of: "|", with: ",")
-            .replacingOccurrences(of: "/", with: ",")
-            .replacingOccurrences(of: "、", with: ",")
+        // 不用逗号拆分（地址里常见逗号）。
+        let normalized = s
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: ";", with: "\n")
+            .replacingOccurrences(of: "；", with: "\n")
+            .replacingOccurrences(of: "|", with: "\n")
+            .replacingOccurrences(of: "、", with: "\n")
 
-        return replaced
-            .split(separator: ",")
+        return normalized
+            .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }

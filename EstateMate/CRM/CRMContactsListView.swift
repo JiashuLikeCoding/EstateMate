@@ -753,15 +753,17 @@ private struct CRMContactCardContent: View {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.isEmpty { return [] }
 
-        let replaced = s
-            .replacingOccurrences(of: "\n", with: ",")
-            .replacingOccurrences(of: "，", with: ",")
-            .replacingOccurrences(of: "|", with: ",")
-            .replacingOccurrences(of: "/", with: ",")
-            .replacingOccurrences(of: "、", with: ",")
+        // 不用逗号拆分（地址里常见逗号）。
+        let normalized = s
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: ";", with: "\n")
+            .replacingOccurrences(of: "；", with: "\n")
+            .replacingOccurrences(of: "|", with: "\n")
+            .replacingOccurrences(of: "、", with: "\n")
 
-        return replaced
-            .split(separator: ",")
+        return normalized
+            .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }

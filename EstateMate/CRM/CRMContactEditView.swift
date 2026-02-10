@@ -339,24 +339,28 @@ struct CRMContactEditView: View {
         let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.isEmpty { return [] }
 
-        let replaced = s
-            .replacingOccurrences(of: "\n", with: ",")
-            .replacingOccurrences(of: "，", with: ",")
-            .replacingOccurrences(of: "|", with: ",")
-            .replacingOccurrences(of: "/", with: ",")
-            .replacingOccurrences(of: "、", with: ",")
+        // 地址里常见逗号（例如 "Toronto, ON"），所以 **不要** 用逗号拆分。
+        // 我们只支持更明确的分隔符：换行 / 分号 / 竖线 / 顿号。
+        let normalized = s
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: ";", with: "\n")
+            .replacingOccurrences(of: "；", with: "\n")
+            .replacingOccurrences(of: "|", with: "\n")
+            .replacingOccurrences(of: "、", with: "\n")
 
-        return replaced
-            .split(separator: ",")
+        return normalized
+            .split(separator: "\n")
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
 
     private func joinInterestedAddresses(_ items: [String]) -> String {
+        // 存储用换行分隔，避免地址逗号导致误拆。
         items
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-            .joined(separator: ", ")
+            .joined(separator: "\n")
     }
 }
 
