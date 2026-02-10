@@ -296,23 +296,20 @@ struct FormBuilderCanvasView: View {
 
                     VStack(spacing: 10) {
                         ForEach(Array(state.fields.enumerated()), id: \ .element.id) { idx, f in
-                            Button {
-                                selectField(key: f.key)
-                            } label: {
-                                fieldRow(
-                                    field: f,
-                                    isGrouped: grouping.isGrouped(at: idx),
-                                    groupPosition: grouping.position(at: idx)
-                                )
+                            fieldRow(
+                                field: f,
+                                isGrouped: grouping.isGrouped(at: idx),
+                                groupPosition: grouping.position(at: idx)
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Tap = select insertion anchor (do not open editor)
+                                markInsertionAnchor(key: f.key)
                             }
-                            .buttonStyle(.plain)
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button {
-                                    markInsertionAnchor(key: f.key)
-                                } label: {
-                                    Label("选中", systemImage: "checkmark")
-                                }
-                                .tint(EMTheme.accent)
+                            .onLongPressGesture {
+                                // Long press = open editor
+                                state.selectedFieldKey = f.key
+                                onEditFieldRequested?()
                             }
                             .onDrop(
                                 of: [.text],
@@ -640,16 +637,11 @@ struct FormBuilderCanvasView: View {
         }
     }
 
-    private func selectField(key: String) {
-        state.selectedFieldKey = key
-        onEditFieldRequested?()
-    }
-
     private func markInsertionAnchor(key: String) {
         state.selectedFieldKey = key
-        state.errorMessage = "已选中：新增字段将插入到该字段下方"
+        state.errorMessage = "已选中：新增字段将插入到该字段下方（长按可编辑）"
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            if state.errorMessage == "已选中：新增字段将插入到该字段下方" {
+            if state.errorMessage == "已选中：新增字段将插入到该字段下方（长按可编辑）" {
                 state.errorMessage = nil
             }
         }
