@@ -55,42 +55,73 @@ struct CRMHomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AuthBackground()
-
+            EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("客户管理")
-                                .font(.largeTitle.bold())
-                                .foregroundStyle(.white)
-                            Text("内部管理（占位页：后续加线索/房源/任务/设置）")
-                                .font(.subheadline)
-                                .foregroundStyle(Color.white.opacity(0.72))
-                        }
+                        EMSectionHeader("客户管理", subtitle: "线索、客户、任务（开发中）")
 
-                        AuthCard {
-                            Text("CRM 模块开发中…")
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        EMCard {
+                            // Placeholder menu items (UI first, function later).
+                            Button {
+                                // TODO
+                            } label: {
+                                row(title: "客户列表", subtitle: "查看与搜索客户")
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(true)
+                            .opacity(0.55)
+
+                            Divider().overlay(EMTheme.line)
 
                             Button {
-                                Task { await sessionStore.signOut() }
+                                // TODO
                             } label: {
-                                Text("退出登录")
-                                    .frame(maxWidth: .infinity)
+                                row(title: "新增客户", subtitle: "快速录入一位客户")
                             }
-                            .buttonStyle(SecondaryButtonStyle())
-                            .foregroundStyle(.red)
+                            .buttonStyle(.plain)
+                            .disabled(true)
+                            .opacity(0.55)
+
+                            Divider().overlay(EMTheme.line)
+
+                            Button {
+                                // TODO
+                            } label: {
+                                row(title: "待办任务", subtitle: "跟进提醒与记录")
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(true)
+                            .opacity(0.55)
                         }
+
+                        Button {
+                            sessionStore.selectedWorkspace = nil
+                        } label: {
+                            Text("返回选择系统")
+                        }
+                        .buttonStyle(EMSecondaryButtonStyle())
+
+                        Spacer(minLength: 20)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 40)
-                    .padding(.bottom, 30)
+                    .padding(EMTheme.padding)
                 }
             }
-            .navigationBarHidden(true)
         }
+    }
+
+    private func row(title: String, subtitle: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .padding(.vertical, 6)
     }
 }
 

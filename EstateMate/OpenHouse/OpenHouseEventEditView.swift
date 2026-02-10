@@ -13,7 +13,7 @@ struct OpenHouseEventEditView: View {
 
     @State private var locationService = LocationAddressService()
 
-    let event: OpenHouseEventV2
+    @State private var event: OpenHouseEventV2
 
     @State private var title: String
     @State private var location: String
@@ -41,7 +41,7 @@ struct OpenHouseEventEditView: View {
     @State private var showLocationError = false
 
     init(event: OpenHouseEventV2) {
-        self.event = event
+        _event = State(initialValue: event)
         _title = State(initialValue: event.title)
         _location = State(initialValue: event.location ?? "")
         let start = event.startsAt ?? Date()
@@ -162,20 +162,20 @@ struct OpenHouseEventEditView: View {
                                 .foregroundStyle(EMTheme.ink2)
 
                             HStack(spacing: 10) {
-                                if event.isActive {
-                                    Text("已启用")
+                                if event.endedAt != nil {
+                                    Text("已结束")
+                                        .font(.footnote)
+                                        .foregroundStyle(.red)
+                                } else {
+                                    Text("进行中")
                                         .font(.footnote)
                                         .foregroundStyle(.green)
-                                } else {
-                                    Text("未启用")
-                                        .font(.footnote)
-                                        .foregroundStyle(EMTheme.ink2)
                                 }
 
                                 Spacer()
 
                                 if event.isActive == false {
-                                    Button("设为进行中") {
+                                    Button("设为当前活动") {
                                         Task { await makeActive() }
                                     }
                                     .buttonStyle(EMSecondaryButtonStyle())
@@ -236,13 +236,10 @@ struct OpenHouseEventEditView: View {
 
     private var shouldShowMarkOngoing: Bool {
         // Only show ONE of: "设为进行中" vs "设为已结束"
-        // - If event hasn't started yet (startsAt in future) -> show "设为进行中"
-        // - If event already ended -> show "设为进行中"
-        // - Otherwise (already started and not ended) -> show "设为已结束"
-        let now = Date()
-        let notStartedYet = startsAt > now
-        let ended = hasTimeRange && endsAt <= now
-        return notStartedYet || ended
+        // Status is MANUAL only:
+        // - ended_at != nil -> ended -> show "设为进行中"
+        // - ended_at == nil -> ongoing -> show "设为已结束"
+        event.endedAt != nil
     }
 
     private var selectedFormName: String {
@@ -281,7 +278,7 @@ struct OpenHouseEventEditView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            _ = try await service.updateEvent(
+            let updated = try await service.updateEvent(
                 id: event.id,
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
@@ -291,6 +288,8 @@ struct OpenHouseEventEditView: View {
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId
             )
+            // Keep manual state (isActive / endedAt) in sync too.
+            event = updated
             errorMessage = nil
             showSaved = true
         } catch {
@@ -306,6 +305,7 @@ struct OpenHouseEventEditView: View {
         isLoading = true
         defer { isLoading = false }
         do {
+            // 1) Update scheduled end time (planning info)
             _ = try await service.updateEvent(
                 id: event.id,
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -316,10 +316,14 @@ struct OpenHouseEventEditView: View {
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId
             )
+
+            // 2) Mark manually ended
+            let updated = try await service.markEventEnded(eventId: event.id, endedAt: now)
+            event = updated
+
             endsAt = end
             hasTimeRange = true
             errorMessage = nil
-            showSaved = true
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -330,58 +334,32 @@ struct OpenHouseEventEditView: View {
         defer { isLoading = false }
         do {
             try await service.setActive(eventId: event.id)
+            event.isActive = true
             errorMessage = nil
-            showSaved = true
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func markOngoing() async {
-        guard let formId = selectedFormId else { return }
         isLoading = true
         defer { isLoading = false }
         do {
-            _ = try await service.updateEvent(
-                id: event.id,
-                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                startsAt: startsAt,
-                endsAt: nil,
-                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                formId: formId
-            )
-            hasTimeRange = false
+            let updated = try await service.markEventOngoing(eventId: event.id)
+            event = updated
             errorMessage = nil
-            showSaved = true
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func markEndedNow() async {
-        guard let formId = selectedFormId else { return }
-        let now = Date()
-        let end = max(startsAt, now)
-
         isLoading = true
         defer { isLoading = false }
         do {
-            _ = try await service.updateEvent(
-                id: event.id,
-                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                startsAt: startsAt,
-                endsAt: end,
-                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                formId: formId
-            )
-            endsAt = end
-            hasTimeRange = true
+            let updated = try await service.markEventEnded(eventId: event.id, endedAt: Date())
+            event = updated
             errorMessage = nil
-            showSaved = true
         } catch {
             errorMessage = error.localizedDescription
         }

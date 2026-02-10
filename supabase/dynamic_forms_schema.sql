@@ -46,12 +46,25 @@ alter table public.openhouse_events
 create table if not exists public.openhouse_submissions (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.openhouse_events(id) on delete cascade,
+  -- Snapshot: which form template was used when the guest submitted.
+  form_id uuid references public.forms(id) on delete set null,
   owner_id uuid not null,
   data jsonb not null,
   created_at timestamptz not null default now(),
   constraint openhouse_submissions_owner_fk
     foreign key (owner_id) references auth.users(id) on delete cascade
 );
+
+-- Backfill / migrate (safe if you already created the table earlier)
+alter table public.openhouse_submissions
+  add column if not exists form_id uuid references public.forms(id) on delete set null;
+
+-- Best-effort backfill for old rows (when possible)
+update public.openhouse_submissions s
+set form_id = e.form_id
+from public.openhouse_events e
+where s.event_id = e.id
+  and s.form_id is null;
 
 alter table public.forms enable row level security;
 alter table public.openhouse_events enable row level security;

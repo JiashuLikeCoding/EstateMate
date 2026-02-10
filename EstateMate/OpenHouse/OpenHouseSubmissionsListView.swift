@@ -12,7 +12,7 @@ struct OpenHouseSubmissionsListView: View {
 
     let event: OpenHouseEventV2
 
-    @State private var form: FormRecord?
+    @State private var formsById: [UUID: FormRecord] = [:]
     @State private var submissions: [SubmissionV2] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -79,18 +79,8 @@ struct OpenHouseSubmissionsListView: View {
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel("编辑")
-                                            .disabled(form == nil)
-                                            .opacity(form == nil ? 0.4 : 1)
-
-                                            Button {
-                                                selectedSubmission = s
-                                                showDeleteConfirm = true
-                                            } label: {
-                                                Image(systemName: "trash")
-                                                    .foregroundStyle(.red)
-                                            }
-                                            .buttonStyle(.plain)
-                                            .accessibilityLabel("删除")
+                                            .disabled(formForSubmission(s) == nil)
+                                            .opacity(formForSubmission(s) == nil ? 0.4 : 1)
                                         }
                                     }
 
@@ -106,18 +96,41 @@ struct OpenHouseSubmissionsListView: View {
                                     }
 
                                     VStack(alignment: .leading, spacing: 8) {
-                                        ForEach(s.data.keys.sorted(), id: \.self) { k in
-                                            HStack(alignment: .firstTextBaseline) {
-                                                Text(k)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                    .frame(width: 90, alignment: .leading)
-                                                Text(s.data[k] ?? "")
-                                                    .font(.callout)
-                                                    .foregroundStyle(EMTheme.ink)
-                                                Spacer(minLength: 0)
+                                        let pairs = displayPairs(for: s)
+
+                                        if pairs.isEmpty {
+                                            Text(formsById.isEmpty ? "字段加载中..." : "暂无可显示的字段")
+                                                .font(.callout)
+                                                .foregroundStyle(EMTheme.ink2)
+                                                .padding(.vertical, 2)
+                                        } else {
+                                            ForEach(pairs, id: \.0) { label, value in
+                                                HStack(alignment: .firstTextBaseline) {
+                                                    Text(label)
+                                                        .font(.caption)
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                        .frame(width: 90, alignment: .leading)
+                                                    Text(value)
+                                                        .font(.callout)
+                                                        .foregroundStyle(EMTheme.ink)
+                                                    Spacer(minLength: 0)
+                                                }
                                             }
                                         }
+                                    }
+
+                                    HStack {
+                                        Spacer()
+                                        Button {
+                                            selectedSubmission = s
+                                            showDeleteConfirm = true
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .foregroundStyle(.red)
+                                                .padding(.top, 4)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("删除")
                                     }
                                 }
                             }
@@ -134,11 +147,18 @@ struct OpenHouseSubmissionsListView: View {
                 Button("关闭") { dismiss() }
                     .foregroundStyle(EMTheme.ink2)
             }
+
+            ToolbarItem(placement: .principal) {
+                Text("已提交")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(EMTheme.ink)
+            }
         }
+        .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showEditSheet) {
-            if let form, let selectedSubmission {
+            if let selectedSubmission, let form = formForSubmission(selectedSubmission) {
                 NavigationStack {
                     SubmissionEditView(
                         service: service,
@@ -178,14 +198,72 @@ struct OpenHouseSubmissionsListView: View {
         }
     }
 
+    private func formForSubmission(_ submission: SubmissionV2) -> FormRecord? {
+        let id = submission.formId ?? event.formId
+        return formsById[id]
+    }
+
+    private func displayPairs(for submission: SubmissionV2) -> [(String, String)] {
+        guard let form = formForSubmission(submission) else { return [] }
+
+        var out: [(String, String)] = []
+        for field in form.schema.fields {
+            switch field.type {
+            case .name:
+                let keys = field.nameKeys ?? ["full_name"]
+                let parts = keys.compactMap { submission.data[$0]?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                let value = parts.joined(separator: " ")
+                if value.isEmpty == false { out.append((field.label, value)) }
+
+            case .phone:
+                if (field.phoneFormat ?? .plain) == .withCountryCode {
+                    let keys = field.phoneKeys ?? [field.key]
+                    let cc = keys.indices.contains(0) ? (submission.data[keys[0]] ?? "") : ""
+                    let num = keys.indices.contains(1) ? (submission.data[keys[1]] ?? "") : ""
+                    let value = ([cc, num].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }).joined(separator: " ")
+                    if value.isEmpty == false { out.append((field.label, value)) }
+                } else {
+                    let value = submission.data[field.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if value.isEmpty == false { out.append((field.label, value)) }
+                }
+
+            case .text, .email, .select:
+                let value = submission.data[field.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                if value.isEmpty == false { out.append((field.label, value)) }
+            }
+        }
+
+        return out
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let submissionsTask = service.listSubmissions(eventId: event.id)
-            async let formTask = service.getForm(id: event.formId)
-            submissions = try await submissionsTask
-            form = try? await formTask
+            submissions = try await service.listSubmissions(eventId: event.id)
+
+            // Load forms needed to render submissions using the correct template.
+            var ids: Set<UUID> = [event.formId]
+            for s in submissions {
+                if let fid = s.formId { ids.insert(fid) }
+            }
+
+            var map: [UUID: FormRecord] = [:]
+            try await withThrowingTaskGroup(of: (UUID, FormRecord).self) { group in
+                for id in ids {
+                    group.addTask {
+                        let f = try await service.getForm(id: id)
+                        return (id, f)
+                    }
+                }
+
+                for try await (id, f) in group {
+                    map[id] = f
+                }
+            }
+
+            formsById = map
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -238,44 +316,47 @@ private struct SubmissionTagPickerView: View {
                     }
 
                     EMCard {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("创建新标签")
-                                .font(.headline)
+                        VStack(alignment: .leading, spacing: 14) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("创建新标签")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
 
-                            HStack(spacing: 10) {
-                                TextField("例如：意向强", text: $newTagName)
-                                    .textFieldStyle(.roundedBorder)
+                                HStack(spacing: 10) {
+                                    TextField("例如：意向强", text: $newTagName)
+                                        .textFieldStyle(.roundedBorder)
 
-                                Button(isLoading ? "创建中" : "创建") {
-                                    hideKeyboard()
-                                    Task { await createTag() }
+                                    Button(isLoading ? "创建中" : "创建") {
+                                        hideKeyboard()
+                                        Task { await createTag() }
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .disabled(isLoading || newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                                 }
-                                .buttonStyle(.bordered)
-                                .disabled(isLoading || newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             }
-                        }
-                    }
 
-                    if tags.isEmpty {
-                        EMCard {
-                            Text("暂无标签")
-                                .foregroundStyle(EMTheme.ink2)
-                                .padding(.vertical, 8)
-                        }
-                    } else {
-                        EMCard {
+                            Divider().overlay(EMTheme.line)
+
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("点选标签")
-                                    .font(.headline)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
 
-                                FlowLayout(maxPerRow: 3, spacing: 8) {
-                                    ForEach(tags) { t in
-                                        Button {
-                                            toggle(t.name)
-                                        } label: {
-                                            EMChip(text: t.name, isOn: selected.contains(t.name))
+                                if tags.isEmpty {
+                                    Text("暂无标签")
+                                        .font(.callout)
+                                        .foregroundStyle(EMTheme.ink2)
+                                        .padding(.vertical, 4)
+                                } else {
+                                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                                        ForEach(tags) { t in
+                                            Button {
+                                                toggle(t.name)
+                                            } label: {
+                                                EMChip(text: t.name, isOn: selected.contains(t.name))
+                                            }
+                                            .buttonStyle(.plain)
                                         }
-                                        .buttonStyle(.plain)
                                     }
                                 }
                             }

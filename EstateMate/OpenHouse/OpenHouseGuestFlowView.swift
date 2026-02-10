@@ -235,10 +235,14 @@ struct OpenHouseKioskFillView: View {
     let password: String
 
     @State private var values: [String: String] = [:]
+    // Note: do not show submitted count in the filling screen UI.
     @State private var submittedCount = 0
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+
+    @State private var showThankYou = false
+    @State private var thankYouMessage = "感谢您的填写！"
 
     @State private var showPasswordCheck = false
     @State private var passwordCheckDraft = ""
@@ -255,14 +259,9 @@ struct OpenHouseKioskFillView: View {
         EMScreen(nil) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text(event.title)
-                            .font(.title3.weight(.semibold))
-                        Spacer()
-                        Text("已提交：\(submittedCount)")
-                            .font(.footnote)
-                            .foregroundStyle(EMTheme.ink2)
-                    }
+                    // Title is in navigation bar (center). Do not show submitted count here.
+                    EmptyView()
+                        .frame(height: 0)
 
                     EMCard {
                         VStack(spacing: 12) {
@@ -299,6 +298,12 @@ struct OpenHouseKioskFillView: View {
                 .foregroundStyle(EMTheme.ink2)
             }
 
+            ToolbarItem(placement: .principal) {
+                Text(event.title)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(EMTheme.ink)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     pendingAction = .submissions
@@ -310,9 +315,39 @@ struct OpenHouseKioskFillView: View {
                 .accessibilityLabel("已提交列表")
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
         .overlay {
             if isLoading {
                 ProgressView()
+            }
+
+            if showThankYou {
+                ZStack {
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 10) {
+                        Text("已提交")
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+
+                        Text(thankYouMessage)
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                    .padding(.vertical, 18)
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: 280)
+                    .background(
+                        RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                            .fill(Color.white)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: EMTheme.radius, style: .continuous)
+                            .stroke(EMTheme.line, lineWidth: 1)
+                    )
+                }
+                .transition(.opacity)
             }
         }
         .alert("输入密码", isPresented: $showPasswordCheck) {
@@ -513,10 +548,20 @@ struct OpenHouseKioskFillView: View {
                 }
             }
 
-            _ = try await service.createSubmission(eventId: eventId, data: payload)
+            _ = try await service.createSubmission(eventId: eventId, formId: event.formId, data: payload)
             submittedCount += 1
             values = [:]
             errorMessage = nil
+
+            withAnimation(.easeOut(duration: 0.18)) {
+                showThankYou = true
+            }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_400_000_000) // 1.4s
+                withAnimation(.easeIn(duration: 0.18)) {
+                    showThankYou = false
+                }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -138,6 +138,30 @@ final class DynamicFormService {
             .execute()
     }
 
+    func markEventEnded(eventId: UUID, endedAt: Date = Date()) async throws -> OpenHouseEventV2 {
+        let payload = OpenHouseEventEndedAtPatch(endedAt: endedAt)
+        return try await client
+            .from("openhouse_events")
+            .update(payload)
+            .eq("id", value: eventId.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
+    func markEventOngoing(eventId: UUID) async throws -> OpenHouseEventV2 {
+        let payload = OpenHouseEventEndedAtPatch(endedAt: nil)
+        return try await client
+            .from("openhouse_events")
+            .update(payload)
+            .eq("id", value: eventId.uuidString)
+            .select()
+            .single()
+            .execute()
+            .value
+    }
+
     func getActiveEvent() async throws -> OpenHouseEventV2? {
         let events: [OpenHouseEventV2] = try await client
             .from("openhouse_events")
@@ -161,8 +185,8 @@ final class DynamicFormService {
 
     // MARK: - Submissions
 
-    func createSubmission(eventId: UUID, data: [String: String]) async throws -> SubmissionV2 {
-        let payload = SubmissionInsertV2(eventId: eventId, data: data)
+    func createSubmission(eventId: UUID, formId: UUID? = nil, data: [String: String]) async throws -> SubmissionV2 {
+        let payload = SubmissionInsertV2(eventId: eventId, formId: formId, data: data)
         return try await client
             .from("openhouse_submissions")
             .insert(payload)

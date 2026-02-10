@@ -13,7 +13,7 @@ struct WorkspacePickerView: View {
             EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        EMSectionHeader("选择系统", subtitle: "如需切换，请退出登录后重新登录再选择")
+                        EMSectionHeader("选择系统", subtitle: "选择要进入的模块")
 
                         EMCard {
                             ForEach(Workspace.allCases) { w in

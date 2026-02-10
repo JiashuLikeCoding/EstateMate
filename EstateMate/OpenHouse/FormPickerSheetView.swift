@@ -6,16 +6,44 @@
 import SwiftUI
 
 struct FormPickerSheetView: View {
+    private let service = DynamicFormService()
+
     let forms: [FormRecord]
     @Binding var selectedFormId: UUID?
 
     @Environment(\.dismiss) private var dismiss
 
     @State private var query: String = ""
+    @State private var localForms: [FormRecord]
+
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    @State private var showCreateForm = false
+
+    init(forms: [FormRecord], selectedFormId: Binding<UUID?>) {
+        self.forms = forms
+        self._selectedFormId = selectedFormId
+        self._localForms = State(initialValue: forms)
+    }
 
     var body: some View {
         NavigationStack {
             List {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                }
+
+                if isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
+                }
+
                 if filteredForms.isEmpty {
                     Text(query.isEmpty ? "暂无表单" : "没有匹配的表单")
                         .foregroundStyle(EMTheme.ink2)
@@ -75,14 +103,43 @@ struct FormPickerSheetView: View {
                     Button("关闭") { dismiss() }
                         .foregroundStyle(EMTheme.ink2)
                 }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("新建") {
+                        showCreateForm = true
+                    }
+                    .foregroundStyle(EMTheme.accent)
+                }
+            }
+            .sheet(isPresented: $showCreateForm, onDismiss: {
+                Task { await reloadForms() }
+            }) {
+                NavigationStack {
+                    FormBuilderAdaptiveView()
+                }
+            }
+            .task {
+                // Ensure we always show the latest forms (e.g. created on another screen).
+                await reloadForms()
             }
         }
     }
 
     private var filteredForms: [FormRecord] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return forms }
-        return forms.filter { $0.name.localizedCaseInsensitiveContains(q) }
+        guard !q.isEmpty else { return localForms }
+        return localForms.filter { $0.name.localizedCaseInsensitiveContains(q) }
+    }
+
+    private func reloadForms() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            localForms = try await service.listForms()
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func fieldChips(for form: FormRecord) -> [String] {

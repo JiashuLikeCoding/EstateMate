@@ -214,7 +214,7 @@ struct OpenHouseStartActivityView: View {
             let all = try await service.listEvents()
             let now = Date()
             events = all
-                .filter { !isEnded($0, now: now) }
+                .filter { !isEnded($0) }
                 .sorted { (a, b) in
                     // started first, then newest
                     let aStarted = (a.startsAt ?? .distantPast) <= now
@@ -257,15 +257,13 @@ struct OpenHouseStartActivityView: View {
         }
     }
 
-    private func isEnded(_ e: OpenHouseEventV2, now: Date = Date()) -> Bool {
-        if let endsAt = e.endsAt {
-            return endsAt < now
-        }
-        return false
+    private func isEnded(_ e: OpenHouseEventV2) -> Bool {
+        // Manual only. Scheduled times do NOT auto-end.
+        e.endedAt != nil
     }
 
     private func canStart(_ e: OpenHouseEventV2, now: Date = Date()) -> Bool {
-        if isEnded(e, now: now) { return false }
+        if isEnded(e) { return false }
         if let startsAt = e.startsAt, startsAt > now { return false }
         return true
     }

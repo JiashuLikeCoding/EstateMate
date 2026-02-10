@@ -205,14 +205,6 @@ private struct OpenHouseEventCreateCardView: View {
             } message: {
                 Text("活动已创建")
             }
-
-            NavigationLink {
-                OpenHouseFormsView()
-            } label: {
-                Text("去表单管理")
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(EMTheme.accent)
-            }
         }
         .overlay {
             if isLoading {
@@ -344,30 +336,18 @@ private struct OpenHouseEventListCardView: View {
     }
 
     private var ongoingEvents: [OpenHouseEventV2] {
-        let now = Date()
-        return events
-            .filter { e in
-                if let end = e.endsAt {
-                    return end >= now
-                }
-                return true
-            }
+        events
+            .filter { $0.endedAt == nil }
             .sorted { a, b in
                 (a.startsAt ?? .distantFuture) < (b.startsAt ?? .distantFuture)
             }
     }
 
     private var endedEvents: [OpenHouseEventV2] {
-        let now = Date()
-        return events
-            .filter { e in
-                if let end = e.endsAt {
-                    return end < now
-                }
-                return false
-            }
+        events
+            .filter { $0.endedAt != nil }
             .sorted { a, b in
-                (a.endsAt ?? .distantPast) > (b.endsAt ?? .distantPast)
+                (a.endedAt ?? .distantPast) > (b.endedAt ?? .distantPast)
             }
     }
 
@@ -452,8 +432,7 @@ private struct OpenHouseEventListCardView: View {
     }
 
     private func isEnded(_ event: OpenHouseEventV2) -> Bool {
-        guard let end = event.endsAt else { return false }
-        return end < Date()
+        event.endedAt != nil
     }
 
     private func timeText(for event: OpenHouseEventV2) -> String {

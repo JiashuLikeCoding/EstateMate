@@ -29,10 +29,19 @@ final class AuthService {
     /// Uses supabase-swift's built-in ASWebAuthenticationSession flow.
     func signInWithOAuth(provider: Provider) async throws -> Session {
         // Using ASWebAuthenticationSession internally (supabase-swift).
-        // Keep this generic, but UI only exposes Google for now.
-        try await client.auth.signInWithOAuth(
+        // For Google, force account chooser every time (instead of silently reusing the last account).
+        let queryParams: [(name: String, value: String?)]
+        if provider == .google {
+            queryParams = [(name: "prompt", value: "select_account")]
+        } else {
+            queryParams = []
+        }
+
+        return try await client.auth.signInWithOAuth(
             provider: provider,
-            redirectTo: redirectToURL
+            redirectTo: redirectToURL,
+            scopes: nil,
+            queryParams: queryParams
         )
     }
 
