@@ -539,15 +539,6 @@ struct FormBuilderCanvasView: View {
                     )
             }
         )
-        .overlay(alignment: .leading) {
-            // Insertion anchor marker (overlay so it doesn't shift layout on selection)
-            // Keep it close to the edge so it never overlaps the row text.
-            RoundedRectangle(cornerRadius: 999, style: .continuous)
-                .fill(isSelected ? EMTheme.accent : .clear)
-                .frame(width: 4)
-                .padding(.vertical, 8)
-                .padding(.leading, 4)
-        }
         .overlay(alignment: .topTrailing) {
             // "Double-tap to edit" hint should not cover the field title.
             if isSelected {
