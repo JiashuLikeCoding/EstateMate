@@ -12,20 +12,14 @@ struct LoginView: View {
     @EnvironmentObject var sessionStore: SessionStore
     private let auth = AuthService()
 
-    @State private var email = ""
-    @State private var password = ""
-    @State private var showRegister = false
-
-    private var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !password.isEmpty
-    }
+    // 登录方式：仅 Google（Gmail）
 
     var body: some View {
         NavigationStack {
             EMScreen {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        EMSectionHeader("登录", subtitle: "使用邮箱或 Google 登录")
+                        EMSectionHeader("登录", subtitle: "使用 Gmail 登录")
 
                         EMCard {
                             if let msg = sessionStore.errorMessage {
@@ -34,22 +28,12 @@ struct LoginView: View {
                                     .foregroundStyle(.red)
                             }
 
-                            EMTextField(title: "邮箱", text: $email, keyboard: .emailAddress)
-                            EMTextField(title: "密码", text: $password, isSecure: true)
-
-                            Button {
-                                Task { await signInEmail() }
-                            } label: {
-                                Text("登录")
-                            }
-                            .buttonStyle(EMPrimaryButtonStyle(disabled: !canSubmit || sessionStore.isLoading))
-                            .disabled(!canSubmit || sessionStore.isLoading)
-
-                            Text("或者")
-                                .font(.footnote)
+                            Text("请使用你的 Gmail 授权登录。")
+                                .font(.subheadline)
                                 .foregroundStyle(EMTheme.ink2)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 6)
+
+                            Divider().overlay(EMTheme.line)
+                                .padding(.vertical, 4)
 
                             Button {
                                 Task { await signInOAuth(Provider.google) }
@@ -59,16 +43,10 @@ struct LoginView: View {
                             .buttonStyle(EMSecondaryButtonStyle())
                             .disabled(sessionStore.isLoading)
 
-                            Button {
-                                showRegister = true
-                            } label: {
-                                Text("没有账号？注册")
-                                    .font(.footnote.weight(.medium))
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(EMTheme.ink2)
-                            .padding(.top, 6)
+                            Text("登录后将要求连接 Gmail，用于同步往来与自动发送邮件模版。")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, 6)
                         }
                     }
                     .padding(EMTheme.padding)
@@ -82,21 +60,6 @@ struct LoginView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showRegister) {
-                RegisterView().environmentObject(sessionStore)
-            }
-        }
-    }
-
-    private func signInEmail() async {
-        sessionStore.isLoading = true
-        defer { sessionStore.isLoading = false }
-        do {
-            let s = try await auth.signInEmail(email: email, password: password)
-            sessionStore.session = s
-            sessionStore.errorMessage = nil
-        } catch {
-            sessionStore.errorMessage = error.localizedDescription
         }
     }
 

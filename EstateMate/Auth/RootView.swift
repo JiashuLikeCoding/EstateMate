@@ -12,25 +12,40 @@ struct RootView: View {
 
     var body: some View {
         Group {
-#if DEBUG
-            // Debug convenience: show workspace picker right after login,
-            // but don't keep clearing the selection (otherwise taps won't stick).
             if !sessionStore.isLoggedIn {
                 LoginView()
+            } else if !sessionStore.isGmailConnected {
+                GmailRequiredGateView()
             } else if sessionStore.selectedWorkspace == nil {
                 WorkspacePickerView()
             } else {
                 MainView()
             }
-#else
-            if !sessionStore.isLoggedIn {
-                LoginView()
-            } else if sessionStore.selectedWorkspace == nil {
-                WorkspacePickerView()
-            } else {
-                MainView()
+        }
+        .task {
+            // Ensure we have latest status after cold start.
+            if sessionStore.isLoggedIn {
+                await sessionStore.refreshGmailStatus()
             }
-#endif
+        }
+    }
+}
+
+private struct GmailRequiredGateView: View {
+    @EnvironmentObject var sessionStore: SessionStore
+
+    var body: some View {
+        NavigationStack {
+            CRMGmailConnectView(autoStartConnect: true) { email in
+                sessionStore.gmailEmail = email
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("退出登录") {
+                        Task { await sessionStore.signOut() }
+                    }
+                }
+            }
         }
     }
 }

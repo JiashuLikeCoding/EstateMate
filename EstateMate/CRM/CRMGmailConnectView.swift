@@ -8,6 +8,9 @@
 import SwiftUI
 
 struct CRMGmailConnectView: View {
+    var autoStartConnect: Bool = false
+    var onConnected: ((String) -> Void)? = nil
+
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
 
@@ -98,7 +101,13 @@ struct CRMGmailConnectView: View {
         }
         .navigationTitle("Gmail")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadStatus() }
+.task {
+            await loadStatus()
+            if autoStartConnect, connectedEmail == nil {
+                // 若未配置 OAuth，会在 service 里给出友好错误。
+                await connectIfNeeded()
+            }
+        }
         .onTapGesture { hideKeyboard() }
     }
 
@@ -109,12 +118,20 @@ struct CRMGmailConnectView: View {
         do {
             let status = try await CRMGmailIntegrationService().status()
             connectedEmail = status.email
+            if let email = status.email {
+                onConnected?(email)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func connect() async {
+        await connectIfNeeded(force: true)
+    }
+
+    private func connectIfNeeded(force: Bool = false) async {
+        if !force, connectedEmail != nil { return }
         hideKeyboard()
         isLoading = true
         defer { isLoading = false }
@@ -123,6 +140,9 @@ struct CRMGmailConnectView: View {
         do {
             let status = try await CRMGmailIntegrationService().connectInteractive()
             connectedEmail = status.email
+            if let email = status.email {
+                onConnected?(email)
+            }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
@@ -145,6 +165,6 @@ struct CRMGmailConnectView: View {
 
 #Preview {
     NavigationStack {
-        CRMGmailConnectView()
+        CRMGmailConnectView(autoStartConnect: false)
     }
 }
