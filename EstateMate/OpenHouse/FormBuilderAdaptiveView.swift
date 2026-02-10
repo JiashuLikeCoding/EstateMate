@@ -501,6 +501,7 @@ private struct FormBuilderSplitView: View {
 private struct FormBuilderDrawerView: View {
     let form: FormRecord?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var hSize
     @StateObject private var state = FormBuilderState()
 
     enum SheetMode {
@@ -513,6 +514,19 @@ private struct FormBuilderDrawerView: View {
     @State private var sheetHeight: CGFloat = 520
 
     var body: some View {
+        let isIPadLike = (hSize == .regular)
+
+        // Use full-screen cover on iPad (regular size class).
+        // A regular `.sheet` can appear as a centered card and feel "broken" for a palette-like workflow.
+        let ipadPresented = Binding<Bool>(
+            get: { isIPadLike && isSheetPresented },
+            set: { isSheetPresented = $0 }
+        )
+        let phonePresented = Binding<Bool>(
+            get: { !isIPadLike && isSheetPresented },
+            set: { isSheetPresented = $0 }
+        )
+
         NavigationStack {
             EMScreen("表单设计") {
                 FormBuilderCanvasView(
@@ -532,48 +546,63 @@ private struct FormBuilderDrawerView: View {
                 )
                 .environmentObject(state)
             }
-            .sheet(isPresented: $isSheetPresented) {
-                NavigationStack {
-                    Group {
-                        switch mode {
-                        case .palette:
-                            EMScreen("字段库") {
-                                paletteList
-                                    .environmentObject(state)
-                                    .emReadHeight { h in
-                                        // Clamp to reasonable range so it doesn't get tiny/huge.
-                                        sheetHeight = min(max(h + 80, 360), 720)
-                                    }
-                            }
-                        case .properties:
-                            EMScreen("属性") {
-                                FormBuilderPropertiesView(
-                                    onDone: {
-                                        // keep sheet open, go back to palette for continuous adding
-                                        mode = .palette
-                                    },
-                                    onDeleteClose: {
-                                        isSheetPresented = false
-                                    }
-                                )
-                                .environmentObject(state)
-                                .emReadHeight { h in
-                                    sheetHeight = min(max(h + 80, 420), 820)
-                                }
-                            }
-                        }
-                    }
-                    // 顶部不显示“关闭”按钮（可下滑关闭）
-                }
+        }
+        .fullScreenCover(isPresented: ipadPresented) {
+            modalContent(showCloseButton: true)
+        }
+        .sheet(isPresented: phonePresented) {
+            modalContent(showCloseButton: false)
                 .presentationDetents([.height(sheetHeight), .large])
                 .presentationDragIndicator(.visible)
-            }
         }
         .task {
             if let form {
                 state.load(form: form)
             } else {
                 state.seedIfNeeded()
+            }
+        }
+    }
+
+    private func modalContent(showCloseButton: Bool) -> some View {
+        NavigationStack {
+            Group {
+                switch mode {
+                case .palette:
+                    EMScreen("字段库") {
+                        paletteList
+                            .environmentObject(state)
+                            .emReadHeight { h in
+                                // Clamp to reasonable range so it doesn't get tiny/huge.
+                                sheetHeight = min(max(h + 80, 360), 720)
+                            }
+                    }
+                case .properties:
+                    EMScreen("属性") {
+                        FormBuilderPropertiesView(
+                            onDone: {
+                                // keep sheet open, go back to palette for continuous adding
+                                mode = .palette
+                            },
+                            onDeleteClose: {
+                                isSheetPresented = false
+                            }
+                        )
+                        .environmentObject(state)
+                        .emReadHeight { h in
+                            sheetHeight = min(max(h + 80, 420), 820)
+                        }
+                    }
+                }
+            }
+            .toolbar {
+                if showCloseButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("关闭") {
+                            isSheetPresented = false
+                        }
+                    }
+                }
             }
         }
     }
