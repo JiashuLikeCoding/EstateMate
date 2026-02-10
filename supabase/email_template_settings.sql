@@ -5,6 +5,8 @@ create table if not exists public.email_template_settings (
   created_by uuid not null default auth.uid(),
   workspace text not null default 'crm', -- crm|openhouse
 
+  from_name text not null default '',
+
   footer_html text not null default '',
   footer_text text not null default '',
 

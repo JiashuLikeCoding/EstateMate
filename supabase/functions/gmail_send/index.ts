@@ -6,6 +6,7 @@ type SendBody = {
   text?: string;
   html?: string;
   submissionId: string;
+  workspace?: string; // crm|openhouse
   threadId?: string;
   inReplyTo?: string;
   references?: string;
@@ -178,6 +179,7 @@ Deno.serve(async (req) => {
     const to = (body.to ?? "").trim();
     const subject = (body.subject ?? "").trim();
     const submissionId = (body.submissionId ?? "").trim();
+    const workspace = (body.workspace ?? "openhouse").trim();
     const threadId = (body.threadId ?? "").trim();
     const inReplyTo = (body.inReplyTo ?? "").trim();
     const references = (body.references ?? "").trim();
@@ -270,8 +272,18 @@ Deno.serve(async (req) => {
 
     // Gmail inbox list shows the sender display name (if present). If we only send the raw email,
     // Gmail iOS will show something like "4524...@gmail.com" as the sender.
-    // Use a stable display name while keeping the address the same as the authenticated Gmail account.
-    const displayName = envOptional("GMAIL_FROM_NAME") ?? "EstateMate";
+    // Prefer per-user settings (email_template_settings.from_name), fallback to env/default.
+    const { data: settings } = await admin
+      .from("email_template_settings")
+      .select("from_name")
+      .eq("created_by", userId)
+      .eq("workspace", workspace)
+      .maybeSingle();
+
+    const displayName = (settings?.from_name as string | undefined)?.trim()
+      || envOptional("GMAIL_FROM_NAME")
+      || "EstateMate";
+
     const fromHeader = conn.email
       ? `${displayName} <${conn.email}>`
       : (user!.email ?? "me");

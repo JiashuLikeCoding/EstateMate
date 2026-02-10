@@ -15,6 +15,8 @@ struct EmailTemplateFooterEditView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    @State private var fromName: String = ""
+
     @State private var footerHTML: String = ""
     @State private var footerText: String = ""
 
@@ -28,6 +30,20 @@ struct EmailTemplateFooterEditView: View {
 
                     if let errorMessage {
                         EMCard { Text(errorMessage).font(.subheadline).foregroundStyle(.red) }
+                    }
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("发件人显示名")
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            Text("会显示在收件箱列表的第一行（发件人位置）。留空则默认显示邮箱。")
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink2)
+
+                            EMTextField(title: "", text: $fromName, prompt: "例如：鸣哥 / Ming Ren Realty")
+                        }
                     }
 
                     EMCard {
@@ -97,6 +113,7 @@ struct EmailTemplateFooterEditView: View {
 
         do {
             if let s = try await service.getSettings(workspace: workspace) {
+                fromName = s.fromName
                 footerHTML = s.footerHTML
                 footerText = s.footerText
             }
@@ -114,6 +131,7 @@ struct EmailTemplateFooterEditView: View {
             _ = try await service.upsertSettings(
                 .init(
                     workspace: workspace,
+                    fromName: fromName,
                     footerHTML: footerHTML,
                     footerText: footerText
                 )

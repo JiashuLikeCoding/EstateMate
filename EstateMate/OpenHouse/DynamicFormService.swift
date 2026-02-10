@@ -792,6 +792,7 @@ final class DynamicFormService {
                 let text: String
                 let html: String?
                 let submissionId: String
+                let workspace: String
             }
 
             let session = try await client.auth.session
@@ -806,7 +807,8 @@ final class DynamicFormService {
                         subject: subject,
                         text: bodyText,
                         html: bodyHTML,
-                        submissionId: submissionId.uuidString
+                        submissionId: submissionId.uuidString,
+                        workspace: "openhouse"
                     )
                 )
             ) as EmptyResponse

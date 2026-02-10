@@ -12,6 +12,8 @@ struct EmailTemplateSettingsRecord: Codable, Identifiable, Hashable {
     let createdBy: UUID?
     var workspace: EstateMateWorkspaceKind
 
+    var fromName: String
+
     var footerHTML: String
     var footerText: String
 
@@ -22,6 +24,7 @@ struct EmailTemplateSettingsRecord: Codable, Identifiable, Hashable {
         case id
         case createdBy = "created_by"
         case workspace
+        case fromName = "from_name"
         case footerHTML = "footer_html"
         case footerText = "footer_text"
         case createdAt = "created_at"
@@ -31,11 +34,13 @@ struct EmailTemplateSettingsRecord: Codable, Identifiable, Hashable {
 
 struct EmailTemplateSettingsUpsert: Encodable {
     var workspace: EstateMateWorkspaceKind
+    var fromName: String
     var footerHTML: String
     var footerText: String
 
     enum CodingKeys: String, CodingKey {
         case workspace
+        case fromName = "from_name"
         case footerHTML = "footer_html"
         case footerText = "footer_text"
     }
