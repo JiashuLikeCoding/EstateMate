@@ -33,7 +33,9 @@ private struct FormBuilderContainerView: View {
             let w = proxy.size.width
 
             if hSize == .regular {
-                if w < 900 {
+                // Even on 12.9" iPad (portrait width ~1024), a 3-column split can still clip the detail controls.
+                // Use a higher threshold so portrait reliably falls back to the drawer UI.
+                if w < 1100 {
                     FormBuilderDrawerView(form: form)
                 } else {
                     FormBuilderSplitView(form: form)
