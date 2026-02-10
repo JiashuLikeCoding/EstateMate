@@ -332,7 +332,16 @@ final class FormBuilderState: ObservableObject {
     }
 
     func move(from: IndexSet, to: Int) {
-        fields.move(fromOffsets: from, toOffset: to)
+        var proposed = fields
+        proposed.move(fromOffsets: from, toOffset: to)
+
+        if let msg = spliceValidationError(in: proposed) {
+            errorMessage = msg
+            return
+        }
+
+        errorMessage = nil
+        fields = proposed
     }
 
     func makeKey(from label: String) -> String {
