@@ -18,6 +18,28 @@ function base64UrlEncode(input: string): string {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function containsNonAscii(s: string): boolean {
+  // Anything outside 0x20-0x7E likely needs RFC 2047 encoding in headers.
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c > 0x7e || c < 0x20) return true;
+  }
+  return false;
+}
+
+function base64EncodeUtf8(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+function rfc2047EncodeHeaderValue(value: string): string {
+  // RFC 2047 encoded-word, Base64, UTF-8.
+  // Example: =?UTF-8?B?5L2g5aW9?=
+  return `=?UTF-8?B?${base64EncodeUtf8(value)}?=`;
+}
+
 function buildRfc822Message(params: {
   from: string;
   to: string;
@@ -33,7 +55,12 @@ function buildRfc822Message(params: {
   const headers: string[] = [];
   headers.push(`From: ${params.from}`);
   headers.push(`To: ${params.to}`);
-  headers.push(`Subject: ${params.subject}`);
+
+  const subjectHeader = containsNonAscii(params.subject)
+    ? rfc2047EncodeHeaderValue(params.subject)
+    : params.subject;
+  headers.push(`Subject: ${subjectHeader}`);
+
   headers.push(`MIME-Version: 1.0`);
   if (params.replyTo) headers.push(`Reply-To: ${params.replyTo}`);
 
