@@ -6,6 +6,9 @@ type SendBody = {
   text?: string;
   html?: string;
   submissionId: string;
+  threadId?: string;
+  inReplyTo?: string;
+  references?: string;
 };
 
 function base64UrlEncode(input: string): string {
@@ -47,6 +50,8 @@ function buildRfc822Message(params: {
   text: string;
   html?: string;
   replyTo?: string | null;
+  inReplyTo?: string | null;
+  references?: string | null;
 }): string {
   // Minimal RFC 822 message. Gmail API will accept this format.
   // Use CRLF line endings.
@@ -81,6 +86,8 @@ function buildRfc822Message(params: {
 
   headers.push(`MIME-Version: 1.0`);
   if (params.replyTo) headers.push(`Reply-To: ${params.replyTo}`);
+  if (params.inReplyTo) headers.push(`In-Reply-To: ${params.inReplyTo}`);
+  if (params.references) headers.push(`References: ${params.references}`);
 
   if (params.html && params.html.trim().length > 0) {
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
@@ -171,6 +178,9 @@ Deno.serve(async (req) => {
     const to = (body.to ?? "").trim();
     const subject = (body.subject ?? "").trim();
     const submissionId = (body.submissionId ?? "").trim();
+    const threadId = (body.threadId ?? "").trim();
+    const inReplyTo = (body.inReplyTo ?? "").trim();
+    const references = (body.references ?? "").trim();
     const text = (body.text ?? "").toString();
     const html = body.html?.toString();
 
@@ -267,9 +277,14 @@ Deno.serve(async (req) => {
       text,
       html,
       replyTo,
+      inReplyTo: inReplyTo || null,
+      references: references || null,
     });
 
     const raw = base64UrlEncode(rfc822);
+
+    const sendBody: Record<string, unknown> = { raw };
+    if (threadId) sendBody.threadId = threadId;
 
     const sendRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
       method: "POST",
@@ -277,7 +292,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${token.access_token}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ raw }),
+      body: JSON.stringify(sendBody),
     });
 
     const sendJson = await sendRes.json().catch(() => ({}));

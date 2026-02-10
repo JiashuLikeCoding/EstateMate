@@ -52,7 +52,10 @@ struct CRMEmailLogsView: View {
 
                                 if !gmailMessages.isEmpty {
                                     ForEach(gmailMessages) { m in
-                                        VStack(alignment: .leading, spacing: 6) {
+                                        NavigationLink {
+                                            CRMGmailMessageDetailView(messageId: m.id, contactEmail: email)
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
                                             HStack {
                                                 Text(m.direction == "inbound" ? "收到" : "发出")
                                                     .font(.footnote.weight(.medium))
@@ -75,7 +78,9 @@ struct CRMEmailLogsView: View {
                                                     .foregroundStyle(EMTheme.ink2)
                                                     .lineLimit(2)
                                             }
+                                            }
                                         }
+                                        .buttonStyle(.plain)
 
                                         Divider().overlay(EMTheme.line)
                                     }

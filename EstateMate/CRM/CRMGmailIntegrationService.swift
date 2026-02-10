@@ -16,6 +16,13 @@ final class CRMGmailIntegrationService {
     }
 
     struct ContactMessagesResponse: Codable, Hashable {
+        struct DebugInfo: Codable, Hashable {
+            var me: String
+            var contactEmail: String
+            var q: String
+            var fetched: Int
+            var kept: Int
+        }
         struct Item: Codable, Hashable, Identifiable {
             var id: String
             var threadId: String?
@@ -30,6 +37,33 @@ final class CRMGmailIntegrationService {
 
         var ok: Bool
         var messages: [Item]
+        var debug: DebugInfo?
+    }
+
+    struct MessageGetResponse: Codable, Hashable {
+        struct Body: Codable, Hashable {
+            var mimeType: String
+            var text: String
+        }
+
+        var ok: Bool
+        var id: String
+        var threadId: String?
+        var subject: String
+        var from: String
+        var to: String
+        var date: String
+        var snippet: String
+        var internalDate: String?
+        var messageId: String?
+        var references: String?
+        var body: Body
+    }
+
+    struct SendResponse: Codable, Hashable {
+        var ok: Bool
+        var alreadySent: Bool?
+        var id: String?
     }
 
     private let client = SupabaseClientProvider.client
@@ -141,6 +175,46 @@ final class CRMGmailIntegrationService {
             let max: Int
         }
         return try await invokeWithTimeout("gmail_contact_messages", body: Body(contactEmail: contactEmail, max: max))
+    }
+
+    func messageGet(messageId: String) async throws -> MessageGetResponse {
+        struct Body: Encodable { let messageId: String }
+        return try await invokeWithTimeout("gmail_message_get", body: Body(messageId: messageId))
+    }
+
+    func sendMessage(
+        to: String,
+        subject: String,
+        text: String,
+        html: String?,
+        submissionId: String,
+        threadId: String?,
+        inReplyTo: String?,
+        references: String?
+    ) async throws -> SendResponse {
+        struct Body: Encodable {
+            let to: String
+            let subject: String
+            let text: String
+            let html: String?
+            let submissionId: String
+            let threadId: String?
+            let inReplyTo: String?
+            let references: String?
+        }
+        return try await invokeWithTimeout(
+            "gmail_send",
+            body: Body(
+                to: to,
+                subject: subject,
+                text: text,
+                html: html,
+                submissionId: submissionId,
+                threadId: threadId,
+                inReplyTo: inReplyTo,
+                references: references
+            )
+        )
     }
 
     func connectInteractive() async throws -> Status {
