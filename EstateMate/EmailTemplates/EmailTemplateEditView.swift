@@ -66,11 +66,19 @@ struct EmailTemplateEditView: View {
 
     @State private var isPreviewPresented: Bool = false
 
+    // AI format + save
+    @State private var isAIFormatting: Bool = false
+    @State private var isAIPreviewPresented: Bool = false
+    @State private var aiFormattedSubject: String = ""
+    @State private var aiFormattedBodyHTML: String = ""
+    @State private var aiFormatNotes: String?
+
     // Rich text helpers (HTML tags)
     @State private var isColorPickerPresented: Bool = false
     @State private var pickedColor: Color = EMTheme.accent
 
     private let service = EmailTemplateService()
+    private let aiFormatService = EmailTemplateAIFormatService()
 
     private var builtInPreviewOverrides: [String: String] {
         guard workspace == .openhouse else { return [:] }
@@ -370,6 +378,19 @@ struct EmailTemplateEditView: View {
                     }
 
                     Button {
+                        Task { await aiFormatAndPreview() }
+                    } label: {
+                        Text(isAIFormatting ? "AI排版中…" : "AI一键排版并保存")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isLoading || isAIFormatting)
+                    .sheet(isPresented: $isAIPreviewPresented) {
+                        NavigationStack {
+                            aiPreviewSheet
+                        }
+                    }
+
+                    Button {
                         Task { await save() }
                     } label: {
                         Text(isLoading ? "保存中…" : "保存")
@@ -529,6 +550,112 @@ struct EmailTemplateEditView: View {
     private func applyPickedColorToBodySelection() {
         guard let hex = EMTheme.hexFromColor(pickedColor) else { return }
         wrapBodySelection(prefix: "<span style=\"color:\(hex)\">", suffix: "</span>")
+    }
+
+    private var aiPreviewSheet: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                EMSectionHeader("AI 排版预览", subtitle: "确认后会覆盖当前主题/正文并立即保存")
+
+                if let aiFormatNotes, !aiFormatNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    EMCard {
+                        Text(aiFormatNotes)
+                            .font(.footnote)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                }
+
+                EMCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("原主题")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+                        Text(subject.isEmpty ? "（无）" : subject)
+                            .font(.subheadline)
+                            .foregroundStyle(EMTheme.ink)
+
+                        Divider().overlay(EMTheme.line)
+
+                        Text("原正文")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+                        Text(bodyText.isEmpty ? "（无）" : bodyText)
+                            .font(.footnote)
+                            .foregroundStyle(EMTheme.ink)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                EMCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("AI排版后主题")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+                        Text(aiFormattedSubject.isEmpty ? "（无）" : aiFormattedSubject)
+                            .font(.subheadline)
+                            .foregroundStyle(EMTheme.ink)
+
+                        Divider().overlay(EMTheme.line)
+
+                        Text("AI排版后正文（HTML）")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+                        Text(aiFormattedBodyHTML.isEmpty ? "（无）" : aiFormattedBodyHTML)
+                            .font(.footnote)
+                            .foregroundStyle(EMTheme.ink)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
+
+                Button {
+                    Task { await applyAIAndSave() }
+                } label: {
+                    Text(isLoading ? "保存中…" : "应用并保存")
+                }
+                .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
+                .disabled(isLoading)
+
+                Button {
+                    isAIPreviewPresented = false
+                } label: {
+                    Text("取消")
+                }
+                .buttonStyle(EMSecondaryButtonStyle())
+                .disabled(isLoading)
+
+                Spacer(minLength: 20)
+            }
+            .padding(EMTheme.padding)
+        }
+        .safeAreaPadding(.top, 8)
+        .navigationTitle("AI排版")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func aiFormatAndPreview() async {
+        hideKeyboard()
+        isAIFormatting = true
+        errorMessage = nil
+        defer { isAIFormatting = false }
+
+        do {
+            let res = try await aiFormatService.format(workspace: workspace, subject: subject, body: bodyText)
+            aiFormattedSubject = res.subject
+            aiFormattedBodyHTML = res.body_html
+            aiFormatNotes = res.notes
+            isAIPreviewPresented = true
+        } catch {
+            errorMessage = "AI排版失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func applyAIAndSave() async {
+        subject = aiFormattedSubject
+        bodyText = aiFormattedBodyHTML
+        isAIPreviewPresented = false
+        await save()
     }
 
     private func save() async {
