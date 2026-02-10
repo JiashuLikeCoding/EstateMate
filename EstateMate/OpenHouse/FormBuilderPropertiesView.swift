@@ -29,6 +29,9 @@ struct FormBuilderPropertiesView: View {
         case .dropdown: return "下拉选框"
         case .multiSelect: return "多选"
         case .checkbox: return "勾选"
+        case .date: return "日期"
+        case .time: return "时间"
+        case .address: return "地址"
         case .sectionTitle: return "大标题"
         case .sectionSubtitle: return "小标题"
         case .divider: return "分割线"
@@ -47,6 +50,9 @@ struct FormBuilderPropertiesView: View {
         case .dropdown: return "chevron.down.square"
         case .multiSelect: return "checklist"
         case .checkbox: return "checkmark.square"
+        case .date: return "calendar"
+        case .time: return "clock"
+        case .address: return "mappin.and.ellipse"
         case .sectionTitle: return "textformat.size.larger"
         case .sectionSubtitle: return "textformat.size.smaller"
         case .divider: return "line.horizontal.3"
@@ -544,6 +550,155 @@ struct FormBuilderPropertiesView: View {
                     prompt: "例如：点一下切换"
                 )
 
+            }
+
+            // MARK: - Placeholder / Editable
+
+            if binding.wrappedValue.type == .name {
+                Divider().overlay(EMTheme.line)
+
+                let fmt = binding.wrappedValue.nameFormat ?? .firstLast
+                let count: Int = {
+                    switch fmt {
+                    case .fullName: return 1
+                    case .firstLast: return 2
+                    case .firstMiddleLast: return 3
+                    }
+                }()
+
+                let placeholdersBinding = Binding<[String]>(
+                    get: {
+                        let existing = binding.wrappedValue.placeholders ?? []
+                        if existing.count == count { return existing }
+                        switch fmt {
+                        case .fullName: return ["全名"]
+                        case .firstLast: return ["名", "姓"]
+                        case .firstMiddleLast: return ["名", "中间名", "姓"]
+                        }
+                    },
+                    set: { binding.wrappedValue.placeholders = $0 }
+                )
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("占位提示（placeholder）")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    ForEach(0..<count, id: \.self) { i in
+                        EMTextField(
+                            title: "",
+                            text: Binding(
+                                get: { placeholdersBinding.wrappedValue.indices.contains(i) ? placeholdersBinding.wrappedValue[i] : "" },
+                                set: { newValue in
+                                    var arr = placeholdersBinding.wrappedValue
+                                    while arr.count < count { arr.append("") }
+                                    arr[i] = newValue
+                                    placeholdersBinding.wrappedValue = arr
+                                }
+                            ),
+                            prompt: placeholdersBinding.wrappedValue.indices.contains(i) ? placeholdersBinding.wrappedValue[i] : ""
+                        )
+                    }
+                }
+            }
+
+            if binding.wrappedValue.type == .email {
+                Divider().overlay(EMTheme.line)
+
+                EMTextField(
+                    title: "占位提示（placeholder）",
+                    text: Binding(
+                        get: { binding.wrappedValue.placeholder ?? "" },
+                        set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                    ),
+                    prompt: "例如：请输入..."
+                )
+            }
+
+            if binding.wrappedValue.type == .phone {
+                Divider().overlay(EMTheme.line)
+
+                let fmt = binding.wrappedValue.phoneFormat ?? .plain
+                if fmt == .withCountryCode {
+                    let phBinding = Binding<[String]>(
+                        get: {
+                            let existing = binding.wrappedValue.placeholders ?? []
+                            if existing.count == 2 { return existing }
+                            return ["+1", "手机号"]
+                        },
+                        set: { binding.wrappedValue.placeholders = $0 }
+                    )
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("占位提示（placeholder）")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+
+                        EMTextField(
+                            title: "",
+                            text: Binding(
+                                get: { phBinding.wrappedValue[0] },
+                                set: {
+                                    var arr = phBinding.wrappedValue
+                                    if arr.count < 2 { arr = ["+1", "手机号"] }
+                                    arr[0] = $0
+                                    phBinding.wrappedValue = arr
+                                }
+                            ),
+                            prompt: "+1"
+                        )
+
+                        EMTextField(
+                            title: "",
+                            text: Binding(
+                                get: { phBinding.wrappedValue[1] },
+                                set: {
+                                    var arr = phBinding.wrappedValue
+                                    if arr.count < 2 { arr = ["+1", "手机号"] }
+                                    arr[1] = $0
+                                    phBinding.wrappedValue = arr
+                                }
+                            ),
+                            prompt: "手机号"
+                        )
+                    }
+                } else {
+                    EMTextField(
+                        title: "占位提示（placeholder）",
+                        text: Binding(
+                            get: { binding.wrappedValue.placeholder ?? "" },
+                            set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                        ),
+                        prompt: "例如：手机号"
+                    )
+                }
+            }
+
+            if binding.wrappedValue.type == .text || binding.wrappedValue.type == .multilineText || binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect {
+                Divider().overlay(EMTheme.line)
+
+                EMTextField(
+                    title: "占位提示（placeholder）",
+                    text: Binding(
+                        get: { binding.wrappedValue.placeholder ?? "" },
+                        set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                    ),
+                    prompt: (binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect) ? "例如：请选择..." : "例如：请输入..."
+                )
+            }
+
+            if binding.wrappedValue.type == .date || binding.wrappedValue.type == .time || binding.wrappedValue.type == .address {
+                Divider().overlay(EMTheme.line)
+
+                Toggle("可编辑", isOn: Binding(
+                    get: { binding.wrappedValue.isEditable ?? false },
+                    set: { binding.wrappedValue.isEditable = $0 }
+                ))
+                .tint(EMTheme.accent)
+
+                Text("提示：日期/时间默认为当前；地址默认为活动地点")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
             }
 
             if binding.wrappedValue.type == .name {

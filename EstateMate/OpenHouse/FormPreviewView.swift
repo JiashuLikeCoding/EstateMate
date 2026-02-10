@@ -34,6 +34,8 @@ struct FormPreviewView: View {
     let fields: [FormField]
     let presentation: FormPresentation
 
+    @State private var didPrefillAutoFields = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var hSizeClass
 
@@ -119,6 +121,9 @@ struct FormPreviewView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            prefillAutoFieldsIfNeeded()
+        }
         .overlay {
             if isSubmitting {
                 ProgressView()
@@ -195,10 +200,22 @@ struct FormPreviewView: View {
             }
 
         case .text:
-            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...")
+
+        case .date:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
+
+        case .time:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
+
+        case .address:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
 
         case .multilineText:
-            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...", minHeight: 96)
+            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...", minHeight: 96)
 
         case .phone:
             let keys = field.phoneKeys ?? [field.key]
@@ -214,7 +231,7 @@ struct FormPreviewView: View {
             }
 
         case .email:
-            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
+            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...")
 
         case .select:
             if (field.selectStyle ?? .dropdown) == .dot {
@@ -226,7 +243,7 @@ struct FormPreviewView: View {
             } else {
                 EMChoiceField(
                     title: field.label,
-                    placeholder: "请选择...",
+                    placeholder: field.placeholder ?? "请选择...",
                     options: field.options ?? [],
                     selection: binding(for: field.key, field: field)
                 )
@@ -235,7 +252,7 @@ struct FormPreviewView: View {
         case .dropdown:
             EMChoiceField(
                 title: field.label,
-                placeholder: "请选择...",
+                placeholder: field.placeholder ?? "请选择...",
                 options: field.options ?? [],
                 selection: binding(for: field.key, field: field)
             )
@@ -424,6 +441,34 @@ struct FormPreviewView: View {
             }
         }
         return true
+    }
+
+    private func prefillAutoFieldsIfNeeded() {
+        guard didPrefillAutoFields == false else { return }
+        didPrefillAutoFields = true
+
+        let now = Date()
+
+        let df = DateFormatter()
+        df.locale = .current
+        df.timeZone = .current
+        df.dateFormat = "yyyy-MM-dd"
+
+        let tf = DateFormatter()
+        tf.locale = .current
+        tf.timeZone = .current
+        tf.dateFormat = "HH:mm"
+
+        for f in fields {
+            switch f.type {
+            case .date:
+                if values[f.key, default: ""].isEmpty { values[f.key] = df.string(from: now) }
+            case .time:
+                if values[f.key, default: ""].isEmpty { values[f.key] = tf.string(from: now) }
+            default:
+                break
+            }
+        }
     }
 
     private func submitPreview() {

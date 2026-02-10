@@ -116,6 +116,9 @@ final class FormBuilderState: ObservableObject {
         case .multiSelect: baseLabel = presetLabel ?? "多选"
         case .checkbox: baseLabel = presetLabel ?? "勾选"
         case .name: baseLabel = presetLabel ?? "姓名"
+        case .date: baseLabel = presetLabel ?? "日期"
+        case .time: baseLabel = presetLabel ?? "时间"
+        case .address: baseLabel = presetLabel ?? "地址"
         case .sectionTitle: baseLabel = presetLabel ?? "大标题"
         case .sectionSubtitle: baseLabel = presetLabel ?? "小标题"
         case .divider: baseLabel = presetLabel ?? "分割线"
@@ -131,6 +134,34 @@ final class FormBuilderState: ObservableObject {
         }()
 
         let options: [String]? = (type == .select || type == .dropdown || type == .multiSelect) ? ["选项 1", "选项 2"] : nil
+
+        let placeholder: String? = {
+            switch type {
+            case .text, .multilineText:
+                return "请输入..."
+            case .email:
+                return "请输入..."
+            case .phone:
+                return "手机号"
+            case .select, .dropdown, .multiSelect:
+                return "请选择..."
+            default:
+                return nil
+            }
+        }()
+
+        // For composite fields (name/phone with country code), placeholders are initialized below
+        // after we know the default format.
+        let placeholders: [String]? = nil
+
+        let isEditable: Bool? = {
+            switch type {
+            case .date, .time, .address:
+                return false
+            default:
+                return nil
+            }
+        }()
 
         let (nameFormat, nameKeys): (NameFormat?, [String]?) = {
             guard type == .name else { return (nil, nil) }
@@ -164,6 +195,25 @@ final class FormBuilderState: ObservableObject {
         // Divider / splice do not need a label.
         let finalLabel: String = (type == .divider || type == .splice) ? "" : label
 
+        let finalPlaceholders: [String]? = {
+            switch type {
+            case .name:
+                let f = nameFormat ?? .firstLast
+                switch f {
+                case .fullName: return ["全名"]
+                case .firstLast: return ["名", "姓"]
+                case .firstMiddleLast: return ["名", "中间名", "姓"]
+                }
+            case .phone:
+                if (phoneFormat ?? .plain) == .withCountryCode {
+                    return ["+1", "手机号"]
+                }
+                return nil
+            default:
+                return placeholders
+            }
+        }()
+
         draftField = .init(
             key: key,
             label: finalLabel,
@@ -175,6 +225,9 @@ final class FormBuilderState: ObservableObject {
             nameKeys: nameKeys,
             phoneFormat: phoneFormat,
             phoneKeys: phoneKeys,
+            placeholder: placeholder,
+            placeholders: finalPlaceholders,
+            isEditable: isEditable,
             fontSize: decorationFontSize,
             dividerDashed: dividerDashed,
             dividerThickness: dividerThickness

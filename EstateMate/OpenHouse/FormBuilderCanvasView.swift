@@ -619,6 +619,9 @@ struct FormBuilderCanvasView: View {
             case .dropdown: "多选（下拉）"
             }
         case .checkbox: "勾选（Checkbox）"
+        case .date: "日期"
+        case .time: "时间"
+        case .address: "地址"
         case .sectionTitle: "大标题"
         case .sectionSubtitle: "小标题"
         case .divider: "分割线"

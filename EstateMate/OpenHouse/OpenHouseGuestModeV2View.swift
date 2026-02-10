@@ -102,7 +102,7 @@ struct OpenHouseGuestModeV2View: View {
                     }
                 }
             }
-        case .text:
+        case .text, .date, .time, .address:
             TextField(field.label, text: binding(for: field.key, field: field))
 
         case .multilineText:

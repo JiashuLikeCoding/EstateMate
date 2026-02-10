@@ -226,6 +226,9 @@ private struct OpenHouseEventPreviewView: View {
         case .dropdown: return "下拉选框"
         case .multiSelect: return "多选"
         case .checkbox: return "勾选"
+        case .date: return "日期"
+        case .time: return "时间"
+        case .address: return "地址"
         case .sectionTitle: return "大标题"
         case .sectionSubtitle: return "小标题"
         case .divider: return "分割线"
@@ -452,6 +455,42 @@ struct OpenHouseKioskFillView: View {
                 OpenHouseSubmissionsListView(event: event)
             }
         }
+        .task {
+            prefillAutoFieldsIfNeeded()
+        }
+    }
+
+    private func prefillAutoFieldsIfNeeded() {
+        let now = Date()
+
+        let df = DateFormatter()
+        df.locale = .current
+        df.timeZone = .current
+        df.dateFormat = "yyyy-MM-dd"
+
+        let tf = DateFormatter()
+        tf.locale = .current
+        tf.timeZone = .current
+        tf.dateFormat = "HH:mm"
+
+        for f in form.schema.fields {
+            switch f.type {
+            case .date:
+                if values[f.key, default: ""].isEmpty {
+                    values[f.key] = df.string(from: now)
+                }
+            case .time:
+                if values[f.key, default: ""].isEmpty {
+                    values[f.key] = tf.string(from: now)
+                }
+            case .address:
+                if values[f.key, default: ""].isEmpty {
+                    values[f.key] = (event.location ?? "")
+                }
+            default:
+                break
+            }
+        }
     }
 
     private func verifyPasswordAndContinue() {
@@ -524,7 +563,38 @@ struct OpenHouseKioskFillView: View {
             }
 
         case .email:
-            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
+            EMEmailField(
+                title: field.label,
+                text: binding(for: field.key, field: field),
+                prompt: field.placeholder ?? "请输入..."
+            )
+
+        case .date:
+            EMTextField(
+                title: field.label,
+                text: binding(for: field.key, field: field),
+                prompt: "",
+                keyboard: .default
+            )
+            .disabled(!(field.isEditable ?? false))
+
+        case .time:
+            EMTextField(
+                title: field.label,
+                text: binding(for: field.key, field: field),
+                prompt: "",
+                keyboard: .default
+            )
+            .disabled(!(field.isEditable ?? false))
+
+        case .address:
+            EMTextField(
+                title: field.label,
+                text: binding(for: field.key, field: field),
+                prompt: "",
+                keyboard: .default
+            )
+            .disabled(!(field.isEditable ?? false))
 
         case .select:
             if (field.selectStyle ?? .dropdown) == .dot {

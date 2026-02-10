@@ -397,7 +397,7 @@ struct OpenHouseSubmissionsListView: View {
                     if value.isEmpty == false { out.append((field.label, value)) }
                 }
 
-            case .text, .multilineText, .email, .select, .dropdown:
+            case .text, .multilineText, .email, .select, .dropdown, .date, .time, .address:
                 let value = submission.data[field.key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if value.isEmpty == false { out.append((field.label, value)) }
 
@@ -741,10 +741,22 @@ private struct SubmissionEditView: View {
             }
 
         case .text:
-            EMTextField(title: field.label, text: binding(for: field.key, field: field))
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...")
+
+        case .date:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
+
+        case .time:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
+
+        case .address:
+            EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "")
+                .disabled(!(field.isEditable ?? false))
 
         case .multilineText:
-            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...", minHeight: 96)
+            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...", minHeight: 96)
 
         case .phone:
             let keys = field.phoneKeys ?? [field.key]
@@ -760,7 +772,7 @@ private struct SubmissionEditView: View {
             }
 
         case .email:
-            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
+            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: field.placeholder ?? "请输入...")
 
         case .select:
             if (field.selectStyle ?? .dropdown) == .dot {
@@ -772,7 +784,7 @@ private struct SubmissionEditView: View {
             } else {
                 EMChoiceField(
                     title: field.label,
-                    placeholder: "请选择...",
+                    placeholder: field.placeholder ?? "请选择...",
                     options: field.options ?? [],
                     selection: binding(for: field.key, field: field)
                 )
@@ -781,7 +793,7 @@ private struct SubmissionEditView: View {
         case .dropdown:
             EMChoiceField(
                 title: field.label,
-                placeholder: "请选择...",
+                placeholder: field.placeholder ?? "请选择...",
                 options: field.options ?? [],
                 selection: binding(for: field.key, field: field)
             )

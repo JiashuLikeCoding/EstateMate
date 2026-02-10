@@ -20,6 +20,13 @@ enum FormFieldType: String, Codable, CaseIterable {
     case checkbox
     case name
 
+    // Auto-fill fields (stored into submission.data like text)
+    // - date/time: defaults to "now" when the filling screen opens
+    // - address: defaults to the event location
+    case date
+    case time
+    case address
+
     // Decoration / layout fields (display-only; NEVER stored into submission.data)
     case sectionTitle
     case sectionSubtitle
@@ -99,6 +106,50 @@ enum MultiSelectStyle: String, Codable, CaseIterable {
 struct FormField: Codable, Identifiable, Hashable {
     var id: String { key }
 
+    init(
+        key: String,
+        label: String,
+        type: FormFieldType,
+        required: Bool,
+        options: [String]? = nil,
+        selectStyle: SelectStyle? = nil,
+        multiSelectStyle: MultiSelectStyle? = nil,
+        textCase: TextCase? = nil,
+        nameFormat: NameFormat? = nil,
+        nameKeys: [String]? = nil,
+        phoneFormat: PhoneFormat? = nil,
+        phoneKeys: [String]? = nil,
+        subtitle: String? = nil,
+        placeholder: String? = nil,
+        placeholders: [String]? = nil,
+        isEditable: Bool? = nil,
+        fontSize: Double? = nil,
+        dividerDashed: Bool? = nil,
+        dividerThickness: Double? = nil,
+        decorationColorKey: String? = nil
+    ) {
+        self.key = key
+        self.label = label
+        self.type = type
+        self.required = required
+        self.options = options
+        self.selectStyle = selectStyle
+        self.multiSelectStyle = multiSelectStyle
+        self.textCase = textCase
+        self.nameFormat = nameFormat
+        self.nameKeys = nameKeys
+        self.phoneFormat = phoneFormat
+        self.phoneKeys = phoneKeys
+        self.subtitle = subtitle
+        self.placeholder = placeholder
+        self.placeholders = placeholders
+        self.isEditable = isEditable
+        self.fontSize = fontSize
+        self.dividerDashed = dividerDashed
+        self.dividerThickness = dividerThickness
+        self.decorationColorKey = decorationColorKey
+    }
+
     /// For most field types, this is the value key stored in submission JSON.
     /// For `.name`, this is a stable identifier; `nameKeys` holds the actual storage keys.
     var key: String
@@ -139,6 +190,17 @@ struct FormField: Codable, Identifiable, Hashable {
 
     /// Optional helper text shown below the field (currently used by `.checkbox`).
     var subtitle: String?
+
+    /// Placeholder text shown inside the input.
+    /// For composite fields (name/phone with country code), use `placeholders`.
+    var placeholder: String?
+
+    /// Composite placeholders (e.g. name: first/last/middle; phone: code/number).
+    var placeholders: [String]?
+
+    /// If false, the field is shown read-only in guest fill / preview / submission edit.
+    /// Nil = defaults to true (backward compatible).
+    var isEditable: Bool?
 
     // MARK: - Decoration / layout options
 
