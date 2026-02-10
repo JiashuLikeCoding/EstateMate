@@ -43,10 +43,13 @@ struct OpenHouseHomeView: View {
         }
         .task(id: isLockedByOtherDevice) {
             // Heartbeat: keep lock alive (only when we successfully hold it)
+            // Also: detect being taken over by another device and immediately block.
             guard isLockedByOtherDevice == false, lockError == nil, isCheckingLock == false else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 25_000_000_000)
-                _ = try? await service.claimOpenHouseLock(force: false)
+                if let result = try? await service.claimOpenHouseLock(force: false) {
+                    lockResult = result
+                }
             }
         }
     }
