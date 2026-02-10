@@ -16,19 +16,22 @@ struct EMScreen<Content: View>: View {
 
     var body: some View {
         ZStack {
-            EMTheme.paper.ignoresSafeArea()
+            // Tap the background to dismiss keyboard.
+            // Important: don't attach the gesture to the whole container (it would also fire when tapping inside TextField,
+            // causing focus to drop immediately and making editing feel "cancelled").
+            EMTheme.paper
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    hideKeyboard()
+                }
+
             content
                 .foregroundStyle(EMTheme.ink)
         }
         .tint(EMTheme.accent)
         .navigationTitle(title ?? "")
         .navigationBarTitleDisplayMode(.inline)
-        // Dismiss keyboard when tapping anywhere.
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                hideKeyboard()
-            }
-        )
     }
 }
 
