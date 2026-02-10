@@ -12,6 +12,9 @@ struct FormBuilderPropertiesView: View {
     /// Called when user finishes an action (Add/Cancel/Delete) in a context that wants to keep the sheet open.
     var onDone: (() -> Void)? = nil
 
+    /// When provided (iPhone sheet), deleting a field should close the sheet instead of returning to the palette.
+    var onDeleteClose: (() -> Void)? = nil
+
     private func typeTitle(_ type: FormFieldType) -> String {
         switch type {
         case .name: return "姓名"
@@ -98,7 +101,13 @@ struct FormBuilderPropertiesView: View {
 
                 Button {
                     state.deleteSelectedIfPossible()
-                    if let onDone { onDone() } else { dismiss() }
+                    if let onDeleteClose {
+                        onDeleteClose()
+                    } else if let onDone {
+                        onDone()
+                    } else {
+                        dismiss()
+                    }
                 } label: {
                     Text("删除字段")
                 }

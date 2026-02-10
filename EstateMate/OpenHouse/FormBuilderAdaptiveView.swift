@@ -440,6 +440,9 @@ private struct FormBuilderDrawerView: View {
                                     onDone: {
                                         // keep sheet open, go back to palette for continuous adding
                                         mode = .palette
+                                    },
+                                    onDeleteClose: {
+                                        isSheetPresented = false
                                     }
                                 )
                                 .environmentObject(state)
