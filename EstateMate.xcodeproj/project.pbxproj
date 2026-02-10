@@ -8,15 +8,19 @@
 
 /* Begin PBXBuildFile section */
 		0D0E28E8D0779D6168E7A641 /* CRMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87309FF9EB99E89B57F5B891 /* CRMService.swift */; };
+		12286B56DC7696EBE89A5335 /* CRMTasksModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBA98BC5FDD4743DB50C8C81 /* CRMTasksModels.swift */; };
+		1B1F00171238B8844D40D6A6 /* CRMTasksListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EA38E56276F675D014CBABB /* CRMTasksListView.swift */; };
 		4B7ACFD8A2923FCB75BDCCB8 /* CRMContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */; };
 		6DDA676435CAB0EF241AAC62 /* CRMModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B7989A2A070900BE1ABBB1 /* CRMModels.swift */; };
 		86BC4051D228E08BE6228225 /* CRMContactEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C119B287FB1FE97E69CC6D0 /* CRMContactEditView.swift */; };
+		89B1198A14524E748546AF5E /* CRMTasksService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C088192F562DDB17B50339 /* CRMTasksService.swift */; };
 		96FA21F32F3A630300517E8D /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F22F3A630300517E8D /* Auth */; };
 		96FA21F52F3A630300517E8D /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F42F3A630300517E8D /* Functions */; };
 		96FA21F72F3A630300517E8D /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F62F3A630300517E8D /* PostgREST */; };
 		96FA21F92F3A630300517E8D /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F82F3A630300517E8D /* Realtime */; };
 		96FA21FB2F3A630300517E8D /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FA2F3A630300517E8D /* Storage */; };
 		96FA21FD2F3A630300517E8D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FC2F3A630300517E8D /* Supabase */; };
+		B52F670FFB4D1C482A8BFD61 /* CRMTaskEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94965343FAFC9DB4395919D4 /* CRMTaskEditView.swift */; };
 		FC33CDA07683F65C35DE9C59 /* CRMContactsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */; };
 /* End PBXBuildFile section */
 
@@ -25,8 +29,12 @@
 		61B7989A2A070900BE1ABBB1 /* CRMModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMModels.swift; sourceTree = "<group>"; };
 		69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMContactDetailView.swift; sourceTree = "<group>"; };
 		87309FF9EB99E89B57F5B891 /* CRMService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMService.swift; sourceTree = "<group>"; };
+		94965343FAFC9DB4395919D4 /* CRMTaskEditView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMTaskEditView.swift; sourceTree = "<group>"; };
 		96FA21D42F3A591500517E8D /* EstateMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EstateMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMContactsListView.swift; sourceTree = "<group>"; };
+		9EA38E56276F675D014CBABB /* CRMTasksListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMTasksListView.swift; sourceTree = "<group>"; };
+		B6C088192F562DDB17B50339 /* CRMTasksService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMTasksService.swift; sourceTree = "<group>"; };
+		BBA98BC5FDD4743DB50C8C81 /* CRMTasksModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMTasksModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -92,6 +100,10 @@
 				9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */,
 				69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */,
 				3C119B287FB1FE97E69CC6D0 /* CRMContactEditView.swift */,
+				BBA98BC5FDD4743DB50C8C81 /* CRMTasksModels.swift */,
+				B6C088192F562DDB17B50339 /* CRMTasksService.swift */,
+				9EA38E56276F675D014CBABB /* CRMTasksListView.swift */,
+				94965343FAFC9DB4395919D4 /* CRMTaskEditView.swift */,
 			);
 			name = CRM;
 			path = EstateMate/CRM;
@@ -203,6 +215,10 @@
 				FC33CDA07683F65C35DE9C59 /* CRMContactsListView.swift in Sources */,
 				4B7ACFD8A2923FCB75BDCCB8 /* CRMContactDetailView.swift in Sources */,
 				86BC4051D228E08BE6228225 /* CRMContactEditView.swift in Sources */,
+				12286B56DC7696EBE89A5335 /* CRMTasksModels.swift in Sources */,
+				89B1198A14524E748546AF5E /* CRMTasksService.swift in Sources */,
+				1B1F00171238B8844D40D6A6 /* CRMTasksListView.swift in Sources */,
+				B52F670FFB4D1C482A8BFD61 /* CRMTaskEditView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

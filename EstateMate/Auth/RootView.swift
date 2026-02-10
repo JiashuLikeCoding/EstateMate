@@ -79,14 +79,12 @@ struct CRMHomeView: View {
 
                             Divider().overlay(EMTheme.line)
 
-                            Button {
-                                // TODO
+                            NavigationLink {
+                                CRMTasksListView()
                             } label: {
                                 row(title: "待办任务", subtitle: "跟进提醒与记录")
                             }
                             .buttonStyle(.plain)
-                            .disabled(true)
-                            .opacity(0.55)
                         }
 
                         Button {
