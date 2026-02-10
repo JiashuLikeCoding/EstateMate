@@ -17,19 +17,44 @@ final class CRMGmailIntegrationService {
 
     private let client = SupabaseClientProvider.client
 
+    // Edge Function calls can hang if the function isn't deployed or the network is flaky.
+    // We enforce a short timeout so UI won't get stuck in "处理中…".
+    private func invokeWithTimeout<T: Decodable>(
+        _ name: String,
+        body: some Encodable,
+        timeoutSeconds: UInt64 = 12
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                let res: T = try await self.client.functions.invoke(name, options: .init(body: body))
+                return res
+            }
+            group.addTask {
+                try await Task.sleep(nanoseconds: timeoutSeconds * 1_000_000_000)
+                throw EMError.message("请求超时（Supabase Function：\(name)）。请确认已部署 gmail_* functions，并稍后重试。")
+            }
+
+            let first = try await group.next()!
+            group.cancelAll()
+            return first
+        }
+    }
+
+    private func invokeVoidWithTimeout(
+        _ name: String,
+        body: some Encodable,
+        timeoutSeconds: UInt64 = 12
+    ) async throws {
+        struct Empty: Decodable {}
+        _ = try await invokeWithTimeout(name, body: body, timeoutSeconds: timeoutSeconds) as Empty
+    }
+
     func status() async throws -> Status {
-        let status: Status = try await client.functions.invoke(
-            "gmail_status",
-            options: .init(body: EmptyBody())
-        )
-        return status
+        try await invokeWithTimeout("gmail_status", body: EmptyBody())
     }
 
     func disconnect() async throws {
-        _ = try await client.functions.invoke(
-            "gmail_disconnect",
-            options: .init(body: EmptyBody())
-        )
+        try await invokeVoidWithTimeout("gmail_disconnect", body: EmptyBody())
     }
 
     /// Interactive OAuth connect.
@@ -57,11 +82,7 @@ final class CRMGmailIntegrationService {
         }
 
         let body = ExchangeBody(code: result.code, codeVerifier: result.codeVerifier, redirectUri: GoogleOAuthConfig.redirectUri)
-        let status: Status = try await client.functions.invoke(
-            "gmail_oauth_exchange",
-            options: .init(body: body)
-        )
-        return status
+        return try await invokeWithTimeout("gmail_oauth_exchange", body: body)
     }
 }
 
