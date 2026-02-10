@@ -101,6 +101,10 @@ final class FormBuilderState: ObservableObject {
     }
 
     func startDraft(presetLabel: String?, presetKey: String?, type: FormFieldType, required: Bool) {
+        // Starting a new draft means we are ADDING a field, not updating an existing one.
+        // If we don't clear `editingFieldKey`, the next confirm will overwrite the previously edited field.
+        editingFieldKey = nil
+
         let baseLabel: String
         switch type {
         case .text: baseLabel = presetLabel ?? "文本"
