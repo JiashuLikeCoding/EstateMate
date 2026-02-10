@@ -61,7 +61,9 @@ struct CRMContactsListView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("客户列表", subtitle: "搜索、查看与编辑")
+                    headerRow
+
+                    searchRow
 
                     if let errorMessage {
                         EMCard {
@@ -131,56 +133,8 @@ struct CRMContactsListView: View {
                 .padding(EMTheme.padding)
             }
         }
-        .navigationTitle("客户列表")
+        .navigationTitle("客户")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索姓名/手机号/邮箱/标签")
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(systemName: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                }
-            }
-
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    withAnimation(.snappy) {
-                        isSelecting.toggle()
-                        if !isSelecting { selectedIds = [] }
-                    }
-                } label: {
-                    Text(isSelecting ? "完成" : "选择")
-                }
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CRMGmailConnectView()
-                } label: {
-                    Image(systemName: "envelope")
-                }
-                .disabled(isSelecting)
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CRMAIContactImportView()
-                } label: {
-                    Image(systemName: "sparkles")
-                }
-                .disabled(isSelecting)
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    CRMContactEditView(mode: .create)
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .disabled(isSelecting)
-            }
-        }
         .task {
             await reload()
         }
@@ -216,6 +170,89 @@ struct CRMContactsListView: View {
         }
         .onTapGesture {
             hideKeyboard()
+        }
+    }
+
+    private var headerRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("客户列表")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(EMTheme.ink)
+                Text("搜索、查看与编辑")
+                    .font(.caption)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            Spacer(minLength: 8)
+
+            HStack(spacing: 12) {
+                Button {
+                    showFilterSheet = true
+                } label: {
+                    Image(systemName: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+
+                Button {
+                    withAnimation(.snappy) {
+                        isSelecting.toggle()
+                        if !isSelecting { selectedIds = [] }
+                    }
+                } label: {
+                    Text(isSelecting ? "完成" : "选择")
+                        .font(.subheadline.weight(.semibold))
+                }
+
+                NavigationLink {
+                    CRMGmailConnectView()
+                } label: {
+                    Image(systemName: "envelope")
+                }
+                .disabled(isSelecting)
+
+                NavigationLink {
+                    CRMAIContactImportView()
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+                .disabled(isSelecting)
+
+                NavigationLink {
+                    CRMContactEditView(mode: .create)
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .disabled(isSelecting)
+            }
+            .foregroundStyle(EMTheme.ink)
+            .buttonStyle(.plain)
+        }
+        .padding(.top, 2)
+    }
+
+    private var searchRow: some View {
+        EMCard {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(EMTheme.ink2)
+
+                TextField("搜索姓名/手机号/邮箱/标签", text: $searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.search)
+                    .onSubmit { hideKeyboard() }
+
+                if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        searchText = ""
+                        hideKeyboard()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
