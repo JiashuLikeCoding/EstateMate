@@ -615,6 +615,41 @@ final class DynamicFormService {
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private func escapeHTML(_ s: String) -> String {
+        var out = s
+        out = out.replacingOccurrences(of: "&", with: "&amp;")
+        out = out.replacingOccurrences(of: "<", with: "&lt;")
+        out = out.replacingOccurrences(of: ">", with: "&gt;")
+        out = out.replacingOccurrences(of: "\"", with: "&quot;")
+        out = out.replacingOccurrences(of: "'", with: "&#39;")
+        return out
+    }
+
+    private func plainTextToHTML(_ text: String) -> String {
+        // Convert plain text into a stable HTML layout.
+        // Key: remove single line breaks inside paragraphs (often introduced by copy/paste or transport)
+        // so Gmail won't show "random" hard wraps.
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        // Split on blank lines (paragraph separators)
+        let paragraphs = normalized
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        let htmlParas = paragraphs.map { p -> String in
+            // Replace remaining single newlines with spaces to avoid hard-wrap artifacts.
+            let oneLine = p.replacingOccurrences(of: "\n", with: " ")
+            // Collapse multiple spaces.
+            let collapsed = oneLine.replacingOccurrences(of: "  ", with: " ")
+            return "<p style=\"margin:0 0 12px 0;\">\(escapeHTML(collapsed))</p>"
+        }
+
+        // Keep it minimal; Gmail will wrap naturally.
+        return "<div style=\"font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#111;\">\n\(htmlParas.joined(separator: "\n"))\n</div>"
+    }
+
     private func bestEffortSendAutoEmailGmail(
         eventId: UUID,
         submissionId: UUID,
@@ -738,7 +773,11 @@ final class DynamicFormService {
             }
 
             let isHTML = bodyRaw.contains("<") && bodyRaw.contains(">")
-            let bodyHTML = isHTML ? bodyRaw : nil
+
+            // If the user authored plain text, still send HTML too.
+            // This prevents "random" hard wraps that can appear in some clients when the plain text contains
+            // accidental line breaks (e.g. from copy/paste or transport). HTML will wrap naturally.
+            let bodyHTML = isHTML ? bodyRaw : plainTextToHTML(bodyRaw)
             let bodyText = isHTML ? stripHTML(bodyRaw) : bodyRaw
 
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
