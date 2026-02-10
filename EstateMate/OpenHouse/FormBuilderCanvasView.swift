@@ -241,17 +241,85 @@ struct FormBuilderCanvasView: View {
     private func fieldRow(field f: FormField) -> some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(f.label)
-                        .font(.callout)
-                        .foregroundStyle(EMTheme.ink)
-                        .frame(width: 86, alignment: .leading)
+                switch f.type {
+                case .divider:
+                    HStack(spacing: 10) {
+                        Image(systemName: "line.horizontal.3")
+                            .foregroundStyle(EMTheme.ink2)
 
-                    Text(previewPlaceholder(for: f))
-                        .font(.callout)
-                        .foregroundStyle(EMTheme.ink2)
+                        Text("分割线")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
 
-                    Spacer(minLength: 0)
+                        Spacer(minLength: 0)
+
+                        // A tiny preview line
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.white)
+                            .frame(width: 140, height: 22)
+                            .overlay(
+                                VStack {
+                                    Spacer()
+                                    Rectangle()
+                                        .fill(EMTheme.line)
+                                        .frame(height: max(1, CGFloat(f.dividerThickness ?? 1)))
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
+                    }
+
+                case .splice:
+                    HStack(spacing: 10) {
+                        Image(systemName: "rectangle.split.2x1")
+                            .foregroundStyle(EMTheme.ink2)
+
+                        Text("拼接")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+
+                        Spacer(minLength: 0)
+
+                        HStack(spacing: 6) {
+                            Text("1/2")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Image(systemName: "arrow.left.and.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(EMTheme.accent)
+                            Text("1/2")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 999, style: .continuous)
+                                .fill(Color.white)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 999, style: .continuous)
+                                .stroke(EMTheme.line, lineWidth: 1)
+                        )
+                    }
+
+                default:
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(f.label)
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink)
+                            .frame(width: 86, alignment: .leading)
+
+                        Text(previewPlaceholder(for: f))
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink2)
+
+                        Spacer(minLength: 0)
+                    }
                 }
 
                 Text(summary(f))
