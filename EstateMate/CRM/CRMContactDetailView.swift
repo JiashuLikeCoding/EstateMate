@@ -144,7 +144,9 @@ struct CRMContactDetailView: View {
                 .disabled(contact == nil)
             }
         }
-        .sheet(isPresented: $isEditPresented) {
+        .sheet(isPresented: $isEditPresented, onDismiss: {
+            Task { await reload() }
+        }) {
             NavigationStack {
                 CRMContactEditView(mode: .edit(contactId))
             }
