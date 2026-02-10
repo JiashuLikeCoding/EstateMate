@@ -53,7 +53,25 @@ function buildRfc822Message(params: {
   const boundary = `em_${crypto.randomUUID()}`;
 
   const headers: string[] = [];
-  headers.push(`From: ${params.from}`);
+
+  // Encode display name in From if needed, e.g. "嘉树 <a@b.com>".
+  const fromValue = (() => {
+    const raw = params.from.trim();
+    const lt = raw.indexOf("<");
+    const gt = raw.indexOf(">", lt + 1);
+    if (lt > 0 && gt > lt) {
+      const name = raw.slice(0, lt).trim().replace(/^"|"$/g, "");
+      const addr = raw.slice(lt).trim();
+      if (name && containsNonAscii(name)) {
+        return `"${rfc2047EncodeHeaderValue(name)}" ${addr}`;
+      }
+      return raw;
+    }
+    // If the whole value contains non-ascii, encode as a last resort.
+    return containsNonAscii(raw) ? rfc2047EncodeHeaderValue(raw) : raw;
+  })();
+
+  headers.push(`From: ${fromValue}`);
   headers.push(`To: ${params.to}`);
 
   const subjectHeader = containsNonAscii(params.subject)
