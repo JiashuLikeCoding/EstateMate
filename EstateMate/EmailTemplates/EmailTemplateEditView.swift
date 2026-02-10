@@ -66,6 +66,10 @@ struct EmailTemplateEditView: View {
 
     @State private var isPreviewPresented: Bool = false
 
+    // Rich text helpers (HTML tags)
+    @State private var isColorPickerPresented: Bool = false
+    @State private var pickedColor: Color = EMTheme.accent
+
     private let service = EmailTemplateService()
 
     private var builtInPreviewOverrides: [String: String] {
@@ -153,6 +157,76 @@ struct EmailTemplateEditView: View {
                                                 .stroke(EMTheme.line, lineWidth: 1)
                                         )
                                 )
+
+                            // Inline formatting (HTML)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    Button {
+                                        isBodyFocused = true
+                                        wrapBodySelection(prefix: "<b>", suffix: "</b>")
+                                    } label: {
+                                        Label("加粗", systemImage: "bold")
+                                            .font(.footnote.weight(.medium))
+                                            .foregroundStyle(EMTheme.ink)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Capsule().fill(Color.white))
+                                            .overlay(Capsule().stroke(EMTheme.line, lineWidth: 1))
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Button {
+                                        isBodyFocused = true
+                                        wrapBodySelection(prefix: "<i>", suffix: "</i>")
+                                    } label: {
+                                        Label("斜体", systemImage: "italic")
+                                            .font(.footnote.weight(.medium))
+                                            .foregroundStyle(EMTheme.ink)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Capsule().fill(Color.white))
+                                            .overlay(Capsule().stroke(EMTheme.line, lineWidth: 1))
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    Button {
+                                        hideKeyboard()
+                                        isBodyFocused = true
+                                        isColorPickerPresented = true
+                                    } label: {
+                                        Label("颜色", systemImage: "paintpalette")
+                                            .font(.footnote.weight(.medium))
+                                            .foregroundStyle(EMTheme.ink)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(Capsule().fill(Color.white))
+                                            .overlay(Capsule().stroke(EMTheme.line, lineWidth: 1))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .sheet(isPresented: $isColorPickerPresented) {
+                                NavigationStack {
+                                    Form {
+                                        ColorPicker("选择颜色", selection: $pickedColor, supportsOpacity: false)
+                                    }
+                                    .navigationTitle("文字颜色")
+                                    .navigationBarTitleDisplayMode(.inline)
+                                    .toolbar {
+                                        ToolbarItem(placement: .topBarTrailing) {
+                                            Button("应用") {
+                                                applyPickedColorToBodySelection()
+                                                isColorPickerPresented = false
+                                            }
+                                        }
+                                        ToolbarItem(placement: .topBarLeading) {
+                                            Button("取消") {
+                                                isColorPickerPresented = false
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             let builtInKeys: [String] = {
                                 guard workspace == .openhouse else { return [] }
@@ -431,6 +505,30 @@ struct EmailTemplateEditView: View {
 
         let newCursor = range.location + (insertion as NSString).length
         bodySelection = NSRange(location: newCursor, length: 0)
+    }
+
+    private func wrapBodySelection(prefix: String, suffix: String) {
+        let ns = bodyText as NSString
+        let safeLoc = min(max(bodySelection.location, 0), ns.length)
+        let safeLen = min(max(bodySelection.length, 0), ns.length - safeLoc)
+        let range = NSRange(location: safeLoc, length: safeLen)
+
+        if range.length == 0 {
+            // Insert empty tag pair and place cursor inside.
+            let insertion = prefix + suffix
+            bodyText = ns.replacingCharacters(in: range, with: insertion)
+            bodySelection = NSRange(location: range.location + (prefix as NSString).length, length: 0)
+        } else {
+            let selected = ns.substring(with: range)
+            let wrapped = prefix + selected + suffix
+            bodyText = ns.replacingCharacters(in: range, with: wrapped)
+            bodySelection = NSRange(location: range.location + (wrapped as NSString).length, length: 0)
+        }
+    }
+
+    private func applyPickedColorToBodySelection() {
+        guard let hex = EMTheme.hexFromColor(pickedColor) else { return }
+        wrapBodySelection(prefix: "<span style=\"color:\(hex)\">", suffix: "</span>")
     }
 
     private func save() async {
