@@ -169,7 +169,16 @@ Deno.serve(async (req) => {
       const date = headerValue(headers, "Date");
 
       const fromEmails = extractEmails(from);
-      const isInbound = fromEmails.includes(normalizeEmail(contactEmail));
+      const toEmails = extractEmails(to);
+
+      const contactNorm = normalizeEmail(contactEmail);
+      const meNorm = normalizeEmail(me);
+
+      const isInbound = fromEmails.includes(contactNorm) && toEmails.includes(meNorm);
+      const isOutbound = fromEmails.includes(meNorm) && toEmails.includes(contactNorm);
+
+      // Hard filter to only messages between me <-> contact.
+      if (!isInbound && !isOutbound) continue;
 
       details.push({
         id: msgJson.id,
@@ -187,9 +196,20 @@ Deno.serve(async (req) => {
     // Sort by internalDate desc if present.
     details.sort((a, b) => Number(b.internalDate ?? 0) - Number(a.internalDate ?? 0));
 
-    return new Response(JSON.stringify({ ok: true, messages: details }), {
-      headers: { "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        messages: details,
+        debug: {
+          me,
+          contactEmail,
+          q,
+          fetched: messages.length,
+          kept: details.length,
+        },
+      }),
+      { headers: { "content-type": "application/json" } },
+    );
   } catch (e) {
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
