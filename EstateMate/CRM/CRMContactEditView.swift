@@ -37,7 +37,9 @@ struct CRMContactEditView: View {
     @State private var interestedAddresses: [String] = []
     @State private var locationService = LocationAddressService()
 
-    @State private var tagsText = "" // comma-separated
+    @State private var selectedTags: Set<String> = []
+    @State private var showTagPicker = false
+
     @State private var stage: CRMContactStage = .newLead
     @State private var source: CRMContactSource = .manual
 
@@ -142,7 +144,8 @@ struct CRMContactEditView: View {
                             .pickerStyle(.segmented)
                         }
 
-                        EMTextField(title: "标签（逗号分隔）", text: $tagsText, prompt: "例如：学区房, 投资")
+                        tagsSection
+
                         EMTextField(title: "备注", text: $notes, prompt: "例如：喜欢南向三居")
                     }
 
@@ -175,6 +178,9 @@ struct CRMContactEditView: View {
         .onTapGesture {
             hideKeyboard()
         }
+        .sheet(isPresented: $showTagPicker) {
+            CRMTagPickerView(selected: $selectedTags)
+        }
     }
 
     private func loadIfNeeded() async {
@@ -191,7 +197,7 @@ struct CRMContactEditView: View {
             email = c.email
             notes = c.notes
             interestedAddresses = splitInterestedAddresses(c.address)
-            tagsText = (c.tags ?? []).joined(separator: ", ")
+            selectedTags = Set(c.tags ?? [])
             stage = c.stage
             source = c.source
         } catch {
@@ -208,10 +214,10 @@ struct CRMContactEditView: View {
         errorMessage = nil
         defer { isLoading = false }
 
-        let tags = tagsText
-            .split(separator: ",")
-            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        let tags = Array(selectedTags)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
         do {
             switch mode {
@@ -250,6 +256,46 @@ struct CRMContactEditView: View {
             }
         } catch {
             errorMessage = "保存失败：\(error.localizedDescription)"
+        }
+    }
+
+    private var tagsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("标签")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                Spacer()
+
+                Button {
+                    hideKeyboard()
+                    showTagPicker = true
+                } label: {
+                    Text("添加/选择")
+                        .font(.footnote.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EMTheme.accent)
+            }
+
+            if selectedTags.isEmpty {
+                Text("暂无标签")
+                    .font(.callout)
+                    .foregroundStyle(EMTheme.ink2)
+            } else {
+                FlowLayout(maxPerRow: 3, spacing: 8) {
+                    ForEach(Array(selectedTags).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }, id: \.self) { t in
+                        Button {
+                            selectedTags.remove(t)
+                        } label: {
+                            EMChip(text: t, isOn: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("移除标签：\(t)")
+                    }
+                }
+            }
         }
     }
 
@@ -337,6 +383,142 @@ private struct InterestedAddressChip: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("移除")
+        }
+    }
+}
+
+private struct CRMTagPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @Binding var selected: Set<String>
+
+    private let service = DynamicFormService()
+
+    @State private var tags: [OpenHouseTag] = []
+    @State private var newTagName: String = ""
+
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            EMScreen("标签") {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        EMSectionHeader("选择标签", subtitle: "与访客列表共用；可创建新标签")
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.callout)
+                                .foregroundStyle(.red)
+                        }
+
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 14) {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("创建新标签")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(EMTheme.ink2)
+
+                                    HStack(spacing: 10) {
+                                        TextField("例如：意向强", text: $newTagName)
+                                            .textFieldStyle(.roundedBorder)
+
+                                        Button(isLoading ? "创建中" : "创建") {
+                                            hideKeyboard()
+                                            Task { await createTag() }
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .disabled(isLoading || newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                    }
+                                }
+
+                                Divider().overlay(EMTheme.line)
+
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("点选标签")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(EMTheme.ink2)
+
+                                    if tags.isEmpty {
+                                        Text("暂无标签")
+                                            .font(.callout)
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .padding(.vertical, 4)
+                                    } else {
+                                        FlowLayout(maxPerRow: 3, spacing: 8) {
+                                            ForEach(tags) { t in
+                                                Button {
+                                                    toggle(t.name)
+                                                } label: {
+                                                    EMChip(text: t.name, isOn: selected.contains(t.name))
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Button("完成") {
+                            dismiss()
+                        }
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+
+                        Spacer(minLength: 20)
+                    }
+                    .padding(EMTheme.padding)
+                }
+            }
+            .navigationTitle("标签")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("关闭") { dismiss() }
+                        .foregroundStyle(EMTheme.ink2)
+                }
+            }
+            .task { await load() }
+        }
+    }
+
+    private func toggle(_ name: String) {
+        if selected.contains(name) {
+            selected.remove(name)
+        } else {
+            selected.insert(name)
+        }
+    }
+
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            tags = try await service.listTags()
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func createTag() async {
+        let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let created = try await service.createTag(name: name)
+            newTagName = ""
+            // Refresh list (server may have unique constraint/ordering)
+            tags = try await service.listTags()
+            selected.insert(created.name)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }
