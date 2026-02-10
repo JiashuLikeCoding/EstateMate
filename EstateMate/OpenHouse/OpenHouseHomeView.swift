@@ -59,9 +59,6 @@ struct OpenHouseHomeView: View {
                 EMSectionHeader("开放日", subtitle: "创建表单、创建活动、开始现场填写")
 
                 EMCard {
-                    Text("活动")
-                        .font(.headline)
-
                     NavigationLink {
                         OpenHouseEventHubView(initialTab: .create)
                     } label: {
@@ -75,24 +72,13 @@ struct OpenHouseHomeView: View {
                     } label: {
                         row(title: "活动列表", subtitle: "查看并启用活动")
                     }
-                }
 
-                EMCard {
-                    Text("表单")
-                        .font(.headline)
+                    Divider().overlay(EMTheme.line)
 
                     NavigationLink {
                         OpenHouseFormsView()
                     } label: {
                         row(title: "表单管理", subtitle: "查看与管理已创建的表单")
-                    }
-
-                    Divider().overlay(EMTheme.line)
-
-                    NavigationLink {
-                        FormBuilderAdaptiveView()
-                    } label: {
-                        row(title: "表单设计", subtitle: "创建新表单")
                     }
                 }
 
