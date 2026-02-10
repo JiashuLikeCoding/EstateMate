@@ -69,10 +69,19 @@ struct FormBuilderPropertiesView: View {
         EMScreen {
             if state.draftField != nil {
                 draftEditor
-            } else if state.selectedFieldKey != nil {
-                // Editing an existing field uses a draft copy.
-                // This enables explicit "更新字段" commit (instead of live binding).
-                draftEditor
+            } else if let key = state.selectedFieldKey,
+                      let idx = state.fields.firstIndex(where: { $0.key == key }) {
+                let t = state.fields[idx].type
+
+                // Special-case: divider/splice have no meaningful "commit" step.
+                // They should edit live and never show "更新字段".
+                if t == .divider || t == .splice {
+                    existingEditor(index: idx)
+                } else {
+                    // Editing an existing field uses a draft copy.
+                    // This enables explicit "更新字段" commit (instead of live binding).
+                    draftEditor
+                }
             } else {
                 emptyState
             }
@@ -83,6 +92,13 @@ struct FormBuilderPropertiesView: View {
                   let key = state.selectedFieldKey,
                   let idx = state.fields.firstIndex(where: { $0.key == key })
             else { return }
+
+            // Divider/Splice should be live-edited, so do not create a draft.
+            if state.fields[idx].type == .divider || state.fields[idx].type == .splice {
+                state.draftField = nil
+                state.editingFieldKey = nil
+                return
+            }
 
             state.editingFieldKey = key
             state.draftField = state.fields[idx]
