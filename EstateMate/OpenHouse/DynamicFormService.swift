@@ -639,11 +639,37 @@ final class DynamicFormService {
             .filter { !$0.isEmpty }
 
         let htmlParas = paragraphs.map { p -> String in
-            // Replace remaining single newlines with spaces to avoid hard-wrap artifacts.
-            let oneLine = p.replacingOccurrences(of: "\n", with: " ")
-            // Collapse multiple spaces.
-            let collapsed = oneLine.replacingOccurrences(of: "  ", with: " ")
-            return "<p style=\"margin:0 0 12px 0;\">\(escapeHTML(collapsed))</p>"
+            // Heuristic:
+            // - Regular paragraphs: collapse single newlines to spaces (prevents accidental hard-wrap artifacts).
+            // - Signature / address blocks: keep line breaks (people often paste signatures with intentional \n).
+            let lines = p.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            let nonEmptyLines = lines.filter { !$0.isEmpty }
+
+            let looksLikeSignatureBlock: Bool = {
+                // Many short lines, or multiple contact-like lines.
+                if nonEmptyLines.count >= 3 {
+                    let avgLen = nonEmptyLines.map { $0.count }.reduce(0, +) / max(nonEmptyLines.count, 1)
+                    if avgLen <= 40 { return true }
+                }
+                let keyHints = ["cell:", "bus:", "wechat:", "email:", "website:"]
+                let hit = nonEmptyLines.contains { line in
+                    let lower = line.lowercased()
+                    return keyHints.contains(where: { lower.contains($0) })
+                }
+                return hit
+            }()
+
+            if looksLikeSignatureBlock {
+                let joined = nonEmptyLines.joined(separator: "\n")
+                return "<pre style=\"margin:0 0 12px 0;white-space:pre-wrap;font-family:inherit;\">\(escapeHTML(joined))</pre>"
+            } else {
+                // Replace remaining single newlines with spaces to avoid hard-wrap artifacts.
+                let oneLine = p.replacingOccurrences(of: "\n", with: " ")
+                // Collapse multiple spaces.
+                var collapsed = oneLine
+                while collapsed.contains("  ") { collapsed = collapsed.replacingOccurrences(of: "  ", with: " ") }
+                return "<p style=\"margin:0 0 12px 0;\">\(escapeHTML(collapsed))</p>"
+            }
         }
 
         // Keep it minimal; Gmail will wrap naturally.
