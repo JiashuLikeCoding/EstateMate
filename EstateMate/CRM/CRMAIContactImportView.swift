@@ -298,7 +298,13 @@ struct CRMAIContactImportView: View {
             summaryText = "共 \(res.summary.total) 行；将写入/更新 \(res.summary.toUpsert ?? 0) 行；跳过 \(res.summary.skipped) 行"
             allPreviewRows = res.results.map { r in
                 let title = r.patch?.fullName?.nilIfBlank ?? r.patch?.email?.nilIfBlank ?? r.patch?.phone?.nilIfBlank ?? "（未命名）"
-                let subtitle = [r.patch?.email?.nilIfBlank, r.patch?.phone?.nilIfBlank].compactMap { $0 }.joined(separator: " · ")
+
+                var subtitleBits: [String] = []
+                let contactLine = [r.patch?.email?.nilIfBlank, r.patch?.phone?.nilIfBlank].compactMap { $0 }.joined(separator: " · ")
+                if !contactLine.isEmpty { subtitleBits.append(contactLine) }
+                if let st = r.sourceTime?.nilIfBlank { subtitleBits.append("来源时间：\(st)") }
+
+                let subtitle = subtitleBits.joined(separator: "\n")
                 let notes = r.patch?.notes?.nilIfBlank
                 return PreviewRow(rowIndex: r.rowIndex, title: title, subtitle: subtitle.isEmpty ? nil : subtitle, notes: notes, action: r.action, reason: r.reason)
             }

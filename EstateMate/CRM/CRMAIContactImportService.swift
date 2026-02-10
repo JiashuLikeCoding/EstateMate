@@ -38,7 +38,16 @@ final class CRMAIContactImportService {
         var rowIndex: Int
         var action: String
         var reason: String?
+        var sourceTime: String?
         var patch: ContactPatch?
+
+        enum CodingKeys: String, CodingKey {
+            case rowIndex
+            case action
+            case reason
+            case sourceTime = "source_time"
+            case patch
+        }
     }
 
     struct AnalyzeResponse: Decodable {

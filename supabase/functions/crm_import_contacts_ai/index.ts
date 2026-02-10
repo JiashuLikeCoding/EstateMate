@@ -30,6 +30,7 @@ type RowResult = {
   rowIndex: number
   action: "upsert" | "skip"
   reason?: string
+  source_time?: string
   patch?: ContactPatch
 }
 
@@ -151,7 +152,7 @@ function parseXlsx(buf: Uint8Array): Record<string, string>[] {
   const sheetName = wb.SheetNames[0]
   if (!sheetName) return []
   const ws = wb.Sheets[sheetName]
-  const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" })
+  const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "", raw: false })
   return jsonRows.map((r) => {
     const out: Record<string, string> = {}
     for (const [k, v] of Object.entries(r)) {
@@ -250,7 +251,39 @@ function isIdLikeColumn(name: string): boolean {
   return false
 }
 
-function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping): ContactPatch {
+function isTimeLikeColumn(name: string): boolean {
+  const raw = name.trim().toLowerCase()
+  if (!raw) return false
+  const compact = raw.replace(/\s+/g, "")
+  // obvious keywords
+  if (
+    compact.includes("createdat") ||
+    compact.includes("updatedat") ||
+    compact.includes("timestamp") ||
+    compact.includes("datetime") ||
+    compact.includes("date") ||
+    compact.includes("time")
+  ) return true
+
+  // common spreadsheet labels
+  if (raw.includes("提交") || raw.includes("时间") || raw.includes("日期")) return true
+
+  return false
+}
+
+function normalizeSourceTime(value: string): string | null {
+  const v = value.trim()
+  if (!v) return null
+  // If it's already a reasonable date string, keep it.
+  const t = Date.parse(v)
+  if (!Number.isNaN(t)) {
+    // Return ISO-ish local-free string for consistency.
+    return new Date(t).toISOString()
+  }
+  return null
+}
+
+function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping): { patch: ContactPatch; sourceTime: string | null } {
   const used = new Set<string>()
 
   const get = (col?: string) => {
@@ -305,6 +338,21 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
     }
   }
 
+  // Find a source time (for preview + optionally add to notes)
+  let sourceTime: string | null = null
+  for (const [k, v] of Object.entries(row)) {
+    if (!isTimeLikeColumn(k)) continue
+    const st = normalizeSourceTime(normalizeString(v))
+    if (st) {
+      sourceTime = st
+      break
+    }
+  }
+  if (sourceTime) {
+    // Put it at the top of notes so it is preserved in CRM.
+    notesParts.unshift(`来源时间: ${sourceTime}`)
+  }
+
   const notes = notesParts.join("\n")
 
   const patch: ContactPatch = {}
@@ -316,7 +364,7 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
   if (stage) patch.stage = stage
   if (source) patch.source = source
 
-  return patch
+  return { patch, sourceTime }
 }
 
 Deno.serve(async (req) => {
@@ -365,15 +413,16 @@ Deno.serve(async (req) => {
     const results: RowResult[] = []
     for (let i = 0; i < rows.length; i++) {
       const rowIndex = i + 1
-      const patch = applyMappingToRow(rows[i], mapping)
+      const mapped = applyMappingToRow(rows[i], mapping)
+      const patch = mapped.patch
 
       const email = normalizeString(patch.email)
       const phone = normalizeString(patch.phone)
 
       if (!email && !phone) {
-        results.push({ rowIndex, action: "skip", reason: "缺少 email 和 phone（无法匹配唯一客户）" })
+        results.push({ rowIndex, action: "skip", reason: "缺少 email 和 phone（无法匹配唯一客户）", source_time: mapped.sourceTime ?? undefined })
       } else {
-        results.push({ rowIndex, action: "upsert", patch })
+        results.push({ rowIndex, action: "upsert", patch, source_time: mapped.sourceTime ?? undefined })
       }
     }
 
