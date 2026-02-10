@@ -86,6 +86,14 @@ struct CRMContactsListView: View {
 
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
+                    CRMAIContactImportView()
+                } label: {
+                    Image(systemName: "sparkles")
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
                     CRMContactEditView(mode: .create)
                 } label: {
                     Image(systemName: "plus")

@@ -1,0 +1,4 @@
+# Deploy with: supabase functions deploy crm_import_contacts_ai --no-verify-jwt
+# Secrets needed:
+# - OPENAI_API_KEY
+# Uses shared SUPABASE_URL / SUPABASE_ANON_KEY
