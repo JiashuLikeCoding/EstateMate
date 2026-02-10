@@ -86,16 +86,8 @@ struct EmailTemplateEditView: View {
                     }
 
                     EMCard {
-                        Picker("归属", selection: $workspace) {
-                            ForEach(EstateMateWorkspaceKind.allCases, id: \.self) { w in
-                                Text(w.title).tag(w)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .tint(EMTheme.accent)
-
-                        EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访（开放日）")
-                        EMTextField(title: "主题", text: $subject, prompt: "例如：很高兴在开放日见到您，{{client_name}}")
+                        EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
+                        EMTextField(title: "主题", text: $subject, prompt: "例如：很高兴见到您，{{client_name}}")
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("正文")
