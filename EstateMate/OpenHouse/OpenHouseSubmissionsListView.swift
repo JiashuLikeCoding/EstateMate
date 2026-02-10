@@ -25,7 +25,7 @@ struct OpenHouseSubmissionsListView: View {
     @State private var showTagPicker = false
 
     var body: some View {
-        EMScreen("已提交") {
+        EMScreen(nil) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     EMSectionHeader(event.title, subtitle: "已提交的访客登记")
@@ -140,18 +140,6 @@ struct OpenHouseSubmissionsListView: View {
                     Spacer(minLength: 20)
                 }
                 .padding(EMTheme.padding)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button("关闭") { dismiss() }
-                    .foregroundStyle(EMTheme.ink2)
-            }
-
-            ToolbarItem(placement: .principal) {
-                Text("已提交")
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(EMTheme.ink)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
