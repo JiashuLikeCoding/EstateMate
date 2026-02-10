@@ -69,19 +69,11 @@ struct CRMContactDetailView: View {
                         }
 
                         EMCard {
-                            VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 0) {
                                 NavigationLink {
                                     CRMContactActivitiesView(contactId: contactId)
                                 } label: {
-                                    HStack {
-                                        Text("参与的活动")
-                                            .font(.body.weight(.medium))
-                                            .foregroundStyle(EMTheme.ink)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.footnote.weight(.semibold))
-                                            .foregroundStyle(EMTheme.ink2.opacity(0.7))
-                                    }
+                                    linkRow(icon: "calendar", title: "参与的活动")
                                 }
                                 .buttonStyle(.plain)
 
@@ -90,15 +82,7 @@ struct CRMContactDetailView: View {
                                 NavigationLink {
                                     CRMEmailLogsView(contactId: contactId)
                                 } label: {
-                                    HStack {
-                                        Text("来往的邮件")
-                                            .font(.body.weight(.medium))
-                                            .foregroundStyle(EMTheme.ink)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.footnote.weight(.semibold))
-                                            .foregroundStyle(EMTheme.ink2.opacity(0.7))
-                                    }
+                                    linkRow(icon: "envelope", title: "来往的邮件")
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -155,5 +139,30 @@ struct CRMContactDetailView: View {
                 .foregroundStyle(EMTheme.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func linkRow(icon: String, title: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(EMTheme.accent)
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(EMTheme.accent.opacity(0.10))
+                )
+
+            Text(title)
+                .font(.body.weight(.medium))
+                .foregroundStyle(EMTheme.ink)
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(EMTheme.ink2.opacity(0.7))
+        }
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
     }
 }
