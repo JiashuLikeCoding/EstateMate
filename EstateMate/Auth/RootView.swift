@@ -36,7 +36,7 @@ private struct GmailRequiredGateView: View {
 
     var body: some View {
         NavigationStack {
-            CRMGmailConnectView(autoStartConnect: true) { email in
+            CRMGmailConnectView(autoStartConnect: false) { email in
                 sessionStore.gmailEmail = email
             }
             .toolbar {
