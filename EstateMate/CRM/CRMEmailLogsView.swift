@@ -12,17 +12,87 @@ struct CRMEmailLogsView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+
+    @State private var contact: CRMContact?
+
     @State private var logs: [CRMEmailLog] = []
+    @State private var gmailMessages: [CRMGmailIntegrationService.ContactMessagesResponse.Item] = []
+
+    @State private var isGmailLoading = false
+    @State private var gmailError: String?
 
     @State private var isCreatePresented = false
 
     private let service = CRMEmailService()
+    private let crmService = CRMService()
+    private let gmail = CRMGmailIntegrationService()
 
     var body: some View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("来往的邮件", subtitle: "先做“手动记录”，后续可以接 Gmail/Outlook")
+                    EMSectionHeader("来往的邮件", subtitle: "已支持从 Gmail 拉取最近往来（MVP：只展示，不落库）")
+
+                    if let email = contact?.email, !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("Gmail 往来")
+                                        .font(.headline)
+                                        .foregroundStyle(EMTheme.ink)
+                                    Spacer()
+                                    if isGmailLoading { ProgressView().controlSize(.small) }
+                                }
+
+                                if let gmailError {
+                                    Text(gmailError)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.red)
+                                }
+
+                                if !gmailMessages.isEmpty {
+                                    ForEach(gmailMessages) { m in
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            HStack {
+                                                Text(m.direction == "inbound" ? "收到" : "发出")
+                                                    .font(.footnote.weight(.medium))
+                                                    .foregroundStyle(EMTheme.accent)
+                                                Spacer()
+                                                Text(m.date.isEmpty ? "—" : m.date)
+                                                    .font(.footnote)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(m.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : m.subject)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(EMTheme.ink)
+                                                .lineLimit(2)
+
+                                            if !m.snippet.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                                Text(m.snippet)
+                                                    .font(.footnote)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                                    .lineLimit(2)
+                                            }
+                                        }
+
+                                        Divider().overlay(EMTheme.line)
+                                    }
+                                } else if !isGmailLoading {
+                                    Text("暂无 Gmail 往来（或尚未同步到最近邮件）。")
+                                        .font(.subheadline)
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+
+                                Button(isGmailLoading ? "加载中…" : "从 Gmail 刷新") {
+                                    Task { await loadGmailMessages() }
+                                }
+                                .buttonStyle(EMSecondaryButtonStyle())
+                                .disabled(isGmailLoading)
+                            }
+                        }
+                    }
 
                     if let errorMessage {
                         EMCard {
@@ -112,9 +182,11 @@ struct CRMEmailLogsView: View {
         }
         .task {
             await reload()
+            await loadGmailMessages()
         }
         .refreshable {
             await reload()
+            await loadGmailMessages()
         }
     }
 
@@ -124,9 +196,29 @@ struct CRMEmailLogsView: View {
         defer { isLoading = false }
 
         do {
+            contact = try await crmService.getContact(id: contactId)
             logs = try await service.listLogs(contactId: contactId)
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func loadGmailMessages() async {
+        gmailError = nil
+        gmailMessages = []
+
+        guard let email = contact?.email.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty else {
+            return
+        }
+
+        isGmailLoading = true
+        defer { isGmailLoading = false }
+
+        do {
+            let res = try await gmail.contactMessages(contactEmail: email, max: 20)
+            gmailMessages = res.messages
+        } catch {
+            gmailError = "Gmail 加载失败：\(error.localizedDescription)"
         }
     }
 }

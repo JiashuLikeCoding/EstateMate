@@ -15,6 +15,23 @@ final class CRMGmailIntegrationService {
         var connected: Bool
     }
 
+    struct ContactMessagesResponse: Codable, Hashable {
+        struct Item: Codable, Hashable, Identifiable {
+            var id: String
+            var threadId: String?
+            var direction: String
+            var subject: String
+            var from: String
+            var to: String
+            var date: String
+            var snippet: String
+            var internalDate: String?
+        }
+
+        var ok: Bool
+        var messages: [Item]
+    }
+
     private let client = SupabaseClientProvider.client
 
     // Edge Function calls can hang if the function isn't deployed or the network is flaky.
@@ -118,6 +135,14 @@ final class CRMGmailIntegrationService {
 
     /// Interactive OAuth connect.
     /// - Note: This requires GoogleOAuthConfig to be filled. If not, throws a friendly error.
+    func contactMessages(contactEmail: String, max: Int = 20) async throws -> ContactMessagesResponse {
+        struct Body: Encodable {
+            let contactEmail: String
+            let max: Int
+        }
+        return try await invokeWithTimeout("gmail_contact_messages", body: Body(contactEmail: contactEmail, max: max))
+    }
+
     func connectInteractive() async throws -> Status {
         guard GoogleOAuthConfig.isConfigured else {
             throw EMError.message("尚未配置 Google OAuth（需要 clientId/redirectUri）。")
