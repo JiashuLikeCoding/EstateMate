@@ -90,8 +90,10 @@ struct CRMEmailLogsView: View {
                                         .foregroundStyle(EMTheme.ink2)
                                 }
 
-                                Button(isGmailLoading ? "加载中…" : "从 Gmail 刷新") {
-                                    Task { await loadGmailMessages() }
+                                // 自动刷新：不需要用户手动点按钮。
+                                // 仍保留一个“立即刷新”用于排障/确认。
+                                Button(isGmailLoading ? "加载中…" : "立即刷新") {
+                                    Task { await loadGmailMessages(force: true) }
                                 }
                                 .buttonStyle(EMSecondaryButtonStyle())
                                 .disabled(isGmailLoading)
@@ -120,7 +122,8 @@ struct CRMEmailLogsView: View {
                         }
                     }
 
-                    if !isLoading, logs.isEmpty, errorMessage == nil {
+                    // 如果已经有 Gmail 往来，就不再显示“暂无邮件记录”的空态卡片，避免误导。
+                    if !isLoading, logs.isEmpty, errorMessage == nil, gmailMessages.isEmpty {
                         EMCard {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("暂无邮件记录")
@@ -187,11 +190,18 @@ struct CRMEmailLogsView: View {
         }
         .task {
             await reload()
-            await loadGmailMessages()
+            await loadGmailMessages(force: true)
+        }
+        .task {
+            // Auto refresh loop while this view is on-screen.
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 25 * 1_000_000_000)
+                await loadGmailMessages(force: false)
+            }
         }
         .refreshable {
             await reload()
-            await loadGmailMessages()
+            await loadGmailMessages(force: true)
         }
     }
 
@@ -208,9 +218,12 @@ struct CRMEmailLogsView: View {
         }
     }
 
-    private func loadGmailMessages() async {
+    private func loadGmailMessages(force: Bool) async {
+        // 防抖：避免页面上多个 task/refresh 同时触发。
+        if isGmailLoading { return }
+        if !force, !gmailMessages.isEmpty { /* allow periodic refresh */ }
+
         gmailError = nil
-        gmailMessages = []
 
         guard let email = contact?.email.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty else {
             return
@@ -223,7 +236,10 @@ struct CRMEmailLogsView: View {
             let res = try await gmail.contactMessages(contactEmail: email, max: 20)
             gmailMessages = res.messages
         } catch {
-            gmailError = "Gmail 加载失败：\(error.localizedDescription)"
+            // 周期刷新时失败不刷屏；force 刷新才提示。
+            if force {
+                gmailError = "Gmail 加载失败：\(error.localizedDescription)"
+            }
         }
     }
 }
