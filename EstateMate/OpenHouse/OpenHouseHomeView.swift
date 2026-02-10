@@ -55,14 +55,6 @@ struct OpenHouseHomeView: View {
                     } label: {
                         row(title: "访客列表", subtitle: "按活动查看所有访客登记")
                     }
-
-                    Divider().overlay(EMTheme.line)
-
-                    NavigationLink {
-                        EmailTemplatesListView(workspace: .openhouse)
-                    } label: {
-                        row(title: "邮件模版", subtitle: "开放日常用跟进邮件")
-                    }
                 }
 
                 NavigationLink {
