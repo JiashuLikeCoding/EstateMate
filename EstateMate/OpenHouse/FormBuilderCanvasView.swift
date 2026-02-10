@@ -302,15 +302,23 @@ struct FormBuilderCanvasView: View {
                                 groupPosition: grouping.position(at: idx)
                             )
                             .contentShape(Rectangle())
-                            .onTapGesture {
-                                // Tap = select insertion anchor (do not open editor)
-                                markInsertionAnchor(key: f.key)
-                            }
-                            .onLongPressGesture {
-                                // Long press = open editor
-                                state.selectedFieldKey = f.key
-                                onEditFieldRequested?()
-                            }
+                            // Single tap = select insertion anchor
+                            // Double tap = edit field
+                            .gesture(
+                                ExclusiveGesture(
+                                    TapGesture(count: 2),
+                                    TapGesture(count: 1)
+                                )
+                                .onEnded { value in
+                                    switch value {
+                                    case .first:
+                                        state.selectedFieldKey = f.key
+                                        onEditFieldRequested?()
+                                    case .second:
+                                        markInsertionAnchor(key: f.key)
+                                    }
+                                }
+                            )
                             .onDrop(
                                 of: [.text],
                                 delegate: FieldDropDelegate(
@@ -367,7 +375,7 @@ struct FormBuilderCanvasView: View {
                     Text("表单已保存")
                 }
 
-                Text("提示：点右侧“＋”添加字段；点击字段编辑；长按右侧拖动把手调整顺序")
+                Text("提示：点右侧“＋”添加字段；单击字段选中插入锚点；双击字段编辑；长按右侧拖动把手调整顺序")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
 
@@ -427,13 +435,44 @@ struct FormBuilderCanvasView: View {
     private func fieldRow(field f: FormField, isGrouped: Bool, groupPosition: GroupPosition) -> some View {
         let isSplice = (f.type == .splice)
         let isDivider = (f.type == .divider)
+        let isSelected = (state.selectedFieldKey == f.key)
 
         // Option B: when fields are connected by `.splice`, show them as a visually unified module.
         let groupTint = isGrouped ? EMTheme.accent.opacity(0.06) : .clear
         let groupStroke = EMTheme.accent.opacity(0.72)
 
+        // Insertion anchor highlight (more obvious than a 1px stroke)
+        let selectedTint = isSelected ? EMTheme.accent.opacity(0.10) : .clear
+        let selectedStroke = isSelected ? EMTheme.accent.opacity(0.90) : EMTheme.line
+        let selectedLineWidth: CGFloat = isSelected ? 2 : 1
+
         return HStack(alignment: .center, spacing: 12) {
+            if isSelected {
+                // A subtle, always-visible insertion anchor marker.
+                RoundedRectangle(cornerRadius: 999, style: .continuous)
+                    .fill(EMTheme.accent)
+                    .frame(width: 4)
+                    .padding(.vertical, 8)
+                    .transition(.opacity)
+            }
+
             VStack(alignment: .leading, spacing: 6) {
+                if isSelected {
+                    HStack(alignment: .center, spacing: 8) {
+                        Text("插入锚点")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(EMTheme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 999, style: .continuous)
+                                    .fill(EMTheme.accent.opacity(0.10))
+                            )
+
+                        Spacer(minLength: 0)
+                    }
+                }
+
                 switch f.type {
                 case .divider:
                     HStack(spacing: 10) {
@@ -543,6 +582,10 @@ struct FormBuilderCanvasView: View {
                     RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                         .fill(groupTint)
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                        .fill(selectedTint)
+                )
         )
         .overlay(
             ZStack {
@@ -558,9 +601,9 @@ struct FormBuilderCanvasView: View {
 
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                     .strokeBorder(
-                        state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line,
+                        selectedStroke,
                         style: StrokeStyle(
-                            lineWidth: 1,
+                            lineWidth: selectedLineWidth,
                             dash: (isSplice || isDivider) ? [6, 4] : []
                         )
                     )
@@ -639,9 +682,9 @@ struct FormBuilderCanvasView: View {
 
     private func markInsertionAnchor(key: String) {
         state.selectedFieldKey = key
-        state.errorMessage = "已选中：新增字段将插入到该字段下方（长按可编辑）"
+        state.errorMessage = "已选中插入锚点：新增字段将插入到该字段下方（双击可编辑）"
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            if state.errorMessage == "已选中：新增字段将插入到该字段下方（长按可编辑）" {
+            if state.errorMessage == "已选中插入锚点：新增字段将插入到该字段下方（双击可编辑）" {
                 state.errorMessage = nil
             }
         }
