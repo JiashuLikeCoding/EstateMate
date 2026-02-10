@@ -34,6 +34,8 @@ struct OpenHouseEventEditView: View {
 
     @State private var showEndEarlyConfirm = false
 
+    @State private var showDeleteConfirm = false
+
     @State private var isFillingLocation = false
     @State private var locationErrorMessage: String?
     @State private var showLocationError = false
@@ -154,21 +156,48 @@ struct OpenHouseEventEditView: View {
 
                         Divider().overlay(EMTheme.line)
 
-                        if event.isActive {
-                            HStack {
-                                Text("状态：已启用")
-                                    .font(.footnote)
-                                    .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("活动状态")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            HStack(spacing: 10) {
+                                if event.isActive {
+                                    Text("已启用")
+                                        .font(.footnote)
+                                        .foregroundStyle(.green)
+                                } else {
+                                    Text("未启用")
+                                        .font(.footnote)
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+
                                 Spacer()
-                                Text("当前活动")
-                                    .font(.footnote)
-                                    .foregroundStyle(EMTheme.ink2)
+
+                                if event.isActive == false {
+                                    Button("设为进行中") {
+                                        Task { await makeActive() }
+                                    }
+                                    .buttonStyle(EMSecondaryButtonStyle())
+                                }
                             }
-                        } else {
-                            Button("设为启用") {
-                                Task { await makeActive() }
+
+                            HStack(spacing: 10) {
+                                Button("设为进行中") {
+                                    Task { await markOngoing() }
+                                }
+                                .buttonStyle(EMSecondaryButtonStyle())
+
+                                Button("设为已结束") {
+                                    Task { await markEndedNow() }
+                                }
+                                .buttonStyle(EMDangerButtonStyle())
                             }
-                            .buttonStyle(EMSecondaryButtonStyle())
+
+                            Button("删除活动") {
+                                showDeleteConfirm = true
+                            }
+                            .buttonStyle(EMDangerButtonStyle())
                         }
                     }
 
@@ -185,6 +214,14 @@ struct OpenHouseEventEditView: View {
         .task { await load() }
         .sheet(isPresented: $isFormSheetPresented) {
             FormPickerSheetView(forms: forms, selectedFormId: $selectedFormId)
+        }
+        .alert("删除这个活动？", isPresented: $showDeleteConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("删除", role: .destructive) {
+                Task { await deleteEvent() }
+            }
+        } message: {
+            Text("删除后无法恢复，并会同时删除该活动下的所有提交记录")
         }
     }
 
@@ -284,6 +321,68 @@ struct OpenHouseEventEditView: View {
             try await service.setActive(eventId: event.id)
             errorMessage = nil
             showSaved = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func markOngoing() async {
+        guard let formId = selectedFormId else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            _ = try await service.updateEvent(
+                id: event.id,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                endsAt: nil,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                formId: formId
+            )
+            hasTimeRange = false
+            errorMessage = nil
+            showSaved = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func markEndedNow() async {
+        guard let formId = selectedFormId else { return }
+        let now = Date()
+        let end = max(startsAt, now)
+
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            _ = try await service.updateEvent(
+                id: event.id,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                endsAt: end,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                formId: formId
+            )
+            endsAt = end
+            hasTimeRange = true
+            errorMessage = nil
+            showSaved = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteEvent() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            try await service.deleteEvent(id: event.id)
+            errorMessage = nil
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }

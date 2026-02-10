@@ -338,6 +338,9 @@ private struct OpenHouseEventListCardView: View {
             }
         }
         .task { await load() }
+        .onAppear {
+            Task { await load() }
+        }
     }
 
     private var ongoingEvents: [OpenHouseEventV2] {

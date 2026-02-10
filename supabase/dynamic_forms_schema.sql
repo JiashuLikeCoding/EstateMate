@@ -98,6 +98,12 @@ to authenticated
 using (owner_id = auth.uid())
 with check (owner_id = auth.uid());
 
+drop policy if exists events_delete_own_v2 on public.openhouse_events;
+create policy events_delete_own_v2
+on public.openhouse_events for delete
+to authenticated
+using (owner_id = auth.uid());
+
 -- SUBMISSIONS: kiosk runs under logged-in user; enforce owner_id = auth.uid()
 drop policy if exists subs_select_own_v2 on public.openhouse_submissions;
 create policy subs_select_own_v2

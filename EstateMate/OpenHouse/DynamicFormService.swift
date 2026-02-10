@@ -116,6 +116,14 @@ final class DynamicFormService {
             .value
     }
 
+    func deleteEvent(id: UUID) async throws {
+        _ = try await client
+            .from("openhouse_events")
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+
     func setActive(eventId: UUID) async throws {
         _ = try await client
             .from("openhouse_events")
