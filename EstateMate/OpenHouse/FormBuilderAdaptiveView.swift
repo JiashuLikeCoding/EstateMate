@@ -234,7 +234,29 @@ final class FormBuilderState: ObservableObject {
            let idx = proposed.firstIndex(where: { $0.key == editingKey }) {
             proposed[idx] = draftField
         } else {
-            proposed.append(draftField)
+            // UX: adding a splice by default appends to the end, but a trailing splice has no effect.
+            // Instead, try to insert it at the nearest valid position (prefer near the end) so it becomes effective immediately.
+            if draftField.type == .splice {
+                guard fields.count >= 2 else {
+                    errorMessage = "至少需要先添加两个字段，才能使用拼接"
+                    return
+                }
+
+                if let insertIndex = nearestValidSpliceInsertIndex(for: draftField, in: fields) {
+                    proposed.insert(draftField, at: insertIndex)
+                    errorMessage = "已将拼接放到可生效的位置（开头/结尾拼接不会生效）"
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                        if self?.errorMessage == "已将拼接放到可生效的位置（开头/结尾拼接不会生效）" {
+                            self?.errorMessage = nil
+                        }
+                    }
+                } else {
+                    errorMessage = "当前表单结构下无法添加拼接（可能已有过长的拼接行或相邻拼接）"
+                    return
+                }
+            } else {
+                proposed.append(draftField)
+            }
         }
 
         if let msg = spliceValidationError(in: proposed) {
@@ -242,11 +264,42 @@ final class FormBuilderState: ObservableObject {
             return
         }
 
-        errorMessage = nil
+        if errorMessage != "已将拼接放到可生效的位置（开头/结尾拼接不会生效）" {
+            errorMessage = nil
+        }
         fields = proposed
         selectedFieldKey = draftField.key
         self.draftField = nil
         self.editingFieldKey = nil
+    }
+
+    private func nearestValidSpliceInsertIndex(for splice: FormField, in current: [FormField]) -> Int? {
+        guard splice.type == .splice else { return nil }
+        // Valid splice positions are between two items: index 1...(count-1)
+        // Prefer near the end (count-1), which matches user expectation when they are appending fields.
+        let preferred = max(current.count - 1, 1)
+
+        func isValid(at idx: Int) -> Bool {
+            var test = current
+            test.insert(splice, at: idx)
+            return spliceValidationError(in: test) == nil
+        }
+
+        if isValid(at: preferred) { return preferred }
+
+        // Search outward from the preferred index.
+        let maxDistance = max(preferred - 1, (current.count - 1) - preferred)
+        if maxDistance <= 0 { return nil }
+
+        for d in 1...maxDistance {
+            let left = preferred - d
+            if left >= 1, isValid(at: left) { return left }
+
+            let right = preferred + d
+            if right <= current.count - 1, isValid(at: right) { return right }
+        }
+
+        return nil
     }
 
     private func normalizeSplices(in fields: [FormField]) -> [FormField] {
