@@ -22,26 +22,68 @@ execute function public.set_updated_at();
 
 alter table public.crm_tasks enable row level security;
 
-create policy if not exists crm_tasks_select_own
-on public.crm_tasks for select
-to authenticated
-using (created_by = auth.uid());
+-- (create policy does not support IF NOT EXISTS in some Postgres versions)
 
-create policy if not exists crm_tasks_insert_own
-on public.crm_tasks for insert
-to authenticated
-with check (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_tasks'
+      and policyname = 'crm_tasks_select_own'
+  ) then
+    create policy crm_tasks_select_own
+    on public.crm_tasks for select
+    to authenticated
+    using (created_by = auth.uid());
+  end if;
+end $$;
 
-create policy if not exists crm_tasks_update_own
-on public.crm_tasks for update
-to authenticated
-using (created_by = auth.uid())
-with check (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_tasks'
+      and policyname = 'crm_tasks_insert_own'
+  ) then
+    create policy crm_tasks_insert_own
+    on public.crm_tasks for insert
+    to authenticated
+    with check (created_by = auth.uid());
+  end if;
+end $$;
 
-create policy if not exists crm_tasks_delete_own
-on public.crm_tasks for delete
-to authenticated
-using (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_tasks'
+      and policyname = 'crm_tasks_update_own'
+  ) then
+    create policy crm_tasks_update_own
+    on public.crm_tasks for update
+    to authenticated
+    using (created_by = auth.uid())
+    with check (created_by = auth.uid());
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_tasks'
+      and policyname = 'crm_tasks_delete_own'
+  ) then
+    create policy crm_tasks_delete_own
+    on public.crm_tasks for delete
+    to authenticated
+    using (created_by = auth.uid());
+  end if;
+end $$;
 
 create index if not exists crm_tasks_due_at_idx on public.crm_tasks(due_at);
 create index if not exists crm_tasks_is_done_idx on public.crm_tasks(is_done);

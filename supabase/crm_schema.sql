@@ -33,23 +33,65 @@ execute function public.set_updated_at();
 alter table public.crm_contacts enable row level security;
 
 -- CONTACTS: authenticated users can manage their own contacts
-create policy if not exists crm_contacts_select_own
-on public.crm_contacts for select
-to authenticated
-using (created_by = auth.uid());
+-- (create policy does not support IF NOT EXISTS in some Postgres versions)
 
-create policy if not exists crm_contacts_insert_own
-on public.crm_contacts for insert
-to authenticated
-with check (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_contacts'
+      and policyname = 'crm_contacts_select_own'
+  ) then
+    create policy crm_contacts_select_own
+    on public.crm_contacts for select
+    to authenticated
+    using (created_by = auth.uid());
+  end if;
+end $$;
 
-create policy if not exists crm_contacts_update_own
-on public.crm_contacts for update
-to authenticated
-using (created_by = auth.uid())
-with check (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_contacts'
+      and policyname = 'crm_contacts_insert_own'
+  ) then
+    create policy crm_contacts_insert_own
+    on public.crm_contacts for insert
+    to authenticated
+    with check (created_by = auth.uid());
+  end if;
+end $$;
 
-create policy if not exists crm_contacts_delete_own
-on public.crm_contacts for delete
-to authenticated
-using (created_by = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_contacts'
+      and policyname = 'crm_contacts_update_own'
+  ) then
+    create policy crm_contacts_update_own
+    on public.crm_contacts for update
+    to authenticated
+    using (created_by = auth.uid())
+    with check (created_by = auth.uid());
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'crm_contacts'
+      and policyname = 'crm_contacts_delete_own'
+  ) then
+    create policy crm_contacts_delete_own
+    on public.crm_contacts for delete
+    to authenticated
+    using (created_by = auth.uid());
+  end if;
+end $$;

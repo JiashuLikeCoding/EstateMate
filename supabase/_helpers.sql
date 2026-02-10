@@ -1,0 +1,18 @@
+-- Helper snippets for idempotent policies on Supabase/Postgres
+-- Some Postgres versions don't support: CREATE POLICY IF NOT EXISTS
+-- Use DO blocks that check pg_policies.
+
+-- Example:
+-- do $$
+-- begin
+--   if not exists (
+--     select 1 from pg_policies
+--     where schemaname = 'public'
+--       and tablename = 'crm_contacts'
+--       and policyname = 'crm_contacts_select_own'
+--   ) then
+--     create policy crm_contacts_select_own on public.crm_contacts
+--       for select to authenticated
+--       using (created_by = auth.uid());
+--   end if;
+-- end $$;
