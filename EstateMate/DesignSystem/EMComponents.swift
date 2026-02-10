@@ -185,3 +185,15 @@ struct EMDangerButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.92 : 1)
     }
 }
+
+struct EMGhostButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(EMTheme.ink2)
+            .background(Color.clear)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}

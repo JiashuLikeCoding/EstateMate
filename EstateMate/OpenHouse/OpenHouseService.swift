@@ -12,6 +12,21 @@ import Supabase
 final class OpenHouseService {
     private let client = SupabaseClientProvider.client
 
+    func claimOpenHouseLock(force: Bool = false) async throws -> OpenHouseLockClaimResult {
+        let params: [String: AnyJSON] = [
+            "device_id": .string(DeviceIdentity.deviceId),
+            "device_name": .string(DeviceIdentity.deviceName),
+            "force": .bool(force),
+            // Keep in sync with SQL default (2 minutes)
+            "stale_seconds": .integer(120)
+        ]
+
+        return try await client
+            .rpc("claim_openhouse_lock", params: params)
+            .execute()
+            .value
+    }
+
     func listEvents() async throws -> [OpenHouseEvent] {
         try await client
             .from("openhouse_events")

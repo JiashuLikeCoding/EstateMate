@@ -66,3 +66,27 @@ struct OpenHouseSubmissionInsert: Encodable {
         case notes
     }
 }
+
+struct OpenHouseLockClaimResult: Codable, Hashable {
+    let status: String
+    let ownerId: UUID
+    let deviceId: String
+    let deviceName: String?
+    let existingDeviceId: String?
+    let existingDeviceName: String?
+    let existingLastSeen: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case status
+        case ownerId = "owner_id"
+        case deviceId = "device_id"
+        case deviceName = "device_name"
+        case existingDeviceId = "existing_device_id"
+        case existingDeviceName = "existing_device_name"
+        case existingLastSeen = "existing_last_seen"
+    }
+
+    var isInUseByOtherDevice: Bool {
+        status == "in_use" && existingDeviceId != nil && existingDeviceId != deviceId
+    }
+}
