@@ -78,6 +78,14 @@ struct CRMContactsListView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
+                    CRMGmailConnectView()
+                } label: {
+                    Image(systemName: "envelope")
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
                     CRMContactEditView(mode: .create)
                 } label: {
                     Image(systemName: "plus")
