@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UIKit
+import Supabase
 
 struct OpenHouseSubmissionsListView: View {
     @Environment(\.dismiss) private var dismiss
@@ -379,7 +380,7 @@ struct OpenHouseSubmissionsListView: View {
             switch field.type {
             case .name:
                 let keys = field.nameKeys ?? ["full_name"]
-                let parts = keys.compactMap { submission.data[$0]?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                let parts = keys.compactMap { submission.data[$0]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }
                     .filter { !$0.isEmpty }
                 let value = parts.joined(separator: " ")
                 if value.isEmpty == false { out.append((field.label, value)) }
@@ -387,18 +388,33 @@ struct OpenHouseSubmissionsListView: View {
             case .phone:
                 if (field.phoneFormat ?? .plain) == .withCountryCode {
                     let keys = field.phoneKeys ?? [field.key]
-                    let cc = keys.indices.contains(0) ? (submission.data[keys[0]] ?? "") : ""
-                    let num = keys.indices.contains(1) ? (submission.data[keys[1]] ?? "") : ""
+                    let cc = keys.indices.contains(0) ? (submission.data[keys[0]]?.stringValue ?? "") : ""
+                    let num = keys.indices.contains(1) ? (submission.data[keys[1]]?.stringValue ?? "") : ""
                     let value = ([cc, num].map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }).joined(separator: " ")
                     if value.isEmpty == false { out.append((field.label, value)) }
                 } else {
-                    let value = submission.data[field.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    let value = submission.data[field.key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                     if value.isEmpty == false { out.append((field.label, value)) }
                 }
 
-            case .text, .email, .select:
-                let value = submission.data[field.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+            case .text, .multilineText, .email, .select, .dropdown:
+                let value = submission.data[field.key]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                 if value.isEmpty == false { out.append((field.label, value)) }
+
+            case .multiSelect:
+                let arr = submission.data[field.key]?.arrayValue ?? []
+                let value = arr.compactMap { $0.stringValue }.filter { !$0.isEmpty }.joined(separator: "、")
+                if value.isEmpty == false { out.append((field.label, value)) }
+
+            case .checkbox:
+                let b = submission.data[field.key]?.boolValue ?? false
+                if b {
+                    out.append((field.label, "是"))
+                }
+
+            case .sectionTitle, .sectionSubtitle, .divider, .splice:
+                // Display-only fields: do not appear in submission.data
+                break
             }
         }
 
@@ -619,6 +635,8 @@ private struct SubmissionEditView: View {
     let onSaved: (SubmissionV2) -> Void
 
     @State private var values: [String: String] = [:]
+    @State private var boolValues: [String: Bool] = [:]
+    @State private var multiValues: [String: Set<String>] = [:]
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -659,7 +677,39 @@ private struct SubmissionEditView: View {
             }
         }
         .onAppear {
-            values = submission.data
+            // Seed editors from JSON payload
+            values = [:]
+            boolValues = [:]
+            multiValues = [:]
+
+            for f in form.schema.fields {
+                switch f.type {
+                case .checkbox:
+                    boolValues[f.key] = submission.data[f.key]?.boolValue ?? false
+                case .multiSelect:
+                    let arr = submission.data[f.key]?.arrayValue ?? []
+                    multiValues[f.key] = Set(arr.compactMap { $0.stringValue })
+                case .name:
+                    for k in f.nameKeys ?? [] {
+                        values[k] = submission.data[k]?.stringValue ?? ""
+                    }
+                case .phone:
+                    if (f.phoneFormat ?? .plain) == .withCountryCode {
+                        for k in f.phoneKeys ?? [] {
+                            values[k] = submission.data[k]?.stringValue ?? ""
+                        }
+                    } else {
+                        values[f.key] = submission.data[f.key]?.stringValue ?? ""
+                    }
+
+                case .sectionTitle, .sectionSubtitle, .divider, .splice:
+                    // Display-only fields: nothing to seed.
+                    break
+
+                default:
+                    values[f.key] = submission.data[f.key]?.stringValue ?? ""
+                }
+            }
         }
     }
 
@@ -696,26 +746,76 @@ private struct SubmissionEditView: View {
         case .text:
             EMTextField(title: field.label, text: binding(for: field.key, field: field))
 
+        case .multilineText:
+            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...", minHeight: 96)
+
         case .phone:
-            EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .phonePad)
+            let keys = field.phoneKeys ?? [field.key]
+            if (field.phoneFormat ?? .plain) == .withCountryCode, keys.count >= 2 {
+                EMPhoneWithCountryCodeField(
+                    title: field.label,
+                    code: binding(for: keys[0], field: field),
+                    number: binding(for: keys[1], field: field),
+                    prompt: "手机号"
+                )
+            } else {
+                EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .phonePad)
+            }
 
         case .email:
-            EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .emailAddress)
+            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
 
         case .select:
-            VStack(alignment: .leading, spacing: 8) {
-                Text(field.label)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(EMTheme.ink2)
+            if (field.selectStyle ?? .dropdown) == .dot {
+                EMSelectDotsField(
+                    title: field.label,
+                    options: field.options ?? [],
+                    selection: binding(for: field.key, field: field)
+                )
+            } else {
+                EMChoiceField(
+                    title: field.label,
+                    placeholder: "请选择...",
+                    options: field.options ?? [],
+                    selection: binding(for: field.key, field: field)
+                )
+            }
 
-                Picker("请选择", selection: binding(for: field.key, field: field)) {
-                    Text("请选择...").tag("")
-                    ForEach(field.options ?? [], id: \.self) { opt in
-                        Text(opt).tag(opt)
-                    }
+        case .dropdown:
+            EMChoiceField(
+                title: field.label,
+                placeholder: "请选择...",
+                options: field.options ?? [],
+                selection: binding(for: field.key, field: field)
+            )
+
+        case .multiSelect:
+            EMMultiSelectField(
+                title: field.label,
+                options: field.options ?? [],
+                selection: multiBinding(for: field.key),
+                style: field.multiSelectStyle ?? .chips
+            )
+
+        case .checkbox:
+            Button {
+                boolValues[field.key, default: false].toggle()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: boolValues[field.key, default: false] ? "checkmark.square.fill" : "square")
+                        .font(.title3)
+                        .foregroundStyle(boolValues[field.key, default: false] ? EMTheme.accent : EMTheme.ink2)
+
+                    Text(field.label)
+                        .font(.callout)
+                        .foregroundStyle(EMTheme.ink)
+
+                    Spacer()
+
+                    Text(field.required ? "必填" : "选填")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
                 }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
                 .background(
@@ -727,25 +827,92 @@ private struct SubmissionEditView: View {
                         .stroke(EMTheme.line, lineWidth: 1)
                 )
             }
+            .buttonStyle(.plain)
+
+        case .sectionTitle:
+            let size = CGFloat(field.fontSize ?? 22)
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink
+            Text(field.label)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(c)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
+
+        case .sectionSubtitle:
+            let size = CGFloat(field.fontSize ?? 16)
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink2
+            Text(field.label)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(c)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+
+        case .divider:
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.line
+            DividerLineView(
+                dashed: field.dividerDashed ?? false,
+                thickness: CGFloat(field.dividerThickness ?? 1),
+                color: c
+            )
+            .padding(.vertical, 6)
+
+        case .splice:
+            EmptyView()
         }
+    }
+
+    private func pickerField(_ field: FormField, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(field.label)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(EMTheme.ink2)
+
+            Picker(title, selection: binding(for: field.key, field: field)) {
+                Text("请选择...").tag("")
+                ForEach(field.options ?? [], id: \.self) { opt in
+                    Text(opt).tag(opt)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .fill(EMTheme.paper2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .stroke(EMTheme.line, lineWidth: 1)
+            )
+        }
+    }
+
+    private func multiBinding(for key: String) -> Binding<Set<String>> {
+        Binding(
+            get: { multiValues[key, default: []] },
+            set: { multiValues[key] = $0 }
+        )
+    }
+
+    private func toggleMultiSelect(key: String, option: String) {
+        var set = multiValues[key, default: []]
+        if set.contains(option) {
+            set.remove(option)
+        } else {
+            set.insert(option)
+        }
+        multiValues[key] = set
     }
 
     private func binding(for key: String, field: FormField? = nil) -> Binding<String> {
         Binding(
             get: { values[key, default: ""] },
             set: { newValue in
-                if let field, field.type == .text {
-                    switch field.textCase ?? .none {
-                    case .none:
-                        values[key] = newValue
-                    case .upper:
-                        values[key] = newValue.uppercased()
-                    case .lower:
-                        values[key] = newValue.lowercased()
-                    }
-                } else {
-                    values[key] = newValue
-                }
+                // 文本大小写转换已移除：保持用户原样输入。
+                values[key] = newValue
             }
         )
     }
@@ -764,16 +931,28 @@ private struct SubmissionEditView: View {
         defer { isSaving = false }
 
         do {
-            // Trim all values
-            var trimmed: [String: String] = [:]
+            var payload: [String: AnyJSON] = [:]
+
+            // Strings
             for (k, v) in values {
                 let t = v.trimmingCharacters(in: .whitespacesAndNewlines)
                 if t.isEmpty == false {
-                    trimmed[k] = t
+                    payload[k] = .string(t)
                 }
             }
 
-            let updated = try await service.updateSubmission(id: submission.id, data: trimmed, tags: submission.tags)
+            // Checkbox
+            for (k, v) in boolValues {
+                payload[k] = .bool(v)
+            }
+
+            // Multi select
+            for (k, set) in multiValues {
+                let arr = set.sorted().map { AnyJSON.string($0) }
+                payload[k] = .array(arr)
+            }
+
+            let updated = try await service.updateSubmission(id: submission.id, data: payload, tags: submission.tags)
             onSaved(updated)
             dismiss()
         } catch {
@@ -784,6 +963,27 @@ private struct SubmissionEditView: View {
     private func isValidEmail(_ s: String) -> Bool {
         let pattern = "^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         return s.range(of: pattern, options: .regularExpression) != nil
+    }
+}
+
+private struct DividerLineView: View {
+    let dashed: Bool
+    let thickness: CGFloat
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            let y = size.height / 2
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: size.width, y: y))
+            context.stroke(
+                path,
+                with: .color(color),
+                style: StrokeStyle(lineWidth: max(1, thickness), lineCap: .round, dash: dashed ? [6, 4] : [])
+            )
+        }
+        .frame(height: max(1, thickness))
     }
 }
 

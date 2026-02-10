@@ -7,6 +7,7 @@
 
 import Foundation
 import Supabase
+import UIKit
 
 @MainActor
 final class DynamicFormService {
@@ -44,6 +45,38 @@ final class DynamicFormService {
             .single()
             .execute()
             .value
+    }
+
+    // MARK: - Form Backgrounds (Storage)
+
+    /// Upload a custom background image for a form. Returns the storage path.
+    /// Note: requires you to create a Storage bucket named "openhouse_form_backgrounds".
+    func uploadFormBackground(formId: UUID, image: UIImage) async throws -> String {
+        guard let data = image.jpegData(compressionQuality: 0.75) else {
+            throw NSError(domain: "FormBackground", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法处理图片"])
+        }
+
+        let fileName = "\(UUID().uuidString).jpg"
+        let path = "\(formId.uuidString)/\(fileName)"
+
+        _ = try await client
+            .storage
+            .from("openhouse_form_backgrounds")
+            .upload(
+                path: path,
+                file: data,
+                options: FileOptions(contentType: "image/jpeg", upsert: true)
+            )
+
+        return path
+    }
+
+    /// Get a public URL for a stored background image.
+    /// If the bucket is private, you may need signed URLs instead.
+    func publicURLForFormBackground(path: String) -> URL? {
+        try? client.storage
+            .from("openhouse_form_backgrounds")
+            .getPublicURL(path: path)
     }
 
     // MARK: - Events
@@ -185,7 +218,7 @@ final class DynamicFormService {
 
     // MARK: - Submissions
 
-    func createSubmission(eventId: UUID, formId: UUID? = nil, data: [String: String]) async throws -> SubmissionV2 {
+    func createSubmission(eventId: UUID, formId: UUID? = nil, data: [String: AnyJSON]) async throws -> SubmissionV2 {
         let payload = SubmissionInsertV2(eventId: eventId, formId: formId, data: data)
         return try await client
             .from("openhouse_submissions")
@@ -206,7 +239,7 @@ final class DynamicFormService {
             .value
     }
 
-    func updateSubmission(id: UUID, data: [String: String], tags: [String]? = nil) async throws -> SubmissionV2 {
+    func updateSubmission(id: UUID, data: [String: AnyJSON], tags: [String]? = nil) async throws -> SubmissionV2 {
         let payload = SubmissionUpdateV2(data: data, tags: tags)
         return try await client
             .from("openhouse_submissions")

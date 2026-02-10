@@ -9,6 +9,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 @available(*, deprecated, message: "Use OpenHouseStartActivityView instead")
 struct OpenHouseGuestFlowView: View {
@@ -218,10 +219,39 @@ private struct OpenHouseEventPreviewView: View {
         switch f.type {
         case .name: return "姓名"
         case .text: return "文本"
+        case .multilineText: return "多行文本"
         case .phone: return "手机号"
         case .email: return "邮箱"
         case .select: return "单选"
+        case .dropdown: return "下拉选框"
+        case .multiSelect: return "多选"
+        case .checkbox: return "勾选"
+        case .sectionTitle: return "大标题"
+        case .sectionSubtitle: return "小标题"
+        case .divider: return "分割线"
+        case .splice: return "拼接"
         }
+    }
+}
+
+private struct DividerLineView: View {
+    let dashed: Bool
+    let thickness: CGFloat
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            var path = Path()
+            let y = size.height / 2
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: size.width, y: y))
+            context.stroke(
+                path,
+                with: .color(color),
+                style: StrokeStyle(lineWidth: max(1, thickness), lineCap: .round, dash: dashed ? [6, 4] : [])
+            )
+        }
+        .frame(height: max(1, thickness))
     }
 }
 
@@ -235,7 +265,11 @@ struct OpenHouseKioskFillView: View {
     let password: String
 
     @State private var values: [String: String] = [:]
+    @State private var boolValues: [String: Bool] = [:]
+    @State private var multiValues: [String: Set<String>] = [:]
     // Note: do not show submitted count in the filling screen UI.
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
     @State private var submittedCount = 0
 
     @State private var isLoading = false
@@ -257,19 +291,36 @@ struct OpenHouseKioskFillView: View {
 
     var body: some View {
         EMScreen(nil) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    // Title is in navigation bar (center). Do not show submitted count here.
-                    EmptyView()
-                        .frame(height: 0)
+            ZStack {
+                if let bg = form.schema.presentation?.background {
+                    EMFormBackgroundView(background: bg)
+                        .ignoresSafeArea()
+                }
 
-                    EMCard {
-                        VStack(spacing: 12) {
-                            ForEach(form.schema.fields) { field in
-                                fieldRow(field)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        // Title is in navigation bar (center). Do not show submitted count here.
+                        EmptyView()
+                            .frame(height: 0)
+
+                        EMCard {
+                            VStack(spacing: 12) {
+                                ForEach(fieldRows(form.schema.fields), id: \.self) { row in
+                                    if row.count <= 1 || hSizeClass != .regular {
+                                        if let f = row.first {
+                                            fieldRow(f)
+                                        }
+                                    } else {
+                                        HStack(alignment: .top, spacing: 12) {
+                                            ForEach(row) { f in
+                                                fieldRow(f)
+                                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -287,6 +338,7 @@ struct OpenHouseKioskFillView: View {
                     Spacer(minLength: 20)
                 }
                 .padding(EMTheme.padding)
+                }
             }
         }
         .toolbar {
@@ -432,50 +484,76 @@ struct OpenHouseKioskFillView: View {
         case .text:
             EMTextField(title: field.label, text: binding(for: field.key, field: field))
 
+        case .multilineText:
+            EMTextArea(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...", minHeight: 96)
+
         case .phone:
             let keys = field.phoneKeys ?? [field.key]
             if (field.phoneFormat ?? .plain) == .withCountryCode, keys.count >= 2 {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(field.label)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(EMTheme.ink2)
-
-                    HStack(spacing: 12) {
-                        Picker("区号", selection: binding(for: keys[0], field: field)) {
-                            Text("+1").tag("+1")
-                            Text("+86").tag("+86")
-                            Text("+852").tag("+852")
-                            Text("+81").tag("+81")
-                        }
-                        .pickerStyle(.menu)
-                        .frame(width: 110, alignment: .leading)
-
-                        TextField("手机号", text: binding(for: keys[1], field: field))
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.phonePad)
-                    }
-                }
+                EMPhoneWithCountryCodeField(
+                    title: field.label,
+                    code: binding(for: keys[0], field: field),
+                    number: binding(for: keys[1], field: field),
+                    prompt: "手机号"
+                )
             } else {
                 EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .phonePad)
             }
 
         case .email:
-            EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .emailAddress)
+            EMEmailField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...")
 
         case .select:
-            VStack(alignment: .leading, spacing: 8) {
-                Text(field.label)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(EMTheme.ink2)
+            if (field.selectStyle ?? .dropdown) == .dot {
+                EMSelectDotsField(
+                    title: field.label,
+                    options: field.options ?? [],
+                    selection: binding(for: field.key, field: field)
+                )
+            } else {
+                EMChoiceField(
+                    title: field.label,
+                    placeholder: "请选择...",
+                    options: field.options ?? [],
+                    selection: binding(for: field.key, field: field)
+                )
+            }
 
-                Picker("请选择", selection: binding(for: field.key, field: field)) {
-                    Text("请选择...").tag("")
-                    ForEach(field.options ?? [], id: \.self) { opt in
-                        Text(opt).tag(opt)
-                    }
+        case .dropdown:
+            EMChoiceField(
+                title: field.label,
+                placeholder: "请选择...",
+                options: field.options ?? [],
+                selection: binding(for: field.key, field: field)
+            )
+
+        case .multiSelect:
+            EMMultiSelectField(
+                title: field.label,
+                options: field.options ?? [],
+                selection: multiBinding(for: field.key),
+                style: field.multiSelectStyle ?? .chips
+            )
+
+        case .checkbox:
+            Button {
+                boolValues[field.key, default: false].toggle()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: boolValues[field.key, default: false] ? "checkmark.square.fill" : "square")
+                        .font(.title3)
+                        .foregroundStyle(boolValues[field.key, default: false] ? EMTheme.accent : EMTheme.ink2)
+
+                    Text(field.label)
+                        .font(.callout)
+                        .foregroundStyle(EMTheme.ink)
+
+                    Spacer()
+
+                    Text(field.required ? "必填" : "选填")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
                 }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
                 .background(
@@ -487,31 +565,154 @@ struct OpenHouseKioskFillView: View {
                         .stroke(EMTheme.line, lineWidth: 1)
                 )
             }
+            .buttonStyle(.plain)
+
+        case .sectionTitle:
+            let size = CGFloat(field.fontSize ?? 22)
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink
+            Text(field.label)
+                .font(.system(size: size, weight: .semibold))
+                .foregroundStyle(c)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+
+        case .sectionSubtitle:
+            let size = CGFloat(field.fontSize ?? 16)
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink2
+            Text(field.label)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(c)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+        case .divider:
+            let c = EMTheme.decorationColor(for: field.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.line
+            DividerLineView(
+                dashed: field.dividerDashed ?? false,
+                thickness: CGFloat(field.dividerThickness ?? 1),
+                color: c
+            )
+            .padding(.vertical, 6)
+
+        case .splice:
+            EmptyView()
         }
+    }
+
+    private func pickerField(_ field: FormField, title: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(field.label)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(EMTheme.ink2)
+
+            Picker(title, selection: binding(for: field.key, field: field)) {
+                Text("请选择...").tag("")
+                ForEach(field.options ?? [], id: \.self) { opt in
+                    Text(opt).tag(opt)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .fill(EMTheme.paper2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .stroke(EMTheme.line, lineWidth: 1)
+            )
+        }
+    }
+
+    private func fieldRows(_ fields: [FormField]) -> [[FormField]] {
+        // Splice is a marker between fields. Pattern:
+        // field, splice, field  -> same row (2)
+        // field, splice, field, splice, field -> same row (3)
+        // Max 4 fields per row.
+        var rows: [[FormField]] = []
+        var i = 0
+
+        func isSplice(_ f: FormField) -> Bool { f.type == .splice }
+
+        while i < fields.count {
+            let current = fields[i]
+
+            if isSplice(current) {
+                // Ignore stray splice.
+                i += 1
+                continue
+            }
+
+            // Decoration rows stay single.
+            if current.type == .sectionTitle || current.type == .sectionSubtitle || current.type == .divider {
+                rows.append([current])
+                i += 1
+                continue
+            }
+
+            // Start a row with a real input field.
+            var row: [FormField] = [current]
+            var j = i
+
+            while row.count < 4 {
+                let spliceIndex = j + 1
+                let nextFieldIndex = j + 2
+                guard spliceIndex < fields.count, nextFieldIndex < fields.count else { break }
+
+                if isSplice(fields[spliceIndex]) {
+                    let candidate = fields[nextFieldIndex]
+                    // Do not join across decoration fields.
+                    if candidate.type == .sectionTitle || candidate.type == .sectionSubtitle || candidate.type == .divider || candidate.type == .splice {
+                        break
+                    }
+                    row.append(candidate)
+                    j = nextFieldIndex
+                } else {
+                    break
+                }
+            }
+
+            rows.append(row)
+            i = j + 1
+        }
+
+        return rows
+    }
+
+    private func multiBinding(for key: String) -> Binding<Set<String>> {
+        Binding(
+            get: { multiValues[key, default: []] },
+            set: { multiValues[key] = $0 }
+        )
+    }
+
+    private func toggleMultiSelect(key: String, option: String) {
+        var set = multiValues[key, default: []]
+        if set.contains(option) {
+            set.remove(option)
+        } else {
+            set.insert(option)
+        }
+        multiValues[key] = set
     }
 
     private func binding(for key: String, field: FormField? = nil) -> Binding<String> {
         Binding(
             get: { values[key, default: ""] },
             set: { newValue in
-                if let field, field.type == .text {
-                    switch field.textCase ?? .none {
-                    case .none:
-                        values[key] = newValue
-                    case .upper:
-                        values[key] = newValue.uppercased()
-                    case .lower:
-                        values[key] = newValue.lowercased()
-                    }
-                } else {
-                    values[key] = newValue
-                }
+                // 文本大小写转换已移除：保持用户原样输入。
+                values[key] = newValue
             }
         )
     }
 
     private func canSubmit(form: FormRecord) -> Bool {
         for f in form.schema.fields where f.required {
+            // Decoration fields are never required.
+            if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider {
+                continue
+            }
             if f.type == .name {
                 for k in f.nameKeys ?? [] {
                     let v = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -523,8 +724,18 @@ struct OpenHouseKioskFillView: View {
                     if v.isEmpty { return false }
                 }
             } else {
-                let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-                if v.isEmpty { return false }
+                switch f.type {
+                case .checkbox:
+                    if boolValues[f.key, default: false] == false { return false }
+                case .multiSelect:
+                    if multiValues[f.key, default: []].isEmpty { return false }
+                case .splice, .sectionTitle, .sectionSubtitle, .divider:
+                    // Never required.
+                    break
+                default:
+                    let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if v.isEmpty { return false }
+                }
             }
         }
         return true
@@ -540,24 +751,39 @@ struct OpenHouseKioskFillView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            var payload: [String: String] = [:]
+            var payload: [String: AnyJSON] = [:]
             for f in form.schema.fields {
+                // Decoration fields are display-only.
+                if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider || f.type == .splice {
+                    continue
+                }
+
                 if f.type == .name {
                     for k in f.nameKeys ?? [] {
-                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                        payload[k] = .string(values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 } else if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
                     for k in f.phoneKeys ?? [] {
-                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                        payload[k] = .string(values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 } else {
-                    payload[f.key] = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    switch f.type {
+                    case .checkbox:
+                        payload[f.key] = .bool(boolValues[f.key, default: false])
+                    case .multiSelect:
+                        let arr = multiValues[f.key, default: []].sorted().map { AnyJSON.string($0) }
+                        payload[f.key] = .array(arr)
+                    default:
+                        payload[f.key] = .string(values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
                 }
             }
 
             _ = try await service.createSubmission(eventId: eventId, formId: event.formId, data: payload)
             submittedCount += 1
             values = [:]
+            boolValues = [:]
+            multiValues = [:]
             errorMessage = nil
 
             withAnimation(.easeOut(duration: 0.18)) {

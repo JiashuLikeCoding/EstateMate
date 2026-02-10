@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Supabase
 
 struct OpenHouseGuestModeV2View: View {
     private let service = DynamicFormService()
@@ -17,6 +18,8 @@ struct OpenHouseGuestModeV2View: View {
     @State private var errorMessage: String?
 
     @State private var values: [String: String] = [:]
+    @State private var boolValues: [String: Bool] = [:]
+    @State private var multiValues: [String: Set<String>] = [:]
     @State private var submittedCount = 0
 
     var body: some View {
@@ -101,6 +104,16 @@ struct OpenHouseGuestModeV2View: View {
             }
         case .text:
             TextField(field.label, text: binding(for: field.key, field: field))
+
+        case .multilineText:
+            VStack(alignment: .leading, spacing: 8) {
+                Text(field.label)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+                TextEditor(text: binding(for: field.key, field: field))
+                    .frame(minHeight: 110)
+            }
+
         case .phone:
             let keys = field.phoneKeys ?? [field.key]
             if (field.phoneFormat ?? .plain) == .withCountryCode, keys.count >= 2 {
@@ -127,11 +140,13 @@ struct OpenHouseGuestModeV2View: View {
                 TextField(field.label, text: binding(for: field.key, field: field))
                     .keyboardType(.phonePad)
             }
+
         case .email:
             TextField(field.label, text: binding(for: field.key, field: field))
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled(true)
+
         case .select:
             Picker(field.label, selection: binding(for: field.key, field: field)) {
                 Text("请选择...").tag("")
@@ -139,6 +154,62 @@ struct OpenHouseGuestModeV2View: View {
                     Text(opt).tag(opt)
                 }
             }
+
+        case .dropdown:
+            Picker(field.label, selection: binding(for: field.key, field: field)) {
+                Text("下拉选择...").tag("")
+                ForEach(field.options ?? [], id: \.self) { opt in
+                    Text(opt).tag(opt)
+                }
+            }
+
+        case .multiSelect:
+            VStack(alignment: .leading, spacing: 8) {
+                Text(field.label)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                FlowLayout(maxPerRow: 3, spacing: 8) {
+                    ForEach(field.options ?? [], id: \.self) { opt in
+                        let isOn = multiValues[field.key, default: []].contains(opt)
+                        Button {
+                            toggleMultiSelect(key: field.key, option: opt)
+                        } label: {
+                            EMChip(text: opt, isOn: isOn)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+        case .checkbox:
+            Button {
+                boolValues[field.key, default: false].toggle()
+            } label: {
+                HStack {
+                    Image(systemName: boolValues[field.key, default: false] ? "checkmark.square.fill" : "square")
+                    Text(field.label)
+                    Spacer()
+                }
+            }
+            .buttonStyle(.plain)
+
+        case .sectionTitle:
+            Text(field.label)
+                .font(.headline.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+        case .sectionSubtitle:
+            Text(field.label)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+        case .divider:
+            Divider()
+
+        case .splice:
+            EmptyView()
         }
     }
 
@@ -162,6 +233,16 @@ struct OpenHouseGuestModeV2View: View {
         )
     }
 
+    private func toggleMultiSelect(key: String, option: String) {
+        var set = multiValues[key, default: []]
+        if set.contains(option) {
+            set.remove(option)
+        } else {
+            set.insert(option)
+        }
+        multiValues[key] = set
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
@@ -182,8 +263,27 @@ struct OpenHouseGuestModeV2View: View {
 
     private func canSubmit(form: FormRecord) -> Bool {
         for f in form.schema.fields where f.required {
-            let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-            if v.isEmpty { return false }
+            if f.type == .name {
+                for k in f.nameKeys ?? [] {
+                    let v = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if v.isEmpty { return false }
+                }
+            } else if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
+                for k in f.phoneKeys ?? [] {
+                    let v = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if v.isEmpty { return false }
+                }
+            } else {
+                switch f.type {
+                case .checkbox:
+                    if boolValues[f.key, default: false] == false { return false }
+                case .multiSelect:
+                    if multiValues[f.key, default: []].isEmpty { return false }
+                default:
+                    let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    if v.isEmpty { return false }
+                }
+            }
         }
         return true
     }
@@ -193,24 +293,34 @@ struct OpenHouseGuestModeV2View: View {
         defer { isLoading = false }
         do {
             // Only keep keys from schema to avoid junk
-            var payload: [String: String] = [:]
+            var payload: [String: AnyJSON] = [:]
             for f in form.schema.fields {
                 if f.type == .name {
                     for k in f.nameKeys ?? [] {
-                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                        payload[k] = .string(values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 } else if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
                     for k in f.phoneKeys ?? [] {
-                        payload[k] = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                        payload[k] = .string(values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
                     }
                 } else {
-                    payload[f.key] = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                    switch f.type {
+                    case .checkbox:
+                        payload[f.key] = .bool(boolValues[f.key, default: false])
+                    case .multiSelect:
+                        let arr = multiValues[f.key, default: []].sorted().map { AnyJSON.string($0) }
+                        payload[f.key] = .array(arr)
+                    default:
+                        payload[f.key] = .string(values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines))
+                    }
                 }
             }
 
             _ = try await service.createSubmission(eventId: eventId, data: payload)
             submittedCount += 1
             values = [:]
+            boolValues = [:]
+            multiValues = [:]
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

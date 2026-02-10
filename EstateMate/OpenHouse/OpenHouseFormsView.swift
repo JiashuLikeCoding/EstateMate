@@ -32,10 +32,11 @@ struct OpenHouseFormsView: View {
                                 HStack {
                                     Text("新建表单")
                                         .font(.headline)
-                                    Spacer()
+                                    Spacer(minLength: 0)
                                     Image(systemName: "plus")
                                         .foregroundStyle(EMTheme.accent)
                                 }
+                                .contentShape(Rectangle())
                                 .padding(.vertical, 6)
                             }
                             .buttonStyle(.plain)
@@ -80,11 +81,9 @@ struct OpenHouseFormsView: View {
                                                         .padding(.vertical, 2)
                                                     }
                                                 }
-                                                Spacer()
-                                                Image(systemName: "chevron.right")
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                    .padding(.top, 2)
+                                                Spacer(minLength: 0)
                                             }
+                                            .contentShape(Rectangle())
                                             .padding(.vertical, 10)
                                         }
                                         .buttonStyle(.plain)
@@ -127,9 +126,17 @@ struct OpenHouseFormsView: View {
             switch type {
             case .name: return "姓名"
             case .text: return "文本"
+            case .multilineText: return "多行文本"
             case .phone: return "手机号"
             case .email: return "邮箱"
             case .select: return "单选"
+            case .dropdown: return "下拉选框"
+            case .multiSelect: return "多选"
+            case .checkbox: return "勾选"
+            case .sectionTitle: return "大标题"
+            case .sectionSubtitle: return "小标题"
+            case .divider: return "分割线"
+            case .splice: return "拼接"
             }
         }
 
@@ -199,9 +206,17 @@ private struct OpenHouseFormDetailView: View {
         switch f.type {
         case .name: return "姓名"
         case .text: return "文本"
+        case .multilineText: return "多行文本"
         case .phone: return "手机号"
         case .email: return "邮箱"
         case .select: return "单选"
+        case .dropdown: return "下拉选框"
+        case .multiSelect: return "多选"
+        case .checkbox: return "勾选"
+        case .sectionTitle: return "大标题"
+        case .sectionSubtitle: return "小标题"
+        case .divider: return "分割线"
+        case .splice: return "拼接"
         }
     }
 }

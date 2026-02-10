@@ -19,9 +19,35 @@ struct FormBuilderPropertiesView: View {
         switch type {
         case .name: return "姓名"
         case .text: return "文本"
+        case .multilineText: return "多行文本"
         case .phone: return "手机号"
         case .email: return "邮箱"
         case .select: return "单选"
+        case .dropdown: return "下拉选框"
+        case .multiSelect: return "多选"
+        case .checkbox: return "勾选"
+        case .sectionTitle: return "大标题"
+        case .sectionSubtitle: return "小标题"
+        case .divider: return "分割线"
+        case .splice: return "拼接"
+        }
+    }
+
+    private func typeIcon(_ type: FormFieldType) -> String {
+        switch type {
+        case .name: return "person"
+        case .text: return "textformat"
+        case .multilineText: return "text.alignleft"
+        case .phone: return "phone"
+        case .email: return "envelope"
+        case .select: return "list.bullet"
+        case .dropdown: return "chevron.down.square"
+        case .multiSelect: return "checklist"
+        case .checkbox: return "checkmark.square"
+        case .sectionTitle: return "textformat.size.larger"
+        case .sectionSubtitle: return "textformat.size.smaller"
+        case .divider: return "line.horizontal.3"
+        case .splice: return "rectangle.split.2x1"
         }
     }
 
@@ -51,37 +77,110 @@ struct FormBuilderPropertiesView: View {
 
     private var draftEditor: some View {
         let binding = Binding<FormField>(
-            get: { state.draftField ?? FormField(key: "tmp", label: "字段", type: .text, required: false, options: nil, textCase: TextCase.none, nameFormat: nil, nameKeys: nil, phoneFormat: nil, phoneKeys: nil) },
+            get: {
+                state.draftField ?? FormField(
+                    key: "tmp",
+                    label: "字段",
+                    type: .text,
+                    required: false,
+                    options: nil,
+                    selectStyle: nil,
+                    textCase: TextCase.none,
+                    nameFormat: nil,
+                    nameKeys: nil,
+                    phoneFormat: nil,
+                    phoneKeys: nil
+                )
+            },
             set: { state.draftField = $0 }
         )
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                EMSectionHeader("新增字段", subtitle: "设置完成后选择“添加”或“取消”")
+                VStack(alignment: .leading, spacing: 6) {
+                    Color.clear.frame(height: 6)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: typeIcon(binding.wrappedValue.type))
+                            .foregroundStyle(EMTheme.accent)
+                        Text(typeTitle(binding.wrappedValue.type))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+                    }
+
+                    Text("设置完成后选择“添加”或“取消”")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                }
 
                 fieldCard(binding: binding)
 
-                HStack(spacing: 12) {
+                if state.editingFieldKey != nil {
+                    // Updating an existing field (type change, etc.)
                     Button {
-                        state.cancelDraft()
-                        if let onDone { onDone() } else { dismiss() }
-                    } label: {
-                        Text("取消")
-                    }
-                    .buttonStyle(EMSecondaryButtonStyle())
-
-                    Button {
-                        // Validate select options
-                        if binding.wrappedValue.type == .select, (binding.wrappedValue.options ?? []).isEmpty {
-                            state.errorMessage = "单选字段需要至少一个选项"
+                        // Validate options
+                        if (binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect), (binding.wrappedValue.options ?? []).isEmpty {
+                            state.errorMessage = "该字段需要至少一个选项"
                             return
                         }
                         state.confirmDraft()
                         if let onDone { onDone() } else { dismiss() }
                     } label: {
-                        Text("添加")
+                        Text("更新字段")
                     }
                     .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+
+                    Button {
+                        state.deleteSelectedIfPossible()
+                        if let onDeleteClose {
+                            onDeleteClose()
+                        } else if let onDone {
+                            onDone()
+                        } else {
+                            dismiss()
+                        }
+                    } label: {
+                        Text("删除字段")
+                    }
+                    .buttonStyle(EMDangerButtonStyle())
+
+                    Button {
+                        state.cancelDraft()
+                        if let onDeleteClose {
+                            onDeleteClose()
+                        } else if let onDone {
+                            onDone()
+                        } else {
+                            dismiss()
+                        }
+                    } label: {
+                        Text("取消")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                } else {
+                    // Adding a new field
+                    HStack(spacing: 12) {
+                        Button {
+                            state.cancelDraft()
+                            if let onDone { onDone() } else { dismiss() }
+                        } label: {
+                            Text("取消")
+                        }
+                        .buttonStyle(EMSecondaryButtonStyle())
+
+                        Button {
+                            // Validate options
+                            if (binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect), (binding.wrappedValue.options ?? []).isEmpty {
+                                state.errorMessage = "该字段需要至少一个选项"
+                                return
+                            }
+                            state.confirmDraft()
+                            if let onDone { onDone() } else { dismiss() }
+                        } label: {
+                            Text("添加")
+                        }
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                    }
                 }
 
                 Spacer(minLength: 20)
@@ -95,7 +194,21 @@ struct FormBuilderPropertiesView: View {
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                EMSectionHeader("属性", subtitle: "配置字段标题、必填与选项")
+                VStack(alignment: .leading, spacing: 6) {
+                    Color.clear.frame(height: 6)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: typeIcon(binding.wrappedValue.type))
+                            .foregroundStyle(EMTheme.accent)
+                        Text(typeTitle(binding.wrappedValue.type))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+                    }
+
+                    Text("配置字段标题、必填与选项")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                }
 
                 fieldCard(binding: binding)
 
@@ -113,6 +226,19 @@ struct FormBuilderPropertiesView: View {
                 }
                 .buttonStyle(EMDangerButtonStyle())
 
+                Button {
+                    if let onDeleteClose {
+                        onDeleteClose()
+                    } else if let onDone {
+                        onDone()
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    Text("取消")
+                }
+                .buttonStyle(EMSecondaryButtonStyle())
+
                 Spacer(minLength: 20)
             }
             .padding(EMTheme.padding)
@@ -120,16 +246,198 @@ struct FormBuilderPropertiesView: View {
     }
 
     private func fieldCard(binding: Binding<FormField>) -> some View {
-        EMCard {
-            EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
+        let isDecoration = binding.wrappedValue.type == .sectionTitle || binding.wrappedValue.type == .sectionSubtitle || binding.wrappedValue.type == .divider || binding.wrappedValue.type == .splice
 
-            Toggle("必填", isOn: binding.required)
-                .tint(EMTheme.accent)
+        return EMCard {
+            if binding.wrappedValue.type == .divider {
+                Text("分割线")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(EMTheme.ink)
 
-            // 类型由“字段库”决定，这里不提供切换，避免 UI 复杂。
-            Text("类型：\(typeTitle(binding.wrappedValue.type))")
-                .font(.footnote)
-                .foregroundStyle(EMTheme.ink2)
+                // Divider has no title and is never required.
+                Color.clear
+                    .frame(height: 0)
+                    .onAppear {
+                        if binding.wrappedValue.required {
+                            binding.wrappedValue.required = false
+                        }
+                        if binding.wrappedValue.dividerThickness == nil {
+                            binding.wrappedValue.dividerThickness = 1
+                        }
+                        if binding.wrappedValue.dividerDashed == nil {
+                            binding.wrappedValue.dividerDashed = false
+                        }
+                        // Ensure label stays empty.
+                        if binding.wrappedValue.label.isEmpty == false {
+                            binding.wrappedValue.label = ""
+                        }
+                    }
+
+            } else if binding.wrappedValue.type == .splice {
+                Text("拼接")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(EMTheme.ink)
+
+                Text("提示：在大屏幕上将相邻字段拼到同一行，最多 4 个一行")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
+
+                // Splice has no title and is never required.
+                Color.clear
+                    .frame(height: 0)
+                    .onAppear {
+                        if binding.wrappedValue.required {
+                            binding.wrappedValue.required = false
+                        }
+                        if binding.wrappedValue.label.isEmpty == false {
+                            binding.wrappedValue.label = ""
+                        }
+                    }
+
+            } else if binding.wrappedValue.type == .sectionTitle {
+                EMTextField(title: "大标题文字", text: binding.label, prompt: "例如：基本信息")
+
+            } else if binding.wrappedValue.type == .sectionSubtitle {
+                EMTextField(title: "小标题文字", text: binding.label, prompt: "例如：请如实填写")
+
+            } else {
+                EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
+            }
+
+            if isDecoration {
+                // Decoration fields are never required.
+                Color.clear
+                    .frame(height: 0)
+                    .onAppear {
+                        if binding.wrappedValue.required {
+                            binding.wrappedValue.required = false
+                        }
+                    }
+            } else {
+                Toggle("必填", isOn: binding.required)
+                    .tint(EMTheme.accent)
+            }
+
+            // 类型已在顶部标题显示
+
+            if binding.wrappedValue.type == .sectionTitle || binding.wrappedValue.type == .sectionSubtitle {
+                Divider().overlay(EMTheme.line)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("字体大小")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+
+                        Spacer()
+
+                        Text("\(Int((binding.wrappedValue.fontSize ?? (binding.wrappedValue.type == .sectionTitle ? 22 : 16)).rounded())) pt")
+                            .font(.caption)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+
+                    Slider(
+                        value: Binding(
+                            get: { binding.wrappedValue.fontSize ?? (binding.wrappedValue.type == .sectionTitle ? 22 : 16) },
+                            set: { binding.wrappedValue.fontSize = $0 }
+                        ),
+                        in: binding.wrappedValue.type == .sectionTitle ? 18...34 : 12...24,
+                        step: 1
+                    )
+                }
+
+                Divider().overlay(EMTheme.line)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("字体颜色")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    let colorKey = Binding<String>(
+                        get: { binding.wrappedValue.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue },
+                        set: { newValue in
+                            binding.wrappedValue.decorationColorKey = (newValue == EMTheme.DecorationColorKey.default.rawValue) ? nil : newValue
+                        }
+                    )
+
+                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                        ForEach(EMTheme.decorationColorOptions, id: \.self) { key in
+                            Button {
+                                colorKey.wrappedValue = key
+                            } label: {
+                                EMChip(text: EMTheme.decorationColorTitle(for: key), isOn: colorKey.wrappedValue == key)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            if binding.wrappedValue.type == .divider {
+                Divider().overlay(EMTheme.line)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("虚线", isOn: Binding(
+                        get: { binding.wrappedValue.dividerDashed ?? false },
+                        set: { binding.wrappedValue.dividerDashed = $0 }
+                    ))
+                    .tint(EMTheme.accent)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("粗度")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            Spacer()
+
+                            Text("\(String(format: "%.0f", (binding.wrappedValue.dividerThickness ?? 1)))")
+                                .font(.caption)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+
+                        Slider(
+                            value: Binding(
+                                get: { binding.wrappedValue.dividerThickness ?? 1 },
+                                set: { binding.wrappedValue.dividerThickness = $0 }
+                            ),
+                            in: 1...6,
+                            step: 1
+                        )
+                    }
+
+                    Divider().overlay(EMTheme.line)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("线条颜色")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+
+                        let colorKey = Binding<String>(
+                            get: { binding.wrappedValue.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue },
+                            set: { newValue in
+                                binding.wrappedValue.decorationColorKey = (newValue == EMTheme.DecorationColorKey.default.rawValue) ? nil : newValue
+                            }
+                        )
+
+                        FlowLayout(maxPerRow: 3, spacing: 8) {
+                            ForEach(EMTheme.decorationColorOptions, id: \.self) { key in
+                                Button {
+                                    colorKey.wrappedValue = key
+                                } label: {
+                                    EMChip(text: EMTheme.decorationColorTitle(for: key), isOn: colorKey.wrappedValue == key)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if binding.wrappedValue.type == .splice {
+                // No extra options for splice.
+                Divider().overlay(EMTheme.line).opacity(0)
+            }
 
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
@@ -169,63 +477,96 @@ struct FormBuilderPropertiesView: View {
             }
 
             if binding.wrappedValue.type == .text {
-                Divider().overlay(EMTheme.line)
-
-                Picker("文本格式", selection: Binding(
-                    get: { binding.wrappedValue.textCase ?? TextCase.none },
-                    set: { binding.wrappedValue.textCase = $0 }
-                )) {
-                    ForEach(TextCase.allCases, id: \.self) { tc in
-                        Text(tc.title).tag(tc)
-                    }
-                }
-                .pickerStyle(.menu)
+                // 文本字段不再提供“全大写/全小写”格式选项（保持原样输入）。
+                // 这里保留分割线占位，保持整体布局节奏一致。
+                Divider().overlay(EMTheme.line).opacity(0)
             }
 
             if binding.wrappedValue.type == .phone {
                 Divider().overlay(EMTheme.line)
 
-                Picker("电话格式", selection: Binding(
-                    get: { binding.wrappedValue.phoneFormat ?? .plain },
-                    set: { newValue in
-                        binding.wrappedValue.phoneFormat = newValue
-                        let base: [String]
-                        switch newValue {
-                        case .plain: base = ["phone"]
-                        case .withCountryCode: base = ["country_code", "phone_number"]
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("电话格式")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    Picker("电话格式", selection: Binding(
+                        get: { binding.wrappedValue.phoneFormat ?? .plain },
+                        set: { newValue in
+                            binding.wrappedValue.phoneFormat = newValue
+                            let base: [String]
+                            switch newValue {
+                            case .plain: base = ["phone"]
+                            case .withCountryCode: base = ["country_code", "phone_number"]
+                            }
+                            if (binding.wrappedValue.phoneKeys ?? []).count != base.count {
+                                binding.wrappedValue.phoneKeys = base
+                            }
                         }
-                        if (binding.wrappedValue.phoneKeys ?? []).count != base.count {
-                            binding.wrappedValue.phoneKeys = base
-                        }
+                    )) {
+                        Text("普通").tag(PhoneFormat.plain)
+                        Text("带区号").tag(PhoneFormat.withCountryCode)
                     }
-                )) {
-                    ForEach(PhoneFormat.allCases, id: \.self) { f in
-                        Text(f.title).tag(f)
-                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.menu)
             }
 
             if binding.wrappedValue.type == .select {
                 Divider().overlay(EMTheme.line)
 
-                EMTextField(
-                    title: "选项（用逗号分隔）",
-                    text: Binding(
-                        get: { (binding.wrappedValue.options ?? []).joined(separator: ",") },
-                        set: { newValue in
-                            let opts = newValue
-                                .split(separator: ",")
-                                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                                .filter { !$0.isEmpty }
-                            binding.wrappedValue.options = opts
-                        }
-                    )
-                )
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("样式")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
 
-                Text("例如：刚需,改善,投资")
-                    .font(.footnote)
-                    .foregroundStyle(EMTheme.ink2)
+                    Picker("样式", selection: Binding(
+                        get: { binding.wrappedValue.selectStyle ?? .dropdown },
+                        set: { binding.wrappedValue.selectStyle = $0 }
+                    )) {
+                        Text("下拉").tag(SelectStyle.dropdown)
+                        Text("圆点").tag(SelectStyle.dot)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Divider().overlay(EMTheme.line)
+
+                FormBuilderOptionsEditor(options: Binding(
+                    get: { binding.wrappedValue.options ?? [] },
+                    set: { binding.wrappedValue.options = $0 }
+                ))
+            } else if binding.wrappedValue.type == .multiSelect {
+                Divider().overlay(EMTheme.line)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("样式")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    Picker("样式", selection: Binding(
+                        get: { binding.wrappedValue.multiSelectStyle ?? .chips },
+                        set: { binding.wrappedValue.multiSelectStyle = $0 }
+                    )) {
+                        Text("Chips").tag(MultiSelectStyle.chips)
+                        Text("列表").tag(MultiSelectStyle.checklist)
+                        Text("下拉").tag(MultiSelectStyle.dropdown)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Divider().overlay(EMTheme.line)
+
+                FormBuilderOptionsEditor(options: Binding(
+                    get: { binding.wrappedValue.options ?? [] },
+                    set: { binding.wrappedValue.options = $0 }
+                ))
+            } else if binding.wrappedValue.type == .dropdown {
+                Divider().overlay(EMTheme.line)
+
+                FormBuilderOptionsEditor(options: Binding(
+                    get: { binding.wrappedValue.options ?? [] },
+                    set: { binding.wrappedValue.options = $0 }
+                ))
             }
         }
     }
@@ -240,5 +581,77 @@ struct FormBuilderPropertiesView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(EMTheme.padding)
+    }
+}
+
+private struct FormBuilderOptionsEditor: View {
+    @Binding var options: [String]
+
+    @State private var draft: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("选项")
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(EMTheme.ink2)
+
+            VStack(spacing: 8) {
+                ForEach(options.indices, id: \.self) { idx in
+                    HStack(spacing: 10) {
+                        Text(options[idx])
+                            .foregroundStyle(EMTheme.ink)
+                        Spacer()
+                        Button {
+                            remove(at: idx)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("删除选项")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                            .fill(EMTheme.paper2)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                            .stroke(EMTheme.line, lineWidth: 1)
+                    )
+                }
+
+                HStack(spacing: 10) {
+                    TextField("新选项", text: $draft)
+                        .textFieldStyle(.roundedBorder)
+                        .submitLabel(.done)
+                        .onSubmit { add() }
+
+                    Button {
+                        add()
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(EMTheme.accent)
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("添加选项")
+                }
+            }
+        }
+    }
+
+    private func add() {
+        let t = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard t.isEmpty == false else { return }
+        if options.contains(t) { draft = ""; return }
+        options.append(t)
+        draft = ""
+    }
+
+    private func remove(at idx: Int) {
+        guard options.indices.contains(idx) else { return }
+        options.remove(at: idx)
     }
 }

@@ -5,6 +5,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import PhotosUI
 
 struct FormBuilderCanvasView: View {
     @Environment(\.dismiss) private var dismiss
@@ -23,6 +24,12 @@ struct FormBuilderCanvasView: View {
     var onEditFieldRequested: (() -> Void)? = nil
 
     @State private var showSavedAlert: Bool = false
+    @State private var showPreviewSheet: Bool = false
+
+    @State private var showBackgroundMenu: Bool = false
+    @State private var showPhotoPicker: Bool = false
+    @State private var pickedPhotoItem: PhotosPickerItem? = nil
+    @State private var showCamera: Bool = false
 
     var body: some View {
         ScrollView {
@@ -38,6 +45,61 @@ struct FormBuilderCanvasView: View {
                         .font(.headline)
 
                     EMTextField(title: "表单名称", text: $state.formName)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("背景图片")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+
+                        Button {
+                            hideKeyboard()
+                            showBackgroundMenu = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Text(backgroundSummary)
+                                    .font(.callout)
+                                    .foregroundStyle(EMTheme.ink)
+
+                                Spacer(minLength: 0)
+
+                                Image(systemName: "chevron.down")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .fill(EMTheme.paper2)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if state.presentation.background != nil {
+                            HStack(spacing: 12) {
+                                Text("透明度")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Slider(
+                                    value: Binding(
+                                        get: { state.presentation.background?.opacity ?? 0.12 },
+                                        set: { v in
+                                            if state.presentation.background == nil {
+                                                state.presentation.background = .default
+                                            }
+                                            state.presentation.background?.opacity = v
+                                        }
+                                    ),
+                                    in: 0...0.5
+                                )
+                            }
+                        }
+                    }
                 }
 
                 EMCard {
@@ -83,6 +145,27 @@ struct FormBuilderCanvasView: View {
                     .padding(.top, 6)
                 }
 
+                EMCard {
+                    Button {
+                        hideKeyboard()
+                        showPreviewSheet = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "eye")
+                                .foregroundStyle(EMTheme.ink2)
+
+                            Text("预览表单")
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(state.fields.isEmpty)
+                    .opacity(state.fields.isEmpty ? 0.45 : 1)
+                }
+
                 Button(state.isSaving ? "保存中..." : "保存表单") {
                     Task { await save() }
                 }
@@ -107,6 +190,51 @@ struct FormBuilderCanvasView: View {
                 Spacer(minLength: 20)
             }
             .padding(EMTheme.padding)
+        }
+        .fullScreenCover(isPresented: $showPreviewSheet) {
+            NavigationStack {
+                FormPreviewView(
+                    formName: state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "预览" : state.formName,
+                    fields: state.fields,
+                    presentation: state.presentation
+                )
+            }
+        }
+        .confirmationDialog("选择背景", isPresented: $showBackgroundMenu, titleVisibility: .visible) {
+            Button("无背景") {
+                state.presentation.background = nil
+            }
+
+            Button("内置：纸感") {
+                state.presentation.background = .init(kind: .builtIn, builtInKey: "paper", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
+            }
+            Button("内置：淡网格") {
+                state.presentation.background = .init(kind: .builtIn, builtInKey: "grid", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
+            }
+            Button("内置：苔绿") {
+                state.presentation.background = .init(kind: .builtIn, builtInKey: "moss", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
+            }
+
+            Button("从相册选择") {
+                showPhotoPicker = true
+            }
+
+            Button("拍照") {
+                showCamera = true
+            }
+
+            Button("取消", role: .cancel) {}
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $pickedPhotoItem, matching: .images)
+        .onChange(of: pickedPhotoItem) { _, newValue in
+            guard let item = newValue else { return }
+            Task { await handlePickedPhoto(item) }
+        }
+        .sheet(isPresented: $showCamera) {
+            CameraPicker { image in
+                guard let image else { return }
+                Task { await handlePickedUIImage(image) }
+            }
         }
     }
 
@@ -164,12 +292,28 @@ struct FormBuilderCanvasView: View {
             return "点击输入..."
         case .text:
             return "点击输入..."
+        case .multilineText:
+            return "输入多行内容..."
         case .phone:
             return (f.phoneFormat ?? .plain) == .withCountryCode ? "+1 123456789" : "123456789"
         case .email:
             return "name@email.com"
         case .select:
             return (f.options?.first).map { "请选择（例如：\($0)）" } ?? "请选择..."
+        case .dropdown:
+            return (f.options?.first).map { "下拉选择（例如：\($0)）" } ?? "下拉选择..."
+        case .multiSelect:
+            return (f.options?.first).map { "可多选（例如：\($0)）" } ?? "可多选..."
+        case .checkbox:
+            return "点一下切换"
+        case .sectionTitle:
+            return ""
+        case .sectionSubtitle:
+            return ""
+        case .divider:
+            return ""
+        case .splice:
+            return ""
         }
     }
 
@@ -208,11 +352,73 @@ struct FormBuilderCanvasView: View {
         let type: String = switch f.type {
         case .name: "姓名"
         case .text: "文本"
+        case .multilineText: "多行文本"
         case .phone: "手机号"
         case .email: "邮箱"
         case .select: "单选"
+        case .dropdown: "下拉选框"
+        case .multiSelect:
+            switch f.multiSelectStyle ?? .chips {
+            case .chips: "多选（Chips）"
+            case .checklist: "多选（列表）"
+            case .dropdown: "多选（下拉）"
+            }
+        case .checkbox: "勾选（Checkbox）"
+        case .sectionTitle: "大标题"
+        case .sectionSubtitle: "小标题"
+        case .divider: "分割线"
+        case .splice: "拼接"
+        }
+        // Decoration fields are display-only.
+        if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider || f.type == .splice {
+            return "类型：\(type)"
         }
         return "类型：\(type)  ·  \(f.required ? "必填" : "选填")"
+    }
+
+    private var backgroundSummary: String {
+        guard let bg = state.presentation.background else { return "无" }
+        switch bg.kind {
+        case .builtIn:
+            switch bg.builtInKey ?? "paper" {
+            case "paper": return "内置：纸感"
+            case "grid": return "内置：淡网格"
+            case "moss": return "内置：苔绿"
+            default: return "内置"
+            }
+        case .custom:
+            return "自定义图片"
+        }
+    }
+
+    private func handlePickedPhoto(_ item: PhotosPickerItem) async {
+        do {
+            // Prefer Data to avoid temp file juggling.
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let img = UIImage(data: data)
+            else {
+                throw NSError(domain: "PhotoPicker", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法读取图片"])
+            }
+            await handlePickedUIImage(img)
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+    }
+
+    private func handlePickedUIImage(_ image: UIImage) async {
+        guard let formId = state.formId else {
+            state.errorMessage = "请先保存表单，然后再设置自定义背景图片"
+            return
+        }
+
+        do {
+            let path = try await service.uploadFormBackground(formId: formId, image: image)
+            let opacity = state.presentation.background?.opacity ?? 0.12
+            state.presentation.background = .init(kind: .custom, builtInKey: nil, storagePath: path, opacity: opacity)
+            state.errorMessage = nil
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
     }
 
     private func save() async {
@@ -220,13 +426,13 @@ struct FormBuilderCanvasView: View {
         defer { state.isSaving = false }
 
         do {
-            for f in state.fields where f.type == .select {
+            for f in state.fields where (f.type == .select || f.type == .dropdown || f.type == .multiSelect) {
                 if (f.options ?? []).isEmpty {
-                    throw NSError(domain: "FormBuilder", code: 1, userInfo: [NSLocalizedDescriptionKey: "单选字段 \"\(f.label)\" 需要选项"])
+                    throw NSError(domain: "FormBuilder", code: 1, userInfo: [NSLocalizedDescriptionKey: "字段 \"\(f.label)\" 需要选项"])
                 }
             }
 
-            let schema = FormSchema(version: 1, fields: state.fields)
+            let schema = FormSchema(version: 1, fields: state.fields, presentation: state.presentation)
 
             if let id = state.formId {
                 _ = try await service.updateForm(id: id, name: state.formName, schema: schema)

@@ -11,17 +11,18 @@ struct EMChip: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .font(.footnote.weight(.medium))
+            .lineLimit(1)
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
             .foregroundStyle(isOn ? EMTheme.accent : EMTheme.ink2)
             .background(
                 Capsule(style: .continuous)
-                    .fill(isOn ? EMTheme.accent.opacity(0.12) : Color.white)
+                    .fill(isOn ? EMTheme.accent.opacity(0.10) : EMTheme.paper2)
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .stroke(EMTheme.line, lineWidth: 1)
+                    .stroke(isOn ? EMTheme.accent.opacity(0.35) : EMTheme.line, lineWidth: 1)
             )
     }
 }

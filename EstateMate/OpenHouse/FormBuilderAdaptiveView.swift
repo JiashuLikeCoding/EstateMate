@@ -45,6 +45,8 @@ final class FormBuilderState: ObservableObject {
     @Published var fields: [FormField] = []
     @Published var selectedFieldKey: String? = nil
 
+    @Published var presentation: FormPresentation = .init(background: nil)
+
     /// When adding a new field, we stage it here so user can confirm Add/Cancel.
     /// Also used when updating an existing field type via the palette (confirm Update/Cancel).
     @Published var draftField: FormField? = nil
@@ -65,6 +67,7 @@ final class FormBuilderState: ObservableObject {
         formId = form.id
         formName = form.name
         fields = form.schema.fields
+        presentation = form.schema.presentation ?? .init(background: nil)
         selectedFieldKey = fields.first?.key
     }
 
@@ -80,10 +83,18 @@ final class FormBuilderState: ObservableObject {
         let baseLabel: String
         switch type {
         case .text: baseLabel = presetLabel ?? "文本"
+        case .multilineText: baseLabel = presetLabel ?? "多行文本"
         case .phone: baseLabel = presetLabel ?? "手机号"
         case .email: baseLabel = presetLabel ?? "邮箱"
         case .select: baseLabel = presetLabel ?? "单选"
+        case .dropdown: baseLabel = presetLabel ?? "下拉选框"
+        case .multiSelect: baseLabel = presetLabel ?? "多选"
+        case .checkbox: baseLabel = presetLabel ?? "勾选"
         case .name: baseLabel = presetLabel ?? "姓名"
+        case .sectionTitle: baseLabel = presetLabel ?? "大标题"
+        case .sectionSubtitle: baseLabel = presetLabel ?? "小标题"
+        case .divider: baseLabel = presetLabel ?? "分割线"
+        case .splice: baseLabel = presetLabel ?? "拼接"
         }
 
         let label = uniqueLabel(baseLabel)
@@ -94,7 +105,7 @@ final class FormBuilderState: ObservableObject {
             return makeKey(from: label)
         }()
 
-        let options: [String]? = (type == .select) ? ["选项 1", "选项 2"] : nil
+        let options: [String]? = (type == .select || type == .dropdown || type == .multiSelect) ? ["选项 1", "选项 2"] : nil
 
         let (nameFormat, nameKeys): (NameFormat?, [String]?) = {
             guard type == .name else { return (nil, nil) }
@@ -110,17 +121,38 @@ final class FormBuilderState: ObservableObject {
             return (f, keys)
         }()
 
+        // Decoration defaults
+        let decorationFontSize: Double? = {
+            switch type {
+            case .sectionTitle: return 22
+            case .sectionSubtitle: return 16
+            default: return nil
+            }
+        }()
+
+        let dividerDashed: Bool? = (type == .divider) ? false : nil
+        let dividerThickness: Double? = (type == .divider) ? 1 : nil
+
+        // Splice has no extra configuration for now.
+        let isSplice = type == .splice
+
+        // Divider / splice do not need a label.
+        let finalLabel: String = (type == .divider || type == .splice) ? "" : label
+
         draftField = .init(
             key: key,
-            label: label,
+            label: finalLabel,
             type: type,
-            required: required,
+            required: (type == .sectionTitle || type == .sectionSubtitle || type == .divider || isSplice) ? false : required,
             options: options,
             textCase: type == .text ? TextCase.none : nil,
             nameFormat: nameFormat,
             nameKeys: nameKeys,
             phoneFormat: phoneFormat,
-            phoneKeys: phoneKeys
+            phoneKeys: phoneKeys,
+            fontSize: decorationFontSize,
+            dividerDashed: dividerDashed,
+            dividerThickness: dividerThickness
         )
     }
 
@@ -181,8 +213,19 @@ final class FormBuilderState: ObservableObject {
 
     func deleteSelectedIfPossible() {
         guard let key = selectedFieldKey else { return }
-        fields.removeAll { $0.key == key }
+
+        // Important: PropertiesView often holds a Binding into fields[idx].
+        // If we mutate the array while that binding is still alive in the current render pass,
+        // SwiftUI can crash with an out-of-range access.
+        // So we first clear selection/draft to force the editor to leave the indexed binding,
+        // then remove the field on the next run loop.
         selectedFieldKey = nil
+        draftField = nil
+        editingFieldKey = nil
+
+        DispatchQueue.main.async { [weak self] in
+            self?.fields.removeAll { $0.key == key }
+        }
     }
 
     /// Update the currently selected field to a new type (used when user is editing an existing field and picks a different type from the palette).
@@ -200,7 +243,9 @@ final class FormBuilderState: ObservableObject {
         }
 
         // Reset type-specific props.
-        f.options = (newType == .select) ? (f.options?.isEmpty == false ? f.options : ["选项 1", "选项 2"]) : nil
+        f.options = (newType == .select || newType == .dropdown || newType == .multiSelect)
+            ? (f.options?.isEmpty == false ? f.options : ["选项 1", "选项 2"])
+            : nil
         f.textCase = (newType == .text) ? (f.textCase ?? TextCase.none) : nil
 
         if newType == .name {
@@ -302,9 +347,18 @@ private struct FormBuilderSplitView: View {
                     ) {
                         palettePresetCard(title: "姓名", subtitle: "常用", systemImage: "person", presetKey: "name", type: .name, required: false)
                         paletteCard(title: "文本输入", systemImage: "text.cursor", type: .text)
+                        paletteCard(title: "多行文本", systemImage: "text.alignleft", type: .multilineText)
                         paletteCard(title: "手机号", systemImage: "phone", type: .phone)
                         paletteCard(title: "邮箱", systemImage: "envelope", type: .email)
                         paletteCard(title: "单选", systemImage: "list.bullet", type: .select)
+                        paletteCard(title: "下拉选框", systemImage: "chevron.down.square", type: .dropdown)
+                        paletteCard(title: "多选", systemImage: "checklist", type: .multiSelect)
+                        paletteCard(title: "勾选", systemImage: "checkmark.square", type: .checkbox)
+
+                        paletteCard(title: "大标题", systemImage: "textformat.size.larger", type: .sectionTitle)
+                        paletteCard(title: "小标题", systemImage: "textformat.size.smaller", type: .sectionSubtitle)
+                        paletteCard(title: "分割线", systemImage: "minus", type: .divider)
+                        paletteCard(title: "拼接", systemImage: "rectangle.split.2x1", type: .splice)
                     }
                     .padding(.horizontal, 16)
 
@@ -428,14 +482,7 @@ private struct FormBuilderDrawerView: View {
                             }
                         }
                     }
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("关闭") {
-                                isSheetPresented = false
-                            }
-                            .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
+                    // 顶部不显示“关闭”按钮（可下滑关闭）
                 }
                 .presentationDetents([.height(sheetHeight), .large])
                 .presentationDragIndicator(.visible)
@@ -453,19 +500,40 @@ private struct FormBuilderDrawerView: View {
     private var paletteList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                EMSectionHeader("字段库", subtitle: "点击添加到表单")
-
                 EMCard {
                     palettePresetRow(title: "姓名", systemImage: "person", presetKey: "name", type: .name, required: false)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "文本输入", systemImage: "text.cursor", type: .text)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "多行文本", systemImage: "text.alignleft", type: .multilineText)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "手机号", systemImage: "phone", type: .phone)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "邮箱", systemImage: "envelope", type: .email)
                     Divider().overlay(EMTheme.line)
                     paletteRow(title: "单选", systemImage: "list.bullet", type: .select)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "下拉选框", systemImage: "chevron.down.square", type: .dropdown)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "多选", systemImage: "checklist", type: .multiSelect)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "勾选", systemImage: "checkmark.square", type: .checkbox)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "大标题", systemImage: "textformat.size.larger", type: .sectionTitle)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "小标题", systemImage: "textformat.size.smaller", type: .sectionSubtitle)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "分割线", systemImage: "minus", type: .divider)
+                    Divider().overlay(EMTheme.line)
+                    paletteRow(title: "拼接", systemImage: "rectangle.split.2x1", type: .splice)
                 }
+
+                Button {
+                    isSheetPresented = false
+                } label: {
+                    Text("取消")
+                }
+                .buttonStyle(EMSecondaryButtonStyle())
             }
             .padding(EMTheme.padding)
         }

@@ -147,9 +147,17 @@ struct FormPickerSheetView: View {
             switch type {
             case .name: return "姓名"
             case .text: return "文本"
+            case .multilineText: return "多行文本"
             case .phone: return "手机号"
             case .email: return "邮箱"
             case .select: return "单选"
+            case .dropdown: return "下拉选框"
+            case .multiSelect: return "多选"
+            case .checkbox: return "勾选"
+            case .sectionTitle: return "大标题"
+            case .sectionSubtitle: return "小标题"
+            case .divider: return "分割线"
+            case .splice: return "拼接"
             }
         }
 
