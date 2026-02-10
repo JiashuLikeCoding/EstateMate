@@ -12,11 +12,11 @@ import Foundation
 enum GoogleOAuthConfig {
     /// Google OAuth Client ID.
     /// NOTE: Do NOT embed client_secret in the app.
-    static let clientId: String = "313537601779-lui6smbrt77gh3fs8kq6iam7etn9joo7.apps.googleusercontent.com"
+    static let clientId: String = "313537601779-5084ffo0usvos0si1m9s9qtev5bhthos.apps.googleusercontent.com"
 
-    /// Must be added to Google Cloud → OAuth client → Authorized redirect URIs.
-    /// Also ensure the URL scheme ("estatemate") exists in Info.plist CFBundleURLTypes.
-    static let redirectUri: String = "estatemate:/oauth"
+    /// iOS OAuth client uses reverse-client-id as the URL scheme.
+    /// (From the downloaded plist: REVERSED_CLIENT_ID)
+    static let redirectUri: String = "com.googleusercontent.apps.313537601779-5084ffo0usvos0si1m9s9qtev5bhthos:/oauth"
 
     static var isConfigured: Bool {
         !clientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
