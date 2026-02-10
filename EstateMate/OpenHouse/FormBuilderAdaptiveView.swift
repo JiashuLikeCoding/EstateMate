@@ -343,6 +343,11 @@ private struct FormBuilderDrawerView: View {
                     onSaved: {
                         // After saving, return to OpenHouse.
                         dismiss()
+                    },
+                    onEditFieldRequested: {
+                        // Tapping a field in preview/list should jump to properties.
+                        mode = .properties
+                        isSheetPresented = true
                     }
                 )
                 .environmentObject(state)

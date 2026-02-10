@@ -10,13 +10,14 @@ struct FormBuilderCanvasView: View {
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
 
-    @State private var isPreviewPresented: Bool = false
-
     /// If provided, shows a plus button attached to the "表单" card (right side).
     var addFieldAction: (() -> Void)? = nil
 
     /// Called after a successful save.
     var onSaved: (() -> Void)? = nil
+
+    /// If provided, tapping a field (in list or preview) will request opening the editor UI (iPhone sheet).
+    var onEditFieldRequested: (() -> Void)? = nil
 
     @State private var showSavedAlert: Bool = false
 
@@ -68,7 +69,7 @@ struct FormBuilderCanvasView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(state.fields.enumerated()), id: \.element.key) { idx, f in
                             Button {
-                                state.selectedFieldKey = f.key
+                                selectField(key: f.key)
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -95,6 +96,11 @@ struct FormBuilderCanvasView: View {
                     }
                 }
 
+                // Preview should appear above the save button.
+                if !state.fields.isEmpty {
+                    previewCard
+                }
+
                 Button(state.isSaving ? "保存中..." : "保存表单") {
                     Task { await save() }
                 }
@@ -112,39 +118,92 @@ struct FormBuilderCanvasView: View {
                     Text("表单已保存")
                 }
 
-                Text("提示：点右侧“＋”添加字段，再点击表单里的字段编辑属性")
+                Text("提示：点右侧“＋”添加字段，再点击表单预览或表单列表里的字段编辑属性")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
+
+                Spacer(minLength: 20)
             }
             .padding(EMTheme.padding)
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    isPreviewPresented = true
-                } label: {
-                    Image(systemName: "eye")
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.white)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(EMTheme.line, lineWidth: 1)
-                        )
+    }
+
+    private var previewCard: some View {
+        EMCard {
+            HStack(alignment: .firstTextBaseline) {
+                Text("预览")
+                    .font(.headline)
+
+                Spacer()
+
+                Text("单击字段即可编辑")
+                    .font(.caption)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            VStack(spacing: 10) {
+                ForEach(state.fields) { f in
+                    Button {
+                        selectField(key: f.key)
+                    } label: {
+                        previewRow(field: f)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("预览")
-                .disabled(state.fields.isEmpty)
-                .opacity(state.fields.isEmpty ? 0.4 : 1)
+            }
+            .padding(.top, 6)
+        }
+    }
+
+    private func previewRow(field f: FormField) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(f.label)
+                .font(.callout)
+                .foregroundStyle(EMTheme.ink)
+                .frame(width: 86, alignment: .leading)
+
+            Text(previewPlaceholder(for: f))
+                .font(.callout)
+                .foregroundStyle(EMTheme.ink2)
+
+            Spacer(minLength: 0)
+
+            if state.selectedFieldKey == f.key {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(EMTheme.accent)
             }
         }
-        .sheet(isPresented: $isPreviewPresented) {
-            NavigationStack {
-                FormPreviewView(formName: state.formName, fields: state.fields)
-            }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                .fill(EMTheme.paper2)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                .stroke(EMTheme.line, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+    }
+
+    private func previewPlaceholder(for f: FormField) -> String {
+        switch f.type {
+        case .name:
+            return "点击输入..."
+        case .text:
+            return "点击输入..."
+        case .phone:
+            return (f.phoneFormat ?? .plain) == .withCountryCode ? "+1 123456789" : "123456789"
+        case .email:
+            return "name@email.com"
+        case .select:
+            return (f.options?.first).map { "请选择（例如：\($0)）" } ?? "请选择..."
         }
+    }
+
+    private func selectField(key: String) {
+        state.selectedFieldKey = key
+        onEditFieldRequested?()
     }
 
     private func summary(_ f: FormField) -> String {
