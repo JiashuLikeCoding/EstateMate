@@ -10,15 +10,13 @@ import CryptoKit
 import Foundation
 
 enum GoogleOAuthConfig {
-    /// TODO: Fill these with your existing Google Cloud OAuth client.
-    /// For iOS installed app, clientId looks like: 1234567890-abcdefg.apps.googleusercontent.com
-    static let clientId: String = ""
+    /// Google OAuth Client ID.
+    /// NOTE: Do NOT embed client_secret in the app.
+    static let clientId: String = "313537601779-lui6smbrt77gh3fs8kq6iam7etn9joo7.apps.googleusercontent.com"
 
-    /// Use your registered redirect URI.
-    /// Common patterns:
-    /// - com.googleusercontent.apps.<YOUR_CLIENT_ID_REVERSED>:/oauthredirect
-    /// - estatemate:/oauth
-    static let redirectUri: String = ""
+    /// Must be added to Google Cloud → OAuth client → Authorized redirect URIs.
+    /// Also ensure the URL scheme ("estatemate") exists in Info.plist CFBundleURLTypes.
+    static let redirectUri: String = "estatemate:/oauth"
 
     static var isConfigured: Bool {
         !clientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
