@@ -4,11 +4,14 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FormBuilderCanvasView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
+
+    @State private var draggingField: FormField? = nil
 
     /// If provided, shows a plus button attached to the "表单" card (right side).
     var addFieldAction: (() -> Void)? = nil
@@ -66,39 +69,18 @@ struct FormBuilderCanvasView: View {
                             .foregroundStyle(EMTheme.ink2)
                     }
 
-                    VStack(spacing: 0) {
-                        ForEach(Array(state.fields.enumerated()), id: \.element.key) { idx, f in
+                    VStack(spacing: 10) {
+                        ForEach(state.fields) { f in
                             Button {
                                 selectField(key: f.key)
                             } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(f.label)
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-                                        Text(summary(f))
-                                            .font(.caption)
-                                            .foregroundStyle(EMTheme.ink2)
-                                    }
-                                    Spacer()
-                                    Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
-                                        .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
-                                }
-                                .contentShape(Rectangle())
-                                .padding(.vertical, 10)
+                                fieldRow(field: f)
                             }
                             .buttonStyle(.plain)
-
-                            if idx != state.fields.count - 1 {
-                                Divider().overlay(EMTheme.line)
-                            }
+                            .onDrop(of: [.text], delegate: FieldDropDelegate(field: f, fields: $state.fields, dragging: $draggingField))
                         }
                     }
-                }
-
-                // Preview should appear above the save button.
-                if !state.fields.isEmpty {
-                    previewCard
+                    .padding(.top, 6)
                 }
 
                 Button(state.isSaving ? "保存中..." : "保存表单") {
@@ -118,7 +100,7 @@ struct FormBuilderCanvasView: View {
                     Text("表单已保存")
                 }
 
-                Text("提示：点右侧“＋”添加字段，再点击表单预览或表单列表里的字段编辑属性")
+                Text("提示：点右侧“＋”添加字段；点击字段编辑；长按右侧拖动把手调整顺序")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
 
@@ -128,50 +110,43 @@ struct FormBuilderCanvasView: View {
         }
     }
 
-    private var previewCard: some View {
-        EMCard {
-            HStack(alignment: .firstTextBaseline) {
-                Text("预览")
-                    .font(.headline)
+    private func fieldRow(field f: FormField) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(f.label)
+                        .font(.callout)
+                        .foregroundStyle(EMTheme.ink)
+                        .frame(width: 86, alignment: .leading)
 
-                Spacer()
+                    Text(previewPlaceholder(for: f))
+                        .font(.callout)
+                        .foregroundStyle(EMTheme.ink2)
 
-                Text("单击字段即可编辑")
+                    Spacer(minLength: 0)
+                }
+
+                Text(summary(f))
                     .font(.caption)
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            VStack(spacing: 10) {
-                ForEach(state.fields) { f in
-                    Button {
-                        selectField(key: f.key)
-                    } label: {
-                        previewRow(field: f)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.top, 6)
-        }
-    }
-
-    private func previewRow(field f: FormField) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(f.label)
-                .font(.callout)
-                .foregroundStyle(EMTheme.ink)
-                .frame(width: 86, alignment: .leading)
-
-            Text(previewPlaceholder(for: f))
-                .font(.callout)
-                .foregroundStyle(EMTheme.ink2)
-
             Spacer(minLength: 0)
 
-            if state.selectedFieldKey == f.key {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(EMTheme.accent)
-            }
+            Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
+                .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
+
+            Image(systemName: "line.3.horizontal")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(EMTheme.ink2)
+                .padding(.leading, 6)
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onDrag {
+                    draggingField = f
+                    return NSItemProvider(object: f.key as NSString)
+                }
+                .accessibilityLabel("拖动排序")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
@@ -198,6 +173,32 @@ struct FormBuilderCanvasView: View {
             return "name@email.com"
         case .select:
             return (f.options?.first).map { "请选择（例如：\($0)）" } ?? "请选择..."
+        }
+    }
+
+    private struct FieldDropDelegate: DropDelegate {
+        let field: FormField
+        @Binding var fields: [FormField]
+        @Binding var dragging: FormField?
+
+        func dropEntered(info: DropInfo) {
+            guard let dragging, dragging.key != field.key,
+                  let fromIndex = fields.firstIndex(where: { $0.key == dragging.key }),
+                  let toIndex = fields.firstIndex(where: { $0.key == field.key })
+            else { return }
+
+            withAnimation(.snappy) {
+                fields.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+            }
+        }
+
+        func performDrop(info: DropInfo) -> Bool {
+            dragging = nil
+            return true
+        }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? {
+            DropProposal(operation: .move)
         }
     }
 
