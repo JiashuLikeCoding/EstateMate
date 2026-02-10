@@ -24,6 +24,8 @@ struct CRMAIContactImportView: View {
 
     @State private var selectedRowIndices = Set<Int>()
     @State private var lastAppliedUpsertedCount: Int? = nil
+    @State private var lastApplySkippedRows: [CRMAIContactImportService.ImportRow] = []
+    @State private var showApplySkippedSheet = false
 
     private let service = CRMAIContactImportService()
 
@@ -71,6 +73,8 @@ struct CRMAIContactImportView: View {
                                 selectedRowIndices = []
                                 page = 0
                                 lastAppliedUpsertedCount = nil
+                                lastApplySkippedRows = []
+                                showApplySkippedSheet = false
                                 showFileImporter = true
                             } label: {
                                 Text("选择文件")
@@ -205,9 +209,22 @@ struct CRMAIContactImportView: View {
                         .disabled(isApplying || selectedRowIndices.isEmpty)
 
                         if let lastAppliedUpsertedCount {
-                            Text("本次已导入：\(lastAppliedUpsertedCount) 条")
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink2)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("本次已导入：\(lastAppliedUpsertedCount) 条")
+                                    .font(.subheadline)
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                if !lastApplySkippedRows.isEmpty {
+                                    Button {
+                                        showApplySkippedSheet = true
+                                    } label: {
+                                        Text("查看跳过原因（\(lastApplySkippedRows.count)）")
+                                            .font(.caption)
+                                            .foregroundStyle(EMTheme.ink2)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
 
@@ -244,6 +261,34 @@ struct CRMAIContactImportView: View {
                 errorMessage = "选择文件失败：\(err.localizedDescription)"
             }
         }
+        .sheet(isPresented: $showApplySkippedSheet) {
+            NavigationStack {
+                EMScreen {
+                    List {
+                        ForEach(lastApplySkippedRows, id: \.rowIndex) { r in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("#\(r.rowIndex)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(EMTheme.ink2)
+                                Text(r.reason?.nilIfBlank ?? "跳过")
+                                    .font(.subheadline)
+                                    .foregroundStyle(EMTheme.ink)
+                            }
+                            .padding(.vertical, 6)
+                        }
+                    }
+                    .scrollContentBackground(.hidden)
+                    .background(EMTheme.paper)
+                }
+                .navigationTitle("跳过原因")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("关闭") { showApplySkippedSheet = false }
+                    }
+                }
+            }
+        }
         .onTapGesture { hideKeyboard() }
     }
 
@@ -267,6 +312,8 @@ struct CRMAIContactImportView: View {
         selectedRowIndices = []
         page = 0
         lastAppliedUpsertedCount = nil
+        lastApplySkippedRows = []
+        showApplySkippedSheet = false
 
         do {
             let ok = url.startAccessingSecurityScopedResource()
@@ -313,6 +360,8 @@ struct CRMAIContactImportView: View {
             selectedRowIndices = Set(res.results.filter { $0.action == "upsert" }.map { $0.rowIndex })
             page = 0
             lastAppliedUpsertedCount = nil
+            lastApplySkippedRows = []
+            showApplySkippedSheet = false
         } catch {
             errorMessage = "解析失败：\(error.localizedDescription)"
         }
@@ -333,8 +382,9 @@ struct CRMAIContactImportView: View {
                 data: pickedFileData,
                 selectedRowIndices: selectedRowIndices.sorted()
             )
-            let upserted = res.summary.upserted ?? 0
+            let upserted = res.summary.upserted ?? (res.upserted?.count ?? 0)
             lastAppliedUpsertedCount = upserted
+            lastApplySkippedRows = res.skipped ?? []
             summaryText = "导入完成：写入/更新 \(upserted) 行；跳过 \(res.summary.skipped) 行"
         } catch {
             errorMessage = "导入失败：\(error.localizedDescription)"

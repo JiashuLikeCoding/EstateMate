@@ -57,6 +57,8 @@ final class CRMAIContactImportService {
 
     struct ApplyResponse: Decodable {
         var summary: ImportSummary
+        var upserted: [ImportRow]?
+        var skipped: [ImportRow]?
     }
 
     func analyze(fileName: String, data: Data) async throws -> AnalyzeResponse {
