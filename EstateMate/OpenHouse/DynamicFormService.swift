@@ -470,7 +470,7 @@ final class DynamicFormService {
         }
     }
 
-    func listSubmissions(eventId: UUID) async throws -> [SubmissionV2] {"}
+    func listSubmissions(eventId: UUID) async throws -> [SubmissionV2] {
         try await client
             .from("openhouse_submissions")
             .select()
