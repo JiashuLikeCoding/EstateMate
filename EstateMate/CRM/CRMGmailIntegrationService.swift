@@ -45,8 +45,7 @@ final class CRMGmailIntegrationService {
         body: some Encodable,
         timeoutSeconds: UInt64 = 12
     ) async throws {
-        struct Empty: Decodable {}
-        _ = try await invokeWithTimeout(name, body: body, timeoutSeconds: timeoutSeconds) as Empty
+        _ = try await invokeWithTimeout(name, body: body, timeoutSeconds: timeoutSeconds) as EmptyResponse
     }
 
     func status() async throws -> Status {
@@ -87,6 +86,7 @@ final class CRMGmailIntegrationService {
 }
 
 private struct EmptyBody: Encodable {}
+private struct EmptyResponse: Decodable {}
 
 enum EMError: LocalizedError {
     case message(String)
