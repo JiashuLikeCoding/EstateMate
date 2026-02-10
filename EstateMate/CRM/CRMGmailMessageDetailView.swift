@@ -135,7 +135,7 @@ struct CRMGmailMessageDetailView: View {
             subject = res.subject
             from = res.from
             to = res.to
-            date = res.date
+            date = CRMGmailIntegrationService.formatMessageDate(dateHeader: res.date, internalDate: res.internalDate)
             bodyText = res.body.text
             threadId = res.threadId
             messageIdHeader = res.messageId

@@ -66,6 +66,44 @@ final class CRMGmailIntegrationService {
         var id: String?
     }
 
+    // MARK: - Presentation helpers
+
+    static func formatMessageDate(dateHeader: String, internalDate: String?) -> String {
+        if let internalDate, let ms = Double(internalDate) {
+            let d = Date(timeIntervalSince1970: ms / 1000.0)
+            return d.formatted(.dateTime.year().month().day().hour().minute())
+        }
+
+        let raw = dateHeader.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return "—" }
+
+        // Try common RFC2822-ish formats.
+        let fmts: [String] = [
+            "EEE, d MMM yyyy HH:mm:ss Z", // Tue, 10 Feb 2026 13:16:00 -0800
+            "d MMM yyyy HH:mm:ss Z",
+            "EEE, d MMM yyyy HH:mm Z",
+            "d MMM yyyy HH:mm Z"
+        ]
+
+        let parser = DateFormatter()
+        parser.locale = Locale(identifier: "en_US_POSIX")
+
+        for f in fmts {
+            parser.dateFormat = f
+            if let d = parser.date(from: raw) {
+                return d.formatted(.dateTime.year().month().day().hour().minute())
+            }
+        }
+
+        // Fallback: keep header but strip the timezone suffix so it doesn't look like an error.
+        // e.g. "... -0800" → "..."
+        if let r = raw.range(of: " [+-]\\d{4}$", options: .regularExpression) {
+            return String(raw[..<r.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        return raw
+    }
+
     private let client = SupabaseClientProvider.client
 
     // Edge Function calls can hang if the function isn't deployed or the network is flaky.

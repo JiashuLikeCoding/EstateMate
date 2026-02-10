@@ -61,7 +61,7 @@ struct CRMEmailLogsView: View {
                                                     .font(.footnote.weight(.medium))
                                                     .foregroundStyle(EMTheme.accent)
                                                 Spacer()
-                                                Text(m.date.isEmpty ? "—" : m.date)
+                                                Text(CRMGmailIntegrationService.formatMessageDate(dateHeader: m.date, internalDate: m.internalDate))
                                                     .font(.footnote)
                                                     .foregroundStyle(EMTheme.ink2)
                                                     .lineLimit(1)
