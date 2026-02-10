@@ -27,10 +27,20 @@ private struct FormBuilderContainerView: View {
     @Environment(\.horizontalSizeClass) private var hSize
 
     var body: some View {
-        if hSize == .regular {
-            FormBuilderSplitView(form: form)
-        } else {
-            FormBuilderDrawerView(form: form)
+        // iPad portrait can still be `.regular`, but the available width may be too narrow for a 3-column split.
+        // In that case, fall back to the drawer UI so field editing remains accessible.
+        GeometryReader { proxy in
+            let w = proxy.size.width
+
+            if hSize == .regular {
+                if w < 900 {
+                    FormBuilderDrawerView(form: form)
+                } else {
+                    FormBuilderSplitView(form: form)
+                }
+            } else {
+                FormBuilderDrawerView(form: form)
+            }
         }
     }
 }
