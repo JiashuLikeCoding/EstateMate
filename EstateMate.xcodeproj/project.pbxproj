@@ -7,16 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0D0E28E8D0779D6168E7A641 /* CRMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87309FF9EB99E89B57F5B891 /* CRMService.swift */; };
+		4B7ACFD8A2923FCB75BDCCB8 /* CRMContactDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */; };
+		6DDA676435CAB0EF241AAC62 /* CRMModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B7989A2A070900BE1ABBB1 /* CRMModels.swift */; };
+		86BC4051D228E08BE6228225 /* CRMContactEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C119B287FB1FE97E69CC6D0 /* CRMContactEditView.swift */; };
 		96FA21F32F3A630300517E8D /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F22F3A630300517E8D /* Auth */; };
 		96FA21F52F3A630300517E8D /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F42F3A630300517E8D /* Functions */; };
 		96FA21F72F3A630300517E8D /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F62F3A630300517E8D /* PostgREST */; };
 		96FA21F92F3A630300517E8D /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21F82F3A630300517E8D /* Realtime */; };
 		96FA21FB2F3A630300517E8D /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FA2F3A630300517E8D /* Storage */; };
 		96FA21FD2F3A630300517E8D /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 96FA21FC2F3A630300517E8D /* Supabase */; };
+		FC33CDA07683F65C35DE9C59 /* CRMContactsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3C119B287FB1FE97E69CC6D0 /* CRMContactEditView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMContactEditView.swift; sourceTree = "<group>"; };
+		61B7989A2A070900BE1ABBB1 /* CRMModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMModels.swift; sourceTree = "<group>"; };
+		69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMContactDetailView.swift; sourceTree = "<group>"; };
+		87309FF9EB99E89B57F5B891 /* CRMService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMService.swift; sourceTree = "<group>"; };
 		96FA21D42F3A591500517E8D /* EstateMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EstateMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CRMContactsListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -62,6 +72,7 @@
 			children = (
 				96FA21D62F3A591500517E8D /* EstateMate */,
 				96FA21D52F3A591500517E8D /* Products */,
+				E011B10F2B19A26A45F7F01F /* CRM */,
 			);
 			sourceTree = "<group>";
 		};
@@ -71,6 +82,19 @@
 				96FA21D42F3A591500517E8D /* EstateMate.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E011B10F2B19A26A45F7F01F /* CRM */ = {
+			isa = PBXGroup;
+			children = (
+				61B7989A2A070900BE1ABBB1 /* CRMModels.swift */,
+				87309FF9EB99E89B57F5B891 /* CRMService.swift */,
+				9D5543D18C24D0E942A01F35 /* CRMContactsListView.swift */,
+				69BFDF83CD8B0B2C6C180BB3 /* CRMContactDetailView.swift */,
+				3C119B287FB1FE97E69CC6D0 /* CRMContactEditView.swift */,
+			);
+			name = CRM;
+			path = EstateMate/CRM;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -174,6 +198,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6DDA676435CAB0EF241AAC62 /* CRMModels.swift in Sources */,
+				0D0E28E8D0779D6168E7A641 /* CRMService.swift in Sources */,
+				FC33CDA07683F65C35DE9C59 /* CRMContactsListView.swift in Sources */,
+				4B7ACFD8A2923FCB75BDCCB8 /* CRMContactDetailView.swift in Sources */,
+				86BC4051D228E08BE6228225 /* CRMContactEditView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

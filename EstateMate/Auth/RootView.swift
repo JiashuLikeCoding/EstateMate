@@ -61,26 +61,21 @@ struct CRMHomeView: View {
                         EMSectionHeader("客户管理", subtitle: "线索、客户、任务（开发中）")
 
                         EMCard {
-                            // Placeholder menu items (UI first, function later).
-                            Button {
-                                // TODO
+                            NavigationLink {
+                                CRMContactsListView()
                             } label: {
                                 row(title: "客户列表", subtitle: "查看与搜索客户")
                             }
                             .buttonStyle(.plain)
-                            .disabled(true)
-                            .opacity(0.55)
 
                             Divider().overlay(EMTheme.line)
 
-                            Button {
-                                // TODO
+                            NavigationLink {
+                                CRMContactEditView(mode: .create)
                             } label: {
                                 row(title: "新增客户", subtitle: "快速录入一位客户")
                             }
                             .buttonStyle(.plain)
-                            .disabled(true)
-                            .opacity(0.55)
 
                             Divider().overlay(EMTheme.line)
 
