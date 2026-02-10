@@ -27,6 +27,9 @@ struct CRMAIContactImportView: View {
     @State private var lastApplySkippedRows: [CRMAIContactImportService.ImportRow] = []
     @State private var showApplySkippedSheet = false
 
+    @State private var showApplyDoneAlert = false
+    @State private var applyDoneMessage: String = ""
+
     private let service = CRMAIContactImportService()
 
     struct PreviewRow: Identifiable {
@@ -289,6 +292,16 @@ struct CRMAIContactImportView: View {
                 }
             }
         }
+        .alert("导入完成", isPresented: $showApplyDoneAlert) {
+            Button("关闭导入") {
+                dismiss()
+            }
+            Button("继续查看") {
+                // keep screen
+            }
+        } message: {
+            Text(applyDoneMessage)
+        }
         .onTapGesture { hideKeyboard() }
     }
 
@@ -386,6 +399,9 @@ struct CRMAIContactImportView: View {
             lastAppliedUpsertedCount = upserted
             lastApplySkippedRows = res.skipped ?? []
             summaryText = "导入完成：写入/更新 \(upserted) 行；跳过 \(res.summary.skipped) 行"
+
+            applyDoneMessage = summaryText ?? "导入完成"
+            showApplyDoneAlert = true
         } catch {
             errorMessage = "导入失败：\(error.localizedDescription)"
         }
