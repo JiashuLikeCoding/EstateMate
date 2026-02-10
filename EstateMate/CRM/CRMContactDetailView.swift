@@ -47,11 +47,6 @@ struct CRMContactDetailView: View {
                         EMSectionHeader(contact.fullName.isEmpty ? "（未命名）" : contact.fullName)
 
                         EMCard {
-                            infoRow(label: "手机号", value: contact.phone)
-                            Divider().overlay(EMTheme.line)
-                            infoRow(label: "邮箱", value: contact.email)
-
-                            Divider().overlay(EMTheme.line)
                             infoRow(label: "阶段", value: contact.stage.displayName)
 
                             Divider().overlay(EMTheme.line)

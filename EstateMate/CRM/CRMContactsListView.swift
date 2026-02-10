@@ -236,7 +236,7 @@ struct CRMContactsListView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(EMTheme.ink2)
 
-                TextField("搜索姓名/手机号/邮箱/标签", text: $searchText)
+                TextField("搜索姓名/标签/地址", text: $searchText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.search)
@@ -705,16 +705,12 @@ private struct CRMContactCardContent: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                if !contact.phone.isEmpty {
-                    Text(contact.phone)
-                        .font(.subheadline)
-                        .foregroundStyle(EMTheme.ink2)
-                }
-                if !contact.email.isEmpty {
-                    Text(contact.email)
-                        .font(.caption)
-                        .foregroundStyle(EMTheme.ink2)
+            let addresses = splitInterestedAddresses(contact.address)
+            if !addresses.isEmpty {
+                FlowLayout(maxPerRow: 3, spacing: 8) {
+                    ForEach(addresses, id: \.self) { a in
+                        EMChip(text: a, isOn: false)
+                    }
                 }
             }
 
@@ -727,6 +723,23 @@ private struct CRMContactCardContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func splitInterestedAddresses(_ raw: String) -> [String] {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return [] }
+
+        let replaced = s
+            .replacingOccurrences(of: "\n", with: ",")
+            .replacingOccurrences(of: "，", with: ",")
+            .replacingOccurrences(of: "|", with: ",")
+            .replacingOccurrences(of: "/", with: ",")
+            .replacingOccurrences(of: "、", with: ",")
+
+        return replaced
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
 
