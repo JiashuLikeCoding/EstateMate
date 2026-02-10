@@ -12,11 +12,11 @@ import Foundation
 enum GoogleOAuthConfig {
     /// Google OAuth Client ID.
     /// NOTE: Do NOT embed client_secret in the app.
-    static let clientId: String = "313537601779-5084ffo0usvos0si1m9s9qtev5bhthos.apps.googleusercontent.com"
+    static let clientId: String = "751209828977-s25uctpe1mcc9nektcqrv5q01csf6i30.apps.googleusercontent.com"
 
     /// iOS OAuth client uses reverse-client-id as the URL scheme.
     /// (From the downloaded plist: REVERSED_CLIENT_ID)
-    static let redirectUri: String = "com.googleusercontent.apps.313537601779-5084ffo0usvos0si1m9s9qtev5bhthos:/oauth"
+    static let redirectUri: String = "com.googleusercontent.apps.751209828977-s25uctpe1mcc9nektcqrv5q01csf6i30:/oauth"
 
     static var isConfigured: Bool {
         !clientId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
