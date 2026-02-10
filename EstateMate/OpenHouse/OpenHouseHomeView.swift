@@ -51,6 +51,14 @@ struct OpenHouseHomeView: View {
                     Divider().overlay(EMTheme.line)
 
                     NavigationLink {
+                        EmailTemplatesListView(workspace: .openhouse)
+                    } label: {
+                        row(title: "邮件模版", subtitle: "查看与管理邮件模版（提交后自动发信会用到）")
+                    }
+
+                    Divider().overlay(EMTheme.line)
+
+                    NavigationLink {
                         OpenHouseVisitorListView()
                     } label: {
                         row(title: "访客列表", subtitle: "按活动查看所有访客登记")
