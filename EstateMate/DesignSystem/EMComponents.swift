@@ -649,6 +649,8 @@ struct EMChoiceField: View {
                             .foregroundStyle(EMTheme.ink2)
                             .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                     .padding(.horizontal, 12)
                     .padding(.vertical, 12)
                 }
@@ -877,6 +879,8 @@ struct EMMultiSelectField: View {
                                 .foregroundStyle(EMTheme.ink2)
                                 .rotationEffect(.degrees(isExpanded ? 180 : 0))
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                         .padding(.horizontal, 12)
                         .padding(.vertical, 12)
                     }
