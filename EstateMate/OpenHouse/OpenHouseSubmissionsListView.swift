@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct OpenHouseSubmissionsListView: View {
     @Environment(\.dismiss) private var dismiss
@@ -23,6 +24,13 @@ struct OpenHouseSubmissionsListView: View {
     @State private var showDeleteConfirm = false
 
     @State private var showTagPicker = false
+
+    // Export
+    @State private var isSelecting = false
+    @State private var selectedIds: Set<UUID> = []
+    @State private var isAllSelected = false
+    @State private var shareURL: URL?
+    @State private var showShareSheet = false
 
     var body: some View {
         EMScreen(nil) {
@@ -52,7 +60,19 @@ struct OpenHouseSubmissionsListView: View {
                         ForEach(submissions) { s in
                             EMCard {
                                 VStack(alignment: .leading, spacing: 10) {
-                                    HStack(alignment: .firstTextBaseline) {
+                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        if isSelecting {
+                                            Button {
+                                                toggleSelection(s.id)
+                                            } label: {
+                                                Image(systemName: selectedIds.contains(s.id) ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundStyle(selectedIds.contains(s.id) ? EMTheme.accent : EMTheme.ink2)
+                                                    .font(.title3)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel(selectedIds.contains(s.id) ? "取消选择" : "选择")
+                                        }
+
                                         Text(s.createdAt?.formatted(date: .abbreviated, time: .shortened) ?? "")
                                             .font(.footnote.weight(.medium))
                                             .foregroundStyle(EMTheme.ink2)
@@ -120,7 +140,14 @@ struct OpenHouseSubmissionsListView: View {
                                     }
 
                                     HStack {
+                                        if isSelecting {
+                                            Text(selectedIds.contains(s.id) ? "已选择" : "")
+                                                .font(.caption)
+                                                .foregroundStyle(EMTheme.ink2)
+                                        }
+
                                         Spacer()
+
                                         Button {
                                             selectedSubmission = s
                                             showDeleteConfirm = true
@@ -143,6 +170,30 @@ struct OpenHouseSubmissionsListView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    toggleSelecting()
+                } label: {
+                    Text(isSelecting ? "完成" : "下载")
+                        .foregroundStyle(EMTheme.ink)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isSelecting ? "结束选择" : "下载数据")
+                .disabled(submissions.isEmpty)
+                .opacity(submissions.isEmpty ? 0.4 : 1)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if isSelecting {
+                exportBar
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let shareURL {
+                ShareSheet(activityItems: [shareURL])
+            }
+        }
         .task { await load() }
         .refreshable { await load() }
         .sheet(isPresented: $showEditSheet) {
@@ -189,6 +240,135 @@ struct OpenHouseSubmissionsListView: View {
     private func formForSubmission(_ submission: SubmissionV2) -> FormRecord? {
         let id = submission.formId ?? event.formId
         return formsById[id]
+    }
+
+    private var exportBar: some View {
+        VStack(spacing: 10) {
+            Divider().overlay(EMTheme.line)
+
+            HStack(spacing: 10) {
+                Button(isAllSelected ? "取消全选" : "全选") {
+                    toggleSelectAll()
+                }
+                .buttonStyle(.bordered)
+
+                Text("已选 \(selectedIds.count) 条")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
+
+                Spacer()
+
+                Button("导出") {
+                    exportSelected()
+                }
+                .buttonStyle(EMPrimaryButtonStyle(disabled: selectedIds.isEmpty))
+                .disabled(selectedIds.isEmpty)
+            }
+            .padding(.horizontal, EMTheme.padding)
+            .padding(.bottom, 10)
+            .padding(.top, 2)
+            .background(EMTheme.paper)
+        }
+    }
+
+    private func toggleSelecting() {
+        isSelecting.toggle()
+        if !isSelecting {
+            selectedIds.removeAll()
+            isAllSelected = false
+        }
+    }
+
+    private func toggleSelection(_ id: UUID) {
+        if selectedIds.contains(id) {
+            selectedIds.remove(id)
+        } else {
+            selectedIds.insert(id)
+        }
+        isAllSelected = !submissions.isEmpty && selectedIds.count == submissions.count
+    }
+
+    private func toggleSelectAll() {
+        if isAllSelected {
+            selectedIds.removeAll()
+            isAllSelected = false
+        } else {
+            selectedIds = Set(submissions.map { $0.id })
+            isAllSelected = true
+        }
+    }
+
+    private func exportSelected() {
+        let picked = submissions.filter { selectedIds.contains($0.id) }
+        guard picked.isEmpty == false else { return }
+
+        do {
+            let csv = buildCSV(submissions: picked)
+            let url = try writeTempCSV(csv: csv, filename: "\(event.title)-访客.csv")
+            shareURL = url
+            showShareSheet = true
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func buildCSV(submissions list: [SubmissionV2]) -> String {
+        // Build columns: createdAt, tags, then union of labels in first-seen order.
+        var labels: [String] = []
+        var labelSet: Set<String> = []
+
+        func addLabel(_ s: String) {
+            guard labelSet.contains(s) == false else { return }
+            labelSet.insert(s)
+            labels.append(s)
+        }
+
+        for s in list {
+            let pairs = displayPairs(for: s)
+            for (label, _) in pairs {
+                addLabel(label)
+            }
+        }
+
+        var rows: [[String]] = []
+        let header = ["提交时间", "标签"] + labels
+        rows.append(header)
+
+        for s in list {
+            let time = s.createdAt?.formatted(date: .numeric, time: .standard) ?? ""
+            let tags = (s.tags ?? []).joined(separator: "|")
+
+            var map: [String: String] = [:]
+            for (label, value) in displayPairs(for: s) {
+                map[label] = value
+            }
+
+            var row: [String] = [time, tags]
+            row.append(contentsOf: labels.map { map[$0] ?? "" })
+            rows.append(row)
+        }
+
+        // CSV with Excel-friendly BOM
+        let out = rows
+            .map { $0.map { csvCell($0) }.joined(separator: ",") }
+            .joined(separator: "\n")
+        return "\u{FEFF}" + out
+    }
+
+    private func csvCell(_ s: String) -> String {
+        // Escape double quotes; quote when needed.
+        let needsQuote = s.contains(",") || s.contains("\n") || s.contains("\"")
+        let escaped = s.replacingOccurrences(of: "\"", with: "\"\"")
+        return needsQuote ? "\"\(escaped)\"" : escaped
+    }
+
+    private func writeTempCSV(csv: String, filename: String) throws -> URL {
+        let safe = filename
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(safe)
+        try csv.write(to: url, atomically: true, encoding: .utf8)
+        return url
     }
 
     private func displayPairs(for submission: SubmissionV2) -> [(String, String)] {
@@ -605,4 +785,14 @@ private struct SubmissionEditView: View {
         let pattern = "^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         return s.range(of: pattern, options: .regularExpression) != nil
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
