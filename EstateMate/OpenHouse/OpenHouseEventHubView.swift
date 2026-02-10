@@ -184,9 +184,6 @@ private struct OpenHouseEventCreateCardView: View {
                         }
 
                         Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(EMTheme.ink2)
                     }
                     .padding(.vertical, 10)
                 }
@@ -420,10 +417,6 @@ private struct OpenHouseEventListCardView: View {
                         }
 
                         Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(EMTheme.ink2)
-                            .padding(.top, 2)
                     }
                     .padding(.vertical, 12)
                 }

@@ -130,9 +130,6 @@ struct OpenHouseEventEditView: View {
                                     }
 
                                     Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .foregroundStyle(EMTheme.ink2)
                                 }
                                 .padding(.vertical, 10)
                             }
