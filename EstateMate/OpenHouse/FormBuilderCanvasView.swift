@@ -7,7 +7,24 @@ import SwiftUI
 import UniformTypeIdentifiers
 import PhotosUI
 
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        guard index >= 0, index < count else { return nil }
+        return self[index]
+    }
+}
+
 struct FormBuilderCanvasView: View {
+    private struct Grouping {
+        var ids: [Int?] = []
+        var counts: [Int: Int] = [:]
+
+        func isGrouped(at index: Int) -> Bool {
+            guard ids.indices.contains(index), let gid = ids[index] else { return false }
+            return (counts[gid] ?? 0) > 1
+        }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
@@ -30,6 +47,55 @@ struct FormBuilderCanvasView: View {
     @State private var showPhotoPicker: Bool = false
     @State private var pickedPhotoItem: PhotosPickerItem? = nil
     @State private var showCamera: Bool = false
+
+    private var grouping: Grouping {
+        // Grouping rule: a `.splice` connects the closest non-splice field above it with the closest non-splice field below it.
+        // We assign the same group id to all fields (and splice rows) in the connected chain.
+        var ids: [Int?] = Array(repeating: nil, count: state.fields.count)
+        var nextGroupId = 0
+
+        var lastNonSpliceIndex: Int? = nil
+
+        for i in state.fields.indices {
+            let f = state.fields[i]
+            if f.type == .splice {
+                // Splice belongs to the current chain (if any) for tint consistency.
+                if let j = lastNonSpliceIndex {
+                    ids[i] = ids[j]
+                }
+                continue
+            }
+
+            // If the previous item is a splice, continue the chain.
+            if i > 0, state.fields[i - 1].type == .splice, let j = lastNonSpliceIndex {
+                ids[i] = ids[j]
+            } else {
+                ids[i] = nextGroupId
+                nextGroupId += 1
+            }
+
+            lastNonSpliceIndex = i
+        }
+
+        // Count how many non-splice fields each group contains.
+        var counts: [Int: Int] = [:]
+        for (i, gid) in ids.enumerated() {
+            guard let gid else { continue }
+            if state.fields[i].type != .splice {
+                counts[gid, default: 0] += 1
+            }
+        }
+
+        // Apply the group count to splice rows too (so they tint only when there's actually a group).
+        for (i, gid) in ids.enumerated() {
+            guard let gid else { continue }
+            if state.fields[i].type == .splice, (counts[gid] ?? 0) <= 1 {
+                ids[i] = nil
+            }
+        }
+
+        return Grouping(ids: ids, counts: counts)
+    }
 
     var body: some View {
         ScrollView {
@@ -132,11 +198,15 @@ struct FormBuilderCanvasView: View {
                     }
 
                     VStack(spacing: 10) {
-                        ForEach(state.fields) { f in
+                        ForEach(Array(state.fields.enumerated()), id: \ .element.id) { idx, f in
                             Button {
                                 selectField(key: f.key)
                             } label: {
-                                fieldRow(field: f)
+                                fieldRow(
+                                    field: f,
+                                    groupId: (grouping.ids.indices.contains(idx) ? grouping.ids[idx] : nil),
+                                    isGrouped: grouping.isGrouped(at: idx)
+                                )
                             }
                             .buttonStyle(.plain)
                             .onDrop(of: [.text], delegate: FieldDropDelegate(field: f, fields: $state.fields, dragging: $draggingField))
@@ -238,9 +308,12 @@ struct FormBuilderCanvasView: View {
         }
     }
 
-    private func fieldRow(field f: FormField) -> some View {
+    private func fieldRow(field f: FormField, groupId: Int?, isGrouped: Bool) -> some View {
         let isSplice = (f.type == .splice)
         let isDivider = (f.type == .divider)
+
+        // Option B: when fields are connected by `.splice`, show them as a visually unified module.
+        let groupTint = isGrouped ? EMTheme.accent.opacity(0.06) : .clear
 
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
@@ -348,7 +421,11 @@ struct FormBuilderCanvasView: View {
         .padding(.vertical, isSplice ? 10 : 12)
         .background(
             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                .fill(isSplice ? EMTheme.paper : EMTheme.paper2)
+                .fill(EMTheme.paper2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                        .fill(groupTint)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
@@ -361,8 +438,6 @@ struct FormBuilderCanvasView: View {
                 )
         )
         .contentShape(Rectangle())
-        // Make splice/divider visually "stand apart" so they don't look like the adjacent fields are merged.
-        .padding(.vertical, (isSplice || isDivider) ? 2 : 0)
     }
 
     private func previewPlaceholder(for f: FormField) -> String {
