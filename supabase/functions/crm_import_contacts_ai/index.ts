@@ -1,13 +1,11 @@
 // Supabase Edge Function: crm_import_contacts_ai
 //
-// Goal:
-// - Accept CSV/XLSX uploads (base64) from iOS.
-// - Use AI to map columns -> CRM contact schema.
-// - Upsert into crm_contacts using the calling user's session.
+// Accepts CSV/XLSX (base64), uses AI to infer a column mapping once,
+// then applies mapping to all rows deterministically (with regex fallbacks).
 //
 // Security:
 // - Deployed with --no-verify-jwt (gateway), but we DO requireUser(req)
-// - We do NOT use service role for DB writes; we write as the user.
+// - DB writes are done as the user via anon key + Authorization header.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from "npm:@supabase/supabase-js@2"
@@ -35,6 +33,17 @@ type RowResult = {
   patch?: ContactPatch
 }
 
+type ColumnMapping = {
+  full_name?: string
+  email?: string
+  phone?: string
+  notes?: string[]
+  tags?: string
+  stage?: string
+  source?: string
+  extras_to_notes?: boolean
+}
+
 function json(data: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(data), {
     ...init,
@@ -55,20 +64,49 @@ function getEnv(name: string): string {
   return v
 }
 
-function looksLikeEmail(s: string) {
-  return /.+@.+\..+/.test(s)
-}
-
 function normalizeString(v: unknown): string {
   if (v == null) return ""
   if (typeof v === "string") return v.trim()
   return String(v).trim()
 }
 
+function normalizeEmail(v: unknown): string {
+  return normalizeString(v).toLowerCase()
+}
+
+function extractFirstEmail(text: string): string | null {
+  const m = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  return m ? m[0].toLowerCase() : null
+}
+
+function normalizePhoneCandidate(text: string): string {
+  // Keep + and digits. Remove spaces/dashes/brackets.
+  const s = text.replace(/[^\d+]/g, "")
+  return s
+}
+
+function extractFirstPhone(text: string): string | null {
+  // Heuristic: extract a 7-15 digit phone (optionally starting with +)
+  const cleaned = normalizePhoneCandidate(text)
+  const m = cleaned.match(/\+?\d{7,15}/)
+  return m ? m[0] : null
+}
+
+function splitTags(raw: string): string[] {
+  const s = raw.trim()
+  if (!s) return []
+  return s
+    .split(/[,，、;；\s]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+}
+
 function parseCsv(csvText: string): Record<string, string>[] {
-  // Simple CSV parser (commas + quotes). Good enough for typical exports.
-  // If you need edge cases later, we can swap to a dedicated csv lib.
-  const lines = csvText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(l => l.trim().length > 0)
+  const lines = csvText
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .filter((l) => l.trim().length > 0)
   if (lines.length === 0) return []
 
   const rows: string[][] = []
@@ -93,12 +131,12 @@ function parseCsv(csvText: string): Record<string, string>[] {
       }
     }
     out.push(cur)
-    rows.push(out.map(s => s.trim()))
+    rows.push(out.map((s) => s.trim()))
   }
 
   const header = rows[0]
   const data = rows.slice(1)
-  return data.map(cols => {
+  return data.map((cols) => {
     const obj: Record<string, string> = {}
     for (let i = 0; i < header.length; i++) {
       const key = header[i] ?? `col_${i + 1}`
@@ -114,7 +152,7 @@ function parseXlsx(buf: Uint8Array): Record<string, string>[] {
   if (!sheetName) return []
   const ws = wb.Sheets[sheetName]
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" })
-  return jsonRows.map(r => {
+  return jsonRows.map((r) => {
     const out: Record<string, string> = {}
     for (const [k, v] of Object.entries(r)) {
       out[k] = normalizeString(v)
@@ -123,38 +161,38 @@ function parseXlsx(buf: Uint8Array): Record<string, string>[] {
   })
 }
 
-async function aiMapRows(params: {
-  template: Json
-  rows: Record<string, string>[]
-}): Promise<RowResult[]> {
+function defaultTemplate(): Json {
+  return {
+    crm_contact_fields: [
+      { key: "full_name", type: "string", required: false, note: "客户姓名" },
+      { key: "email", type: "string", required: false, note: "邮箱（唯一 key 之一）" },
+      { key: "phone", type: "string", required: false, note: "手机号（唯一 key 之一）" },
+      { key: "notes", type: "string", required: false, note: "备注" },
+      { key: "tags", type: "string[]", required: false, note: "标签数组" },
+      { key: "stage", type: "string", required: false, note: "阶段（可选）" },
+      { key: "source", type: "string", required: false, note: "来源（可选）" },
+    ],
+  }
+}
+
+async function aiInferMapping(params: { template: Json; columns: string[]; sampleRows: Record<string, string>[] }): Promise<ColumnMapping> {
   const apiKey = getEnv("OPENAI_API_KEY")
 
-  // Keep token use bounded: sample up to 50 rows for mapping.
-  const sample = params.rows.slice(0, 50)
-
-  const system = `你是一个严格的“数据导入映射器”。\n\n任务：把用户上传的表格行（可能是 CSV / XLSX）映射到 CRM 客户字段。\n\n要求：\n- 只返回 JSON（不要 markdown）。\n- 每一行要输出 action=upsert 或 skip。\n- upsert 行必须至少包含 email 或 phone 之一；否则 skip 并给 reason。\n- 字段：full_name,email,phone,notes,tags,stage,source\n- tags：如果上传里是“逗号/顿号/空格”分隔的，拆成数组；否则可以空数组。\n- stage/source：如果找不到就不要乱猜；可以省略，让客户端/服务端用默认值。\n- notes：可以把未被映射的有价值信息合并进 notes（例如：预算、意向、备注列）。\n`
+  const system = `你是一个严格的“表格列映射器”。\n\n任务：根据列名与样例行，推断哪些列对应 CRM 客户字段。\n\n必须遵守：\n- 只返回 JSON（不要 markdown）。\n- 你输出的是“列名映射”，不是逐行结果。\n- 如果不确定某个字段对应哪一列，请省略该字段，不要瞎猜。\n- notes 可以是多个列名数组（会合并进备注）。\n- extras_to_notes: true 表示把未被映射的列也以“key: value”附加到备注里。\n\nCRM 字段：full_name,email,phone,notes,tags,stage,source\n`
 
   const user = {
     template: params.template,
-    input_columns: Object.keys(sample[0] ?? {}),
-    sample_rows: sample,
+    input_columns: params.columns,
+    sample_rows: params.sampleRows.slice(0, 10),
     output_format: {
-      rows: [
-        {
-          rowIndex: 1,
-          action: "upsert",
-          reason: "",
-          patch: {
-            full_name: "",
-            email: "",
-            phone: "",
-            notes: "",
-            tags: [""],
-            stage: "",
-            source: "",
-          },
-        },
-      ],
+      full_name: "列名",
+      email: "列名",
+      phone: "列名",
+      tags: "列名",
+      notes: ["列名"],
+      stage: "列名",
+      source: "列名",
+      extras_to_notes: true,
     },
   }
 
@@ -184,41 +222,87 @@ async function aiMapRows(params: {
   const content = data?.choices?.[0]?.message?.content
   if (!content) throw new Error("OpenAI returned empty content")
 
-  let parsed: any
-  try {
-    parsed = JSON.parse(content)
-  } catch {
-    throw new Error("OpenAI returned non-JSON content")
+  const parsed = JSON.parse(content)
+  const mapping: ColumnMapping = {
+    full_name: typeof parsed.full_name === "string" ? parsed.full_name : undefined,
+    email: typeof parsed.email === "string" ? parsed.email : undefined,
+    phone: typeof parsed.phone === "string" ? parsed.phone : undefined,
+    tags: typeof parsed.tags === "string" ? parsed.tags : undefined,
+    stage: typeof parsed.stage === "string" ? parsed.stage : undefined,
+    source: typeof parsed.source === "string" ? parsed.source : undefined,
+    extras_to_notes: typeof parsed.extras_to_notes === "boolean" ? parsed.extras_to_notes : true,
+    notes: Array.isArray(parsed.notes) ? parsed.notes.filter((x: any) => typeof x === "string") : [],
   }
 
-  const rows = parsed?.rows
-  if (!Array.isArray(rows)) throw new Error("OpenAI JSON missing rows[]")
-
-  // Ensure rowIndex is present and clamp to input size.
-  return rows
-    .map((r: any) => ({
-      rowIndex: Number(r.rowIndex ?? 0),
-      action: r.action === "skip" ? "skip" : "upsert",
-      reason: typeof r.reason === "string" ? r.reason : undefined,
-      patch: typeof r.patch === "object" && r.patch != null ? r.patch : undefined,
-    }))
-    .filter((r: RowResult) => r.rowIndex >= 1 && r.rowIndex <= params.rows.length)
+  return mapping
 }
 
-function defaultTemplate(): Json {
-  // This is the “existing data template” we give AI.
-  // It mirrors crm_contacts columns we care about.
-  return {
-    crm_contact_fields: [
-      { key: "full_name", type: "string", required: false, note: "客户姓名" },
-      { key: "email", type: "string", required: false, note: "邮箱（唯一 key 之一）" },
-      { key: "phone", type: "string", required: false, note: "手机号（唯一 key 之一）" },
-      { key: "notes", type: "string", required: false, note: "备注" },
-      { key: "tags", type: "string[]", required: false, note: "标签数组" },
-      { key: "stage", type: "string", required: false, note: "阶段（可选）" },
-      { key: "source", type: "string", required: false, note: "来源（可选）" },
-    ],
+function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping): ContactPatch {
+  const used = new Set<string>()
+
+  const get = (col?: string) => {
+    if (!col) return ""
+    used.add(col)
+    return normalizeString(row[col])
   }
+
+  let fullName = get(mapping.full_name)
+  let email = normalizeEmail(get(mapping.email))
+  let phone = normalizeString(get(mapping.phone))
+
+  // Regex fallbacks: scan all values if missing.
+  if (!email) {
+    for (const v of Object.values(row)) {
+      const e = extractFirstEmail(normalizeString(v))
+      if (e) {
+        email = e
+        break
+      }
+    }
+  }
+  if (!phone) {
+    for (const v of Object.values(row)) {
+      const p = extractFirstPhone(normalizeString(v))
+      if (p) {
+        phone = p
+        break
+      }
+    }
+  }
+
+  const notesParts: string[] = []
+  for (const col of mapping.notes ?? []) {
+    const v = get(col)
+    if (v) notesParts.push(`${col}: ${v}`)
+  }
+
+  const tagsRaw = get(mapping.tags)
+  const tags = tagsRaw ? splitTags(tagsRaw) : []
+
+  const stage = get(mapping.stage)
+  const source = get(mapping.source)
+
+  if (mapping.extras_to_notes !== false) {
+    for (const [k, v] of Object.entries(row)) {
+      if (used.has(k)) continue
+      const vv = normalizeString(v)
+      if (!vv) continue
+      notesParts.push(`${k}: ${vv}`)
+    }
+  }
+
+  const notes = notesParts.join("\n")
+
+  const patch: ContactPatch = {}
+  if (fullName) patch.full_name = fullName
+  if (email) patch.email = email
+  if (phone) patch.phone = phone
+  if (notes) patch.notes = notes
+  if (tags.length) patch.tags = tags
+  if (stage) patch.stage = stage
+  if (source) patch.source = source
+
+  return patch
 }
 
 Deno.serve(async (req) => {
@@ -244,61 +328,35 @@ Deno.serve(async (req) => {
     } else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
       rows = parseXlsx(buf)
     } else {
-      // Try as CSV fallback
       const text = new TextDecoder().decode(buf)
       rows = parseCsv(text)
     }
 
     if (rows.length === 0) return badRequest("文件没有可导入的数据（空表或解析失败）")
 
-    const template = defaultTemplate()
-    const mapped = await aiMapRows({ template, rows })
+    const columns = Array.from(
+      rows.reduce((set, r) => {
+        for (const k of Object.keys(r)) set.add(k)
+        return set
+      }, new Set<string>())
+    )
 
-    // Rebuild results aligned to input rows.
-    const byIndex = new Map<number, RowResult>()
-    for (const r of mapped) byIndex.set(r.rowIndex, r)
+    const template = defaultTemplate()
+    const mapping = await aiInferMapping({ template, columns, sampleRows: rows })
 
     const results: RowResult[] = []
     for (let i = 0; i < rows.length; i++) {
       const rowIndex = i + 1
-      const r = byIndex.get(rowIndex)
-      if (!r) {
-        results.push({ rowIndex, action: "skip", reason: "AI 未返回该行映射" })
-        continue
-      }
+      const patch = applyMappingToRow(rows[i], mapping)
 
-      if (r.action !== "upsert") {
-        results.push(r)
-        continue
-      }
-
-      const patch = r.patch ?? {}
       const email = normalizeString(patch.email)
       const phone = normalizeString(patch.phone)
 
       if (!email && !phone) {
-        results.push({ rowIndex, action: "skip", reason: r.reason ?? "缺少邮箱或手机号" })
-        continue
+        results.push({ rowIndex, action: "skip", reason: "缺少 email 和 phone（无法匹配唯一客户）" })
+      } else {
+        results.push({ rowIndex, action: "upsert", patch })
       }
-      if (email && !looksLikeEmail(email)) {
-        // Keep phone-only if available.
-        if (!phone) {
-          results.push({ rowIndex, action: "skip", reason: "邮箱格式不正确，且没有手机号" })
-          continue
-        }
-        patch.email = ""
-      }
-
-      // sanitize
-      if (patch.full_name != null) patch.full_name = normalizeString(patch.full_name)
-      if (patch.email != null) patch.email = normalizeString(patch.email).toLowerCase()
-      if (patch.phone != null) patch.phone = normalizeString(patch.phone)
-      if (patch.notes != null) patch.notes = normalizeString(patch.notes)
-      if (Array.isArray(patch.tags)) {
-        patch.tags = patch.tags.map((t) => normalizeString(t)).filter(Boolean)
-      }
-
-      results.push({ rowIndex, action: "upsert", patch })
     }
 
     if (mode === "analyze") {
@@ -307,7 +365,7 @@ Deno.serve(async (req) => {
         toUpsert: results.filter((r) => r.action === "upsert").length,
         skipped: results.filter((r) => r.action === "skip").length,
       }
-      return json({ summary, results })
+      return json({ mapping, summary, results })
     }
 
     // APPLY
@@ -328,12 +386,10 @@ Deno.serve(async (req) => {
       }
 
       const p = r.patch
-      const email = normalizeString(p.email)
+      const email = normalizeEmail(p.email)
       const phone = normalizeString(p.phone)
 
-      // Choose conflict key: prefer email.
-      // Note: DB unique constraints are expected to exist for email/phone; otherwise this will still insert.
-      const onConflict = email ? "email" : (phone ? "phone" : null)
+      const onConflict = email ? "email" : phone ? "phone" : null
       if (!onConflict) {
         skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: "缺少 email/phone" })
         continue
@@ -349,9 +405,7 @@ Deno.serve(async (req) => {
       if (p.stage) payload.stage = p.stage
       if (p.source) payload.source = p.source
 
-      const { error } = await supabase
-        .from("crm_contacts")
-        .upsert(payload, { onConflict })
+      const { error } = await supabase.from("crm_contacts").upsert(payload, { onConflict })
 
       if (error) {
         skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: `写入失败：${error.message}` })
@@ -361,6 +415,7 @@ Deno.serve(async (req) => {
     }
 
     return json({
+      mapping,
       summary: {
         total: results.length,
         upserted: upserted.length,
