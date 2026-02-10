@@ -350,6 +350,17 @@ struct OpenHouseKioskFillView: View {
                     .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !missing.isEmpty))
                     .disabled(isLoading || !missing.isEmpty)
 
+                    Button("重置") {
+                        hideKeyboard()
+                        values = [:]
+                        boolValues = [:]
+                        multiValues = [:]
+                        errorMessage = nil
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isLoading)
+                    .opacity(isLoading ? 0.45 : 1)
+
                     Spacer(minLength: 20)
                 }
                 .padding(EMTheme.padding)
