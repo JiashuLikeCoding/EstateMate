@@ -109,7 +109,24 @@ Deno.serve(async (req) => {
 
     const token = await googleRefreshAccessToken(conn.refresh_token);
 
-    const q = `from:${contactEmail} OR to:${contactEmail}`;
+    const me = (conn.email ?? "").trim();
+    if (!me) {
+      return new Response(JSON.stringify({ error: "gmail_connection_missing_email" }), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    if (normalizeEmail(contactEmail) === normalizeEmail(me)) {
+      return new Response(
+        JSON.stringify({ ok: true, messages: [], hint: "联系人邮箱与当前连接的 Gmail 相同，无法筛选往来对象。" }),
+        { headers: { "content-type": "application/json" } },
+      );
+    }
+
+    // Only messages between: me <-> contactEmail
+    // (Gmail search supports AND by space)
+    const q = `((from:${contactEmail} to:${me}) OR (from:${me} to:${contactEmail}))`;
     const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
     listUrl.searchParams.set("q", q);
     listUrl.searchParams.set("maxResults", String(max));
