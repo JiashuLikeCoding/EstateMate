@@ -195,191 +195,208 @@ struct FormBuilderCanvasView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                if let msg = state.errorMessage {
-                    Text(msg)
-                        .font(.callout)
-                        .foregroundStyle(.red)
-                }
+        List {
+            if let msg = state.errorMessage {
+                Text(msg)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
 
-                EMCard {
-                    Text("表单信息")
-                        .font(.headline)
+            EMCard {
+                Text("表单信息")
+                    .font(.headline)
 
-                    EMTextField(title: "表单名称", text: $state.formName)
+                EMTextField(title: "表单名称", text: $state.formName)
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("背景图片")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(EMTheme.ink2)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("背景图片")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(EMTheme.ink2)
 
-                        Button {
-                            hideKeyboard()
-                            showBackgroundMenu = true
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(backgroundSummary)
-                                    .font(.callout)
-                                    .foregroundStyle(EMTheme.ink)
-
-                                Spacer(minLength: 0)
-
-                                Image(systemName: "chevron.down")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(EMTheme.ink2)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                    .fill(EMTheme.paper2)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                    .stroke(EMTheme.line, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        if state.presentation.background != nil {
-                            HStack(spacing: 12) {
-                                Text("透明度")
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(EMTheme.ink2)
-
-                                Slider(
-                                    value: Binding(
-                                        get: { state.presentation.background?.opacity ?? 0.12 },
-                                        set: { v in
-                                            if state.presentation.background == nil {
-                                                state.presentation.background = .default
-                                            }
-                                            state.presentation.background?.opacity = v
-                                        }
-                                    ),
-                                    in: 0...0.5
-                                )
-                            }
-                        }
-                    }
-                }
-
-                EMCard {
-                    HStack(alignment: .center, spacing: 12) {
-                        Text("表单")
-                            .font(.headline)
-
-                        Spacer()
-
-                        Text("长按拖动排序")
-                            .font(.caption)
-                            .foregroundStyle(EMTheme.ink2)
-
-                        if let addFieldAction {
-                            Button(action: addFieldAction) {
-                                Image(systemName: "plus")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 34, height: 34)
-                                    .background(Circle().fill(EMTheme.accent))
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("添加字段")
-                        }
-                    }
-
-                    if state.fields.isEmpty {
-                        Text("从字段库添加字段")
-                            .foregroundStyle(EMTheme.ink2)
-                    }
-
-                    VStack(spacing: 10) {
-                        ForEach(Array(state.fields.enumerated()), id: \ .element.id) { idx, f in
-                            Button {
-                                selectField(key: f.key)
-                            } label: {
-                                fieldRow(
-                                    field: f,
-                                    isGrouped: grouping.isGrouped(at: idx),
-                                    groupPosition: grouping.position(at: idx)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button {
-                                    markInsertionAnchor(key: f.key)
-                                } label: {
-                                    Label("选中", systemImage: "checkmark")
-                                }
-                                .tint(EMTheme.accent)
-                            }
-                            .onDrop(
-                                of: [.text],
-                                delegate: FieldDropDelegate(
-                                    field: f,
-                                    fields: $state.fields,
-                                    dragging: $draggingField,
-                                    errorMessage: Binding(
-                                        get: { state.errorMessage },
-                                        set: { state.errorMessage = $0 }
-                                    ),
-                                    validate: { state.spliceValidationError(in: $0) }
-                                )
-                            )
-                        }
-                    }
-                    .padding(.top, 6)
-                }
-
-                EMCard {
                     Button {
                         hideKeyboard()
-                        showPreviewSheet = true
+                        showBackgroundMenu = true
                     } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: "eye")
-                                .foregroundStyle(EMTheme.ink2)
-
-                            Text("预览表单")
-                                .font(.headline)
+                            Text(backgroundSummary)
+                                .font(.callout)
                                 .foregroundStyle(EMTheme.ink)
-                                .frame(maxWidth: .infinity)
+
+                            Spacer(minLength: 0)
+
+                            Image(systemName: "chevron.down")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(EMTheme.ink2)
                         }
-                        .padding(.vertical, 2)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                .fill(EMTheme.paper2)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                .stroke(EMTheme.line, lineWidth: 1)
+                        )
                     }
                     .buttonStyle(.plain)
-                    .disabled(state.fields.isEmpty)
-                    .opacity(state.fields.isEmpty ? 0.45 : 1)
-                }
 
-                Button(state.isSaving ? "保存中..." : "保存表单") {
-                    Task { await save() }
-                }
-                .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-                .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .alert("已保存", isPresented: $showSavedAlert) {
-                    Button("好的") {
-                        if let onSaved {
-                            onSaved()
-                        } else {
-                            dismiss()
+                    if state.presentation.background != nil {
+                        HStack(spacing: 12) {
+                            Text("透明度")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            Slider(
+                                value: Binding(
+                                    get: { state.presentation.background?.opacity ?? 0.12 },
+                                    set: { v in
+                                        if state.presentation.background == nil {
+                                            state.presentation.background = .default
+                                        }
+                                        state.presentation.background?.opacity = v
+                                    }
+                                ),
+                                in: 0...0.5
+                            )
                         }
                     }
-                } message: {
-                    Text("表单已保存")
+                }
+            }
+            .listRowInsets(.init(top: 10, leading: EMTheme.padding, bottom: 10, trailing: EMTheme.padding))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            // Field list section (use List rows so swipeActions works reliably)
+            EMCard {
+                HStack(alignment: .center, spacing: 12) {
+                    Text("表单")
+                        .font(.headline)
+
+                    Spacer()
+
+                    Text("长按拖动排序")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
+
+                    if let addFieldAction {
+                        Button(action: addFieldAction) {
+                            Image(systemName: "plus")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 34, height: 34)
+                                .background(Circle().fill(EMTheme.accent))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("添加字段")
+                    }
                 }
 
-                Text("提示：点右侧“＋”添加字段；点击字段编辑；长按右侧拖动把手调整顺序")
-                    .font(.footnote)
-                    .foregroundStyle(EMTheme.ink2)
-
-                // Extra bottom space so the last field row is not stuck under the bottom area (safe area / buttons),
-                // especially on iPad portrait where available height is tighter.
-                Spacer(minLength: 140)
+                if state.fields.isEmpty {
+                    Text("从字段库添加字段")
+                        .foregroundStyle(EMTheme.ink2)
+                } else {
+                    Text("提示：左滑可选中插入位置")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                }
             }
-            .padding(EMTheme.padding)
+            .listRowInsets(.init(top: 10, leading: EMTheme.padding, bottom: 10, trailing: EMTheme.padding))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            ForEach(Array(state.fields.enumerated()), id: \ .element.id) { idx, f in
+                Button {
+                    selectField(key: f.key)
+                } label: {
+                    fieldRow(
+                        field: f,
+                        isGrouped: grouping.isGrouped(at: idx),
+                        groupPosition: grouping.position(at: idx)
+                    )
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        markInsertionAnchor(key: f.key)
+                    } label: {
+                        Label("选中", systemImage: "checkmark")
+                    }
+                    .tint(EMTheme.accent)
+                }
+                .onDrop(
+                    of: [.text],
+                    delegate: FieldDropDelegate(
+                        field: f,
+                        fields: $state.fields,
+                        dragging: $draggingField,
+                        errorMessage: Binding(
+                            get: { state.errorMessage },
+                            set: { state.errorMessage = $0 }
+                        ),
+                        validate: { state.spliceValidationError(in: $0) }
+                    )
+                )
+                .listRowInsets(.init(top: 6, leading: EMTheme.padding, bottom: 6, trailing: EMTheme.padding))
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+
+            EMCard {
+                Button {
+                    hideKeyboard()
+                    showPreviewSheet = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "eye")
+                            .foregroundStyle(EMTheme.ink2)
+
+                        Text("预览表单")
+                            .font(.headline)
+                            .foregroundStyle(EMTheme.ink)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .padding(.vertical, 2)
+                }
+                .buttonStyle(.plain)
+                .disabled(state.fields.isEmpty)
+                .opacity(state.fields.isEmpty ? 0.45 : 1)
+            }
+            .listRowInsets(.init(top: 10, leading: EMTheme.padding, bottom: 10, trailing: EMTheme.padding))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            Button(state.isSaving ? "保存中..." : "保存表单") {
+                Task { await save() }
+            }
+            .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
+            .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .alert("已保存", isPresented: $showSavedAlert) {
+                Button("好的") {
+                    if let onSaved {
+                        onSaved()
+                    } else {
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text("表单已保存")
+            }
+            .listRowInsets(.init(top: 4, leading: EMTheme.padding, bottom: 20, trailing: EMTheme.padding))
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+
+            Text("提示：点右侧“＋”添加字段；点击字段编辑；长按右侧拖动把手调整顺序")
+                .font(.footnote)
+                .foregroundStyle(EMTheme.ink2)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
         .fullScreenCover(isPresented: $showPreviewSheet) {
             NavigationStack {
                 FormPreviewView(
