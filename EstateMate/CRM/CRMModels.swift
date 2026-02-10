@@ -7,6 +7,24 @@
 
 import Foundation
 
+enum CRMContactStage: String, CaseIterable, Codable, Equatable {
+    case newLead = "新线索"
+    case contacted = "已联系"
+    case viewing = "已带看"
+    case negotiating = "谈判中"
+    case won = "已成交"
+    case lost = "已流失"
+
+    var displayName: String { rawValue }
+}
+
+enum CRMContactSource: String, CaseIterable, Codable, Equatable {
+    case manual = "手动"
+    case openHouse = "开放日"
+
+    var displayName: String { rawValue }
+}
+
 struct CRMContact: Codable, Identifiable, Equatable {
     var id: UUID
     var fullName: String
@@ -14,6 +32,9 @@ struct CRMContact: Codable, Identifiable, Equatable {
     var email: String
     var notes: String
     var tags: [String]?
+    var stage: CRMContactStage
+    var source: CRMContactSource
+    var lastContactedAt: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -24,6 +45,9 @@ struct CRMContact: Codable, Identifiable, Equatable {
         case email
         case notes
         case tags
+        case stage
+        case source
+        case lastContactedAt = "last_contacted_at"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
@@ -35,6 +59,9 @@ struct CRMContactInsert: Codable {
     var email: String
     var notes: String
     var tags: [String]?
+    var stage: CRMContactStage
+    var source: CRMContactSource
+    var lastContactedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case fullName = "full_name"
@@ -42,6 +69,9 @@ struct CRMContactInsert: Codable {
         case email
         case notes
         case tags
+        case stage
+        case source
+        case lastContactedAt = "last_contacted_at"
     }
 }
 
@@ -51,6 +81,9 @@ struct CRMContactUpdate: Codable {
     var email: String?
     var notes: String?
     var tags: [String]?
+    var stage: CRMContactStage?
+    var source: CRMContactSource?
+    var lastContactedAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case fullName = "full_name"

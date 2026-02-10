@@ -134,6 +134,17 @@ private struct CRMContactCard: View {
                         .foregroundStyle(EMTheme.ink2)
                 }
 
+                HStack(spacing: 8) {
+                    EMChip(text: contact.stage.displayName, isOn: true)
+                    EMChip(text: contact.source.displayName, isOn: false)
+                    Spacer()
+                    if let dt = contact.lastContactedAt {
+                        Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
+                            .font(.caption2)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                }
+
                 VStack(alignment: .leading, spacing: 4) {
                     if !contact.phone.isEmpty {
                         Text(contact.phone)
@@ -166,6 +177,14 @@ enum CRMDate {
         f.locale = .current
         f.dateStyle = .short
         f.timeStyle = .short
+        return f
+    }()
+
+    static let shortDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateStyle = .short
+        f.timeStyle = .none
         return f
     }()
 }

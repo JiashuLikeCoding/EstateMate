@@ -32,6 +32,8 @@ struct CRMContactEditView: View {
     @State private var email = ""
     @State private var notes = ""
     @State private var tagsText = "" // comma-separated
+    @State private var stage: CRMContactStage = .newLead
+    @State private var source: CRMContactSource = .manual
 
     private let service = CRMService()
 
@@ -53,6 +55,31 @@ struct CRMContactEditView: View {
                         EMTextField(title: "姓名", text: $fullName, prompt: "例如：王小明")
                         EMTextField(title: "手机号", text: $phone, prompt: "例如：13800000000", keyboard: .phonePad)
                         EMTextField(title: "邮箱", text: $email, prompt: "例如：name@email.com", keyboard: .emailAddress)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("阶段")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Picker("阶段", selection: $stage) {
+                                ForEach(CRMContactStage.allCases, id: \.self) { s in
+                                    Text(s.displayName).tag(s)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("来源")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Picker("来源", selection: $source) {
+                                ForEach(CRMContactSource.allCases, id: \.self) { s in
+                                    Text(s.displayName).tag(s)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
+
                         EMTextField(title: "标签（逗号分隔）", text: $tagsText, prompt: "例如：学区房, 投资")
                         EMTextField(title: "备注", text: $notes, prompt: "例如：喜欢南向三居")
                     }
@@ -102,6 +129,8 @@ struct CRMContactEditView: View {
             email = c.email
             notes = c.notes
             tagsText = (c.tags ?? []).joined(separator: ", ")
+            stage = c.stage
+            source = c.source
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
@@ -127,7 +156,10 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                        tags: tags.isEmpty ? nil : tags
+                        tags: tags.isEmpty ? nil : tags,
+                        stage: stage,
+                        source: source,
+                        lastContactedAt: nil
                     )
                 )
                 dismiss()
@@ -140,7 +172,10 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                        tags: tags.isEmpty ? [] : tags
+                        tags: tags.isEmpty ? [] : tags,
+                        stage: stage,
+                        source: source,
+                        lastContactedAt: nil
                     )
                 )
                 dismiss()
