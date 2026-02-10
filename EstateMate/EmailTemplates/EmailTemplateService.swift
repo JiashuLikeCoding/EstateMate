@@ -55,4 +55,14 @@ final class EmailTemplateService {
     func archiveTemplate(id: UUID, isArchived: Bool = true) async throws -> EmailTemplateRecord {
         try await updateTemplate(id: id, patch: EmailTemplateUpdate(isArchived: isArchived))
     }
+
+    func getTemplate(id: UUID) async throws -> EmailTemplateRecord {
+        try await client
+            .from("email_templates")
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
 }

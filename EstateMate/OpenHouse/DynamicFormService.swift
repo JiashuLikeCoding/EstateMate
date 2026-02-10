@@ -13,6 +13,8 @@ import UIKit
 final class DynamicFormService {
     private let client = SupabaseClientProvider.client
 
+    private struct EmptyResponse: Decodable {}
+
     // MARK: - Forms
 
     func listForms() async throws -> [FormRecord] {
@@ -239,7 +241,14 @@ final class DynamicFormService {
             .value
 
         // Auto-add to CRM (best effort; never block submission).
-        await bestEffortUpsertCRMContact(submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+        Task { [weak self] in
+            await self?.bestEffortUpsertCRMContact(submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+        }
+
+        // Auto-send email (best effort; never block submission).
+        Task { [weak self] in
+            await self?.bestEffortSendAutoEmailResend(eventId: eventId, submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+        }
 
         return created
     }
@@ -363,7 +372,105 @@ final class DynamicFormService {
         )
     }
 
-    func listSubmissions(eventId: UUID) async throws -> [SubmissionV2] {
+    private func bestEffortSendAutoEmailResend(
+        eventId: UUID,
+        submissionId: UUID,
+        eventTitle: String?,
+        form: FormRecord?,
+        data: [String: AnyJSON]
+    ) async {
+        do {
+            // 1) If the submission doesn't have an email, we can't send.
+            let extracted = extractCRMFields(form: form, data: data)
+            let to = extracted.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if to.isEmpty { return }
+
+            // 2) Load event to see whether it is bound to an email template.
+            struct EventEmailTemplate: Decodable {
+                let id: UUID
+                let title: String
+                let emailTemplateId: UUID?
+
+                enum CodingKeys: String, CodingKey {
+                    case id
+                    case title
+                    case emailTemplateId = "email_template_id"
+                }
+            }
+
+            let event: EventEmailTemplate = try await client
+                .from("openhouse_events")
+                .select("id,title,email_template_id")
+                .eq("id", value: eventId.uuidString)
+                .single()
+                .execute()
+                .value
+
+            guard let templateId = event.emailTemplateId else { return }
+
+            // 3) Load template.
+            let template = try await EmailTemplateService().getTemplate(id: templateId)
+
+            // 4) Build variable overrides from submission data.
+            var overrides: [String: String] = [:]
+            overrides["event_title"] = (eventTitle?.isEmpty == false ? eventTitle : event.title)
+            overrides["client_email"] = to
+            overrides["client_name"] = extracted.fullName
+
+            for v in template.variables {
+                let key = v.key
+                if let val = data[key] {
+                    if let s = val.stringValue, !s.isEmpty {
+                        overrides[key] = s
+                    } else if let arr = val.arrayValue {
+                        let joined = arr.compactMap { $0.stringValue }.filter { !$0.isEmpty }.joined(separator: ", ")
+                        if !joined.isEmpty {
+                            overrides[key] = joined
+                        }
+                    }
+                }
+            }
+
+            let subject = EmailTemplateRenderer.render(template.subject, variables: template.variables, overrides: overrides)
+            let bodyText = EmailTemplateRenderer.render(template.body, variables: template.variables, overrides: overrides)
+
+            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return
+            }
+
+            // 5) Invoke Edge Function (Resend) with user's JWT.
+            struct SendBody: Encodable {
+                let to: String
+                let subject: String
+                let text: String
+                let replyTo: String?
+                let submissionId: String
+            }
+
+            let session = try await client.auth.session
+            let headers = ["Authorization": "Bearer \(session.accessToken)"]
+
+            let replyTo = session.user.email
+            _ = try await client.functions.invoke(
+                "resend_send",
+                options: .init(
+                    headers: headers,
+                    body: SendBody(
+                        to: to,
+                        subject: subject,
+                        text: bodyText,
+                        replyTo: replyTo,
+                        submissionId: submissionId.uuidString
+                    )
+                )
+            ) as EmptyResponse
+        } catch {
+            // best-effort: ignore
+        }
+    }
+
+    func listSubmissions(eventId: UUID) async throws -> [SubmissionV2] {"}
         try await client
             .from("openhouse_submissions")
             .select()
