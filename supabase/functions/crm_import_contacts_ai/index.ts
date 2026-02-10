@@ -509,8 +509,9 @@ Deno.serve(async (req) => {
 
       const basePayload: Record<string, Json> = {
         full_name: normalizeString(p.full_name),
-        email: email || null,
-        phone: phone || null,
+        // crm_contacts.email/phone are NOT NULL in our schema; use empty string instead of null.
+        email: email,
+        phone: phone,
         notes: normalizeString(p.notes),
         tags: Array.isArray(p.tags) ? p.tags : null,
       }
