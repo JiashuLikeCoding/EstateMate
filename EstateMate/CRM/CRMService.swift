@@ -178,6 +178,20 @@ final class CRMService {
             if excludedId == nil || c.id != excludedId { return c }
         }
 
+        // Fallback: sometimes a conflict happens but direct eq query doesn't return (e.g. legacy formatting).
+        // This is only used on error paths, so it's acceptable to scan.
+        let all = try await listContacts()
+        if !normalizedEmail.isEmpty {
+            if let hit = all.first(where: { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedEmail }) {
+                if excludedId == nil || hit.id != excludedId { return hit }
+            }
+        }
+        if !normalizedPhone.isEmpty {
+            if let hit = all.first(where: { $0.phone.trimmingCharacters(in: .whitespacesAndNewlines) == normalizedPhone }) {
+                if excludedId == nil || hit.id != excludedId { return hit }
+            }
+        }
+
         return nil
     }
 
