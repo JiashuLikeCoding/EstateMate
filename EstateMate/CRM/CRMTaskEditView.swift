@@ -32,12 +32,10 @@ struct CRMTaskEditView: View {
     @State private var hasDue = false
     @State private var dueAt = Date()
 
-    @State private var contacts: [CRMContact] = []
-    @State private var isContactsLoading = false
     @State private var selectedContactId: UUID?
+    @State private var isContactPickerPresented = false
 
     private let service = CRMTasksService()
-    private let crmService = CRMService()
 
     var body: some View {
         EMScreen {
@@ -66,24 +64,20 @@ struct CRMTaskEditView: View {
 
                             Spacer()
 
-                            if isContactsLoading {
-                                ProgressView().controlSize(.small)
-                            }
-
-                            Menu {
-                                Button("不指定") { selectedContactId = nil }
-                                Divider()
-                                ForEach(contacts) { c in
-                                    Button(contactDisplayName(c)) {
-                                        selectedContactId = c.id
-                                    }
-                                }
+                            Button {
+                                isContactPickerPresented = true
                             } label: {
-                                Text(selectedContactLabel)
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                                    .lineLimit(1)
+                                HStack(spacing: 6) {
+                                    Text(selectedContactLabel)
+                                        .font(.subheadline)
+                                        .foregroundStyle(EMTheme.ink2)
+                                        .lineLimit(1)
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.footnote)
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
                             }
+                            .buttonStyle(.plain)
                         }
 
                         Toggle(isOn: $hasDue) {
@@ -128,10 +122,21 @@ struct CRMTaskEditView: View {
                 selectedContactId = contactId
             }
             await loadIfNeeded()
-            await loadContactsIfNeeded()
         }
         .onTapGesture {
             hideKeyboard()
+        }
+        .sheet(isPresented: $isContactPickerPresented) {
+            NavigationStack {
+                CRMTaskContactPickerView(selectedContactId: selectedContactId) { result in
+                    switch result {
+                    case .none:
+                        selectedContactId = nil
+                    case let .contact(id):
+                        selectedContactId = id
+                    }
+                }
+            }
         }
     }
 
@@ -158,37 +163,9 @@ struct CRMTaskEditView: View {
         }
     }
 
-    private func loadContactsIfNeeded() async {
-        if isContactsLoading { return }
-        if !contacts.isEmpty { return }
-
-        isContactsLoading = true
-        defer { isContactsLoading = false }
-
-        do {
-            // MVP: load all contacts; later we can add search/paging.
-            contacts = try await crmService.listContacts()
-        } catch {
-            // Non-blocking: task can still be saved without specifying a customer.
-        }
-    }
-
     private var selectedContactLabel: String {
-        guard let selectedContactId else { return "不指定" }
-        if let c = contacts.first(where: { $0.id == selectedContactId }) {
-            return contactDisplayName(c)
-        }
+        guard selectedContactId != nil else { return "不指定" }
         return "已指定"
-    }
-
-    private func contactDisplayName(_ c: CRMContact) -> String {
-        let n = c.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !n.isEmpty { return n }
-        let e = c.email.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !e.isEmpty { return e }
-        let p = c.phone.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !p.isEmpty { return p }
-        return "未命名客户"
     }
 
     private func save() async {
