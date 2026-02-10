@@ -19,6 +19,7 @@ struct CRMContactsListView: View {
 
     @State private var showFilterSheet = false
     @State private var filter = ContactsFilter()
+    @State private var participatedContactIds: Set<UUID>? = nil
 
     @State private var showDeleteConfirm = false
     @State private var showBulkEditSheet = false
@@ -28,12 +29,31 @@ struct CRMContactsListView: View {
     struct ContactsFilter: Equatable {
         var stage: CRMContactStage? = nil
         var source: CRMContactSource? = nil
+
+        /// created_at range (inclusive)
+        var createdFrom: Date? = nil
+        var createdTo: Date? = nil
+
+        /// event participation filter
+        var participatedEventId: UUID? = nil
+
         var mustHaveEmail: Bool = false
         var mustHavePhone: Bool = false
+
+        /// tag filters
         var tagContains: String = ""
+        var selectedTags: Set<String> = []
 
         var isActive: Bool {
-            stage != nil || source != nil || mustHaveEmail || mustHavePhone || !tagContains.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            stage != nil ||
+            source != nil ||
+            createdFrom != nil ||
+            createdTo != nil ||
+            participatedEventId != nil ||
+            mustHaveEmail ||
+            mustHavePhone ||
+            !tagContains.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !selectedTags.isEmpty
         }
     }
 
@@ -168,7 +188,9 @@ struct CRMContactsListView: View {
             await reload()
         }
         .sheet(isPresented: $showFilterSheet) {
-            CRMContactsFilterSheet(filter: $filter)
+            CRMContactsFilterSheet(filter: $filter, allTags: allTags) { selectedEventId in
+                Task { await updateParticipatedContactIds(for: selectedEventId) }
+            }
         }
         .confirmationDialog(
             "删除客户",
@@ -204,8 +226,23 @@ struct CRMContactsListView: View {
         return contacts.filter { c in
             if let stage = filter.stage, c.stage != stage { return false }
             if let source = filter.source, c.source != source { return false }
+
+            if let from = filter.createdFrom, c.createdAt < from.startOfDay { return false }
+            if let to = filter.createdTo, c.createdAt > to.endOfDay { return false }
+
+            if filter.participatedEventId != nil {
+                guard let set = participatedContactIds else { return false }
+                if !set.contains(c.id) { return false }
+            }
+
             if filter.mustHaveEmail, c.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
             if filter.mustHavePhone, c.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+
+            if !filter.selectedTags.isEmpty {
+                let tags = Set(c.tags ?? [])
+                if tags.isDisjoint(with: filter.selectedTags) { return false }
+            }
+
             if !tagQ.isEmpty {
                 let tags = (c.tags ?? []).joined(separator: " ")
                 if !tags.localizedCaseInsensitiveContains(tagQ) { return false }
@@ -215,6 +252,11 @@ struct CRMContactsListView: View {
             let hay = [c.fullName, c.phone, c.email, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
             return hay.localizedCaseInsensitiveContains(q)
         }
+    }
+
+    private var allTags: [String] {
+        let set = Set(contacts.flatMap { $0.tags ?? [] })
+        return set.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     private var bulkActionBar: some View {
@@ -340,6 +382,22 @@ struct CRMContactsListView: View {
         }
     }
 
+    private func updateParticipatedContactIds(for eventId: UUID?) async {
+        participatedContactIds = nil
+        filter.participatedEventId = eventId
+        guard let eventId else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+
+        do {
+            participatedContactIds = try await service.listContactIdsParticipated(eventId: eventId)
+        } catch {
+            errorMessage = "加载活动参与数据失败：\(error.localizedDescription)"
+        }
+    }
+
     private func reload() async {
         hideKeyboard()
         isLoading = true
@@ -348,6 +406,9 @@ struct CRMContactsListView: View {
 
         do {
             contacts = try await service.listContacts()
+            if let eventId = filter.participatedEventId {
+                participatedContactIds = try await service.listContactIdsParticipated(eventId: eventId)
+            }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
@@ -357,11 +418,90 @@ struct CRMContactsListView: View {
 private struct CRMContactsFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var filter: CRMContactsListView.ContactsFilter
+    let allTags: [String]
+    let onChangeParticipatedEvent: (_ eventId: UUID?) -> Void
+
+    @State private var showEventPicker = false
 
     var body: some View {
         NavigationStack {
             EMScreen {
                 List {
+                    Section("添加时间") {
+                        DatePicker(
+                            "开始日期",
+                            selection: Binding(get: {
+                                filter.createdFrom ?? Date()
+                            }, set: { v in
+                                filter.createdFrom = v
+                            }),
+                            displayedComponents: .date
+                        )
+                        .opacity(filter.createdFrom == nil ? 0.45 : 1)
+
+                        Button(filter.createdFrom == nil ? "设置开始日期" : "清除开始日期") {
+                            if filter.createdFrom == nil {
+                                filter.createdFrom = Date()
+                            } else {
+                                filter.createdFrom = nil
+                            }
+                        }
+                        .foregroundStyle(EMTheme.ink2)
+
+                        DatePicker(
+                            "结束日期",
+                            selection: Binding(get: {
+                                filter.createdTo ?? Date()
+                            }, set: { v in
+                                filter.createdTo = v
+                            }),
+                            displayedComponents: .date
+                        )
+                        .opacity(filter.createdTo == nil ? 0.45 : 1)
+
+                        Button(filter.createdTo == nil ? "设置结束日期" : "清除结束日期") {
+                            if filter.createdTo == nil {
+                                filter.createdTo = Date()
+                            } else {
+                                filter.createdTo = nil
+                            }
+                        }
+                        .foregroundStyle(EMTheme.ink2)
+
+                        Button("最近 7 天") {
+                            filter.createdFrom = Calendar.current.date(byAdding: .day, value: -7, to: Date())
+                            filter.createdTo = Date()
+                        }
+                        .foregroundStyle(EMTheme.ink2)
+
+                        Button("最近 30 天") {
+                            filter.createdFrom = Calendar.current.date(byAdding: .day, value: -30, to: Date())
+                            filter.createdTo = Date()
+                        }
+                        .foregroundStyle(EMTheme.ink2)
+                    }
+
+                    Section("参与的活动") {
+                        Button {
+                            showEventPicker = true
+                        } label: {
+                            HStack {
+                                Text("活动")
+                                Spacer()
+                                Text(filter.participatedEventId == nil ? "不限制" : "已选择")
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                        }
+
+                        if filter.participatedEventId != nil {
+                            Button("清除活动筛选") {
+                                filter.participatedEventId = nil
+                                onChangeParticipatedEvent(nil)
+                            }
+                            .foregroundStyle(EMTheme.ink2)
+                        }
+                    }
+
                     Section("阶段") {
                         Picker("阶段", selection: Binding(get: {
                             filter.stage ?? CRMContactStage.newLead
@@ -392,10 +532,7 @@ private struct CRMContactsFilterSheet: View {
                             .foregroundStyle(EMTheme.ink2)
                     }
 
-                    Section("条件") {
-                        Toggle("必须有邮箱", isOn: $filter.mustHaveEmail)
-                        Toggle("必须有电话", isOn: $filter.mustHavePhone)
-
+                    Section("标签") {
                         HStack {
                             Text("标签包含")
                             Spacer()
@@ -404,11 +541,30 @@ private struct CRMContactsFilterSheet: View {
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
                         }
+
+                        if !allTags.isEmpty {
+                            NavigationLink {
+                                CRMContactsTagsPickerView(allTags: allTags, selected: $filter.selectedTags)
+                            } label: {
+                                HStack {
+                                    Text("选择标签")
+                                    Spacer()
+                                    Text(filter.selectedTags.isEmpty ? "不限" : "已选 \(filter.selectedTags.count)")
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+                            }
+                        }
+                    }
+
+                    Section("条件") {
+                        Toggle("必须有邮箱", isOn: $filter.mustHaveEmail)
+                        Toggle("必须有电话", isOn: $filter.mustHavePhone)
                     }
 
                     Section {
                         Button("清空所有筛选") {
                             filter = .init()
+                            onChangeParticipatedEvent(nil)
                         }
                         .foregroundStyle(.red)
                     }
@@ -423,7 +579,56 @@ private struct CRMContactsFilterSheet: View {
                     Button("完成") { dismiss() }
                 }
             }
+            .sheet(isPresented: $showEventPicker) {
+                CRMContactsEventPickerView(currentEventId: filter.participatedEventId) { ev in
+                    filter.participatedEventId = ev?.id
+                    onChangeParticipatedEvent(ev?.id)
+                }
+            }
         }
+    }
+}
+
+private struct CRMContactsTagsPickerView: View {
+    let allTags: [String]
+    @Binding var selected: Set<String>
+
+    var body: some View {
+        List {
+            ForEach(allTags, id: \.self) { t in
+                Button {
+                    if selected.contains(t) {
+                        selected.remove(t)
+                    } else {
+                        selected.insert(t)
+                    }
+                } label: {
+                    HStack {
+                        Text(t)
+                        Spacer()
+                        if selected.contains(t) {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(EMTheme.accent)
+                        }
+                    }
+                }
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .background(EMTheme.paper)
+        .navigationTitle("选择标签")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private extension Date {
+    var startOfDay: Date {
+        Calendar.current.startOfDay(for: self)
+    }
+
+    var endOfDay: Date {
+        let start = Calendar.current.startOfDay(for: self)
+        return Calendar.current.date(byAdding: .day, value: 1, to: start)?.addingTimeInterval(-1) ?? self
     }
 }
 

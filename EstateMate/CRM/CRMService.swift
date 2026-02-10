@@ -133,4 +133,22 @@ final class CRMService {
             .eq("id", value: id.uuidString)
             .execute()
     }
+
+    /// Returns contact ids that participated in a given OpenHouse event.
+    /// Uses openhouse_submissions.contact_id where event_id matches.
+    func listContactIdsParticipated(eventId: UUID) async throws -> Set<UUID> {
+        struct Row: Decodable {
+            let contactId: UUID?
+            enum CodingKeys: String, CodingKey { case contactId = "contact_id" }
+        }
+
+        let rows: [Row] = try await client
+            .from("openhouse_submissions")
+            .select("contact_id")
+            .eq("event_id", value: eventId.uuidString)
+            .execute()
+            .value
+
+        return Set(rows.compactMap { $0.contactId })
+    }
 }
