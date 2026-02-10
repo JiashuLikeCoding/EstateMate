@@ -74,7 +74,6 @@ final class FormBuilderState: ObservableObject {
 
     func cancelDraft() {
         draftField = nil
-        editingFieldKey = nil
     }
 
     func startDraft(presetLabel: String?, presetKey: String?, type: FormFieldType, required: Bool) {
@@ -175,20 +174,9 @@ final class FormBuilderState: ObservableObject {
 
     func confirmDraft() {
         guard let draftField else { return }
-
-        if let editingKey = editingFieldKey,
-           let idx = fields.firstIndex(where: { $0.key == editingKey }) {
-            // Update existing
-            fields[idx] = draftField
-            selectedFieldKey = draftField.key
-        } else {
-            // Add new
-            fields.append(draftField)
-            selectedFieldKey = draftField.key
-        }
-
+        fields.append(draftField)
+        selectedFieldKey = draftField.key
         self.draftField = nil
-        self.editingFieldKey = nil
     }
 
     func deleteSelectedIfPossible() {
@@ -328,26 +316,18 @@ private struct FormBuilderSplitView: View {
 
     private func paletteCard(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
-            if state.selectedFieldKey != nil {
-                state.updateSelectedFieldType(to: type)
-            } else {
-                state.startDraft(type: type)
-            }
+            state.startDraft(type: type)
         } label: {
-            paletteCardBody(title: title, subtitle: state.selectedFieldKey != nil ? "点击更新" : "点击添加", systemImage: systemImage)
+            paletteCardBody(title: title, subtitle: "点击添加", systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
 
     private func palettePresetCard(title: String, subtitle: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         Button {
-            if state.selectedFieldKey != nil {
-                state.updateSelectedFieldType(to: type, presetLabel: title)
-            } else {
-                state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
-            }
+            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
         } label: {
-            paletteCardBody(title: title, subtitle: state.selectedFieldKey != nil ? "点击更新" : subtitle, systemImage: systemImage)
+            paletteCardBody(title: title, subtitle: subtitle, systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
@@ -472,12 +452,8 @@ private struct FormBuilderDrawerView: View {
                     }
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
-                            Button(mode == .properties ? "返回" : "关闭") {
-                                if mode == .properties {
-                                    mode = .palette
-                                } else {
-                                    isSheetPresented = false
-                                }
+                            Button("关闭") {
+                                isSheetPresented = false
                             }
                             .foregroundStyle(EMTheme.ink2)
                         }
@@ -519,35 +495,27 @@ private struct FormBuilderDrawerView: View {
 
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
         return Button {
-            if state.selectedFieldKey != nil {
-                state.updateSelectedFieldType(to: type)
-            } else {
-                state.startDraft(type: type)
-            }
+            state.startDraft(type: type)
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage, isUpdating: state.selectedFieldKey != nil)
+            paletteRowBody(title: title, systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
 
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         return Button {
-            if state.selectedFieldKey != nil {
-                state.updateSelectedFieldType(to: type, presetLabel: title)
-            } else {
-                state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
-            }
+            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage, isUpdating: state.selectedFieldKey != nil)
+            paletteRowBody(title: title, systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
 
-    private func paletteRowBody(title: String, systemImage: String, isUpdating: Bool) -> some View {
+    private func paletteRowBody(title: String, systemImage: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .frame(width: 28)
@@ -557,21 +525,8 @@ private struct FormBuilderDrawerView: View {
                 .foregroundStyle(EMTheme.ink)
             Spacer()
 
-            if isUpdating {
-                Text("更新")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(EMTheme.accent)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 999, style: .continuous)
-                            .fill(EMTheme.accent.opacity(0.12))
-                    )
-            } else {
-                Text("添加")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(EMTheme.accent)
-            }
+            Image(systemName: "plus.circle.fill")
+                .foregroundStyle(EMTheme.accent)
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())

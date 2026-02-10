@@ -57,7 +57,7 @@ struct FormBuilderPropertiesView: View {
 
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                EMSectionHeader(state.editingFieldKey == nil ? "新增字段" : "更新字段", subtitle: state.editingFieldKey == nil ? "设置完成后选择“添加”或“取消”" : "设置完成后选择“更新”或“取消”")
+                EMSectionHeader("新增字段", subtitle: "设置完成后选择“添加”或“取消”")
 
                 fieldCard(binding: binding)
 
@@ -79,25 +79,9 @@ struct FormBuilderPropertiesView: View {
                         state.confirmDraft()
                         if let onDone { onDone() } else { dismiss() }
                     } label: {
-                        Text(state.editingFieldKey == nil ? "添加" : "更新")
+                        Text("添加")
                     }
                     .buttonStyle(EMPrimaryButtonStyle(disabled: false))
-                }
-
-                if state.editingFieldKey != nil {
-                    Button {
-                        state.deleteSelectedIfPossible()
-                        if let onDeleteClose {
-                            onDeleteClose()
-                        } else if let onDone {
-                            onDone()
-                        } else {
-                            dismiss()
-                        }
-                    } label: {
-                        Text("删除字段")
-                    }
-                    .buttonStyle(EMDangerButtonStyle())
                 }
 
                 Spacer(minLength: 20)
