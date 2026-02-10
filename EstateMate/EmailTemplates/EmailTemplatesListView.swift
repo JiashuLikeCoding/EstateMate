@@ -114,7 +114,9 @@ struct EmailTemplatesListView: View {
                 Button("新增") { isCreatePresented = true }
             }
         }
-        .sheet(isPresented: $isCreatePresented) {
+        .sheet(isPresented: $isCreatePresented, onDismiss: {
+            Task { await reload() }
+        }) {
             NavigationStack {
                 EmailTemplateEditView(mode: .create(workspace: workspace))
             }
@@ -124,6 +126,10 @@ struct EmailTemplatesListView: View {
         }
         .refreshable {
             await reload()
+        }
+        .onAppear {
+            // When returning from edit view (NavigationLink), refresh list.
+            Task { await reload() }
         }
         .onTapGesture {
             hideKeyboard()
