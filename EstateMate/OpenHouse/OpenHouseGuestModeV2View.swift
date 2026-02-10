@@ -316,7 +316,7 @@ struct OpenHouseGuestModeV2View: View {
                 }
             }
 
-            _ = try await service.createSubmission(eventId: eventId, eventTitle: nil, form: form, data: payload)
+            _ = try await service.createSubmission(eventId: eventId, eventTitle: nil, eventLocation: nil, form: form, data: payload)
             submittedCount += 1
             values = [:]
             boolValues = [:]

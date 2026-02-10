@@ -228,6 +228,7 @@ final class DynamicFormService {
         eventId: UUID,
         formId: UUID? = nil,
         eventTitle: String? = nil,
+        eventLocation: String? = nil,
         form: FormRecord? = nil,
         data: [String: AnyJSON]
     ) async throws -> SubmissionV2 {
@@ -242,7 +243,14 @@ final class DynamicFormService {
 
         // Auto-add to CRM (best effort; never block submission).
         Task { [weak self] in
-            await self?.bestEffortUpsertCRMContact(submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+            await self?.bestEffortUpsertCRMContact(
+                eventId: eventId,
+                submissionId: created.id,
+                eventTitle: eventTitle,
+                eventLocation: eventLocation,
+                form: form,
+                data: data
+            )
         }
 
         // Auto-send email (best effort; never block submission).
@@ -253,9 +261,84 @@ final class DynamicFormService {
         return created
     }
 
-    private func bestEffortUpsertCRMContact(
+    func getEvent(id: UUID) async throws -> OpenHouseEventV2 {
+        try await client
+            .from("openhouse_events")
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
+
+    private func buildSubmissionNoteBlock(
         submissionId: UUID,
         eventTitle: String?,
+        eventLocation: String?,
+        form: FormRecord?,
+        data: [String: AnyJSON]
+    ) -> String {
+        let title = (eventTitle?.isEmpty == false) ? eventTitle! : "开放日"
+        var lines: [String] = []
+        lines.append("【开放日】\(title)")
+
+        if let loc = eventLocation, !loc.isEmpty {
+            lines.append("地址：\(loc)")
+        }
+
+        // Keep a tiny id so repeated submissions don't collapse into one.
+        lines.append("记录ID：\(submissionId.uuidString.prefix(8))")
+
+        if let fields = form?.schema.fields {
+            for f in fields {
+                // Decoration fields are display-only.
+                if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider || f.type == .splice {
+                    continue
+                }
+
+                let value: String = {
+                    switch f.type {
+                    case .checkbox:
+                        let b = data[f.key]?.boolValue ?? false
+                        return b ? "是" : "否"
+                    case .multiSelect:
+                        let arr = (data[f.key]?.arrayValue ?? []).compactMap { $0.stringValue }.filter { !$0.isEmpty }
+                        return arr.joined(separator: "、")
+                    case .name:
+                        let keys = f.nameKeys ?? [f.key]
+                        let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                        return parts.joined(separator: " ")
+                    case .phone:
+                        var keys: [String] = []
+                        if let phoneKeys = f.phoneKeys { keys.append(contentsOf: phoneKeys) }
+                        keys.append(f.key)
+                        let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                        return parts.joined(separator: " ")
+                    default:
+                        return (data[f.key]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    }
+                }()
+
+                if value.isEmpty { continue }
+                lines.append("- \(f.label)：\(value)")
+            }
+        } else {
+            // No schema: write a minimal payload.
+            for (k, v) in data {
+                if let s = v.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
+                    lines.append("- \(k)：\(s)")
+                }
+            }
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func bestEffortUpsertCRMContact(
+        eventId: UUID,
+        submissionId: UUID,
+        eventTitle: String?,
+        eventLocation: String?,
         form: FormRecord?,
         data: [String: AnyJSON]
     ) async {
@@ -269,18 +352,32 @@ final class DynamicFormService {
 
             let service = CRMService()
 
-            let baseNote = (eventTitle?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
-            let prefix = baseNote == nil ? "来自开放日提交" : "来自开放日：\(baseNote!)"
+            // If title/location not passed (e.g. kiosk mode), fetch from DB.
+            var resolvedEvent: OpenHouseEventV2?
+            if eventTitle == nil && eventLocation == nil {
+                resolvedEvent = try? await self.getEvent(id: eventId)
+            } else {
+                resolvedEvent = nil
+            }
 
-            let mergedNotes = [prefix, extracted.notes].joined(separator: extracted.notes.isEmpty ? "" : "\n")
+            let title = (eventTitle ?? resolvedEvent?.title)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let location = (eventLocation ?? resolvedEvent?.location)?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let noteBlock = buildSubmissionNoteBlock(
+                submissionId: submissionId,
+                eventTitle: title,
+                eventLocation: location,
+                form: form,
+                data: data
+            )
 
             let contact = try await service.createOrMergeContact(
                 CRMContactInsert(
                     fullName: extracted.fullName,
                     phone: extracted.phone,
                     email: extracted.email,
-                    notes: mergedNotes,
-                    address: "",
+                    notes: [noteBlock, extracted.notes].joined(separator: extracted.notes.isEmpty ? "" : "\n"),
+                    address: location ?? "",
                     tags: extracted.tags,
                     stage: .newLead,
                     source: .openHouse,

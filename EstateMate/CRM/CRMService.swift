@@ -37,6 +37,55 @@ final class CRMService {
         let email = insert.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let phone = insert.phone.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        func mergedAddress(existing: String, incoming: String) -> String {
+            let a = existing
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            let b = incoming
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            if a.isEmpty { return b.joined(separator: "\n") }
+            if b.isEmpty { return a.joined(separator: "\n") }
+
+            var seen = Set<String>()
+            var out: [String] = []
+            for item in (a + b) {
+                let key = item.lowercased()
+                if seen.contains(key) { continue }
+                seen.insert(key)
+                out.append(item)
+            }
+            return out.joined(separator: "\n")
+        }
+
+        func mergedNotes(existing: String, incoming: String) -> String {
+            let e = existing.trimmingCharacters(in: .whitespacesAndNewlines)
+            let i = incoming.trimmingCharacters(in: .whitespacesAndNewlines)
+            if e.isEmpty { return i }
+            if i.isEmpty { return e }
+            if e.contains(i) { return e }
+            return e + "\n\n" + i
+        }
+
+        func mergedTags(existing: [String]?, incoming: [String]?) -> [String]? {
+            let a = existing ?? []
+            let b = incoming ?? []
+            if a.isEmpty && b.isEmpty { return nil }
+            var seen = Set<String>()
+            var out: [String] = []
+            for t in (a + b) {
+                let key = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !key.isEmpty else { continue }
+                if seen.contains(key.lowercased()) { continue }
+                seen.insert(key.lowercased())
+                out.append(key)
+            }
+            return out.isEmpty ? nil : out
+        }
+
         if !email.isEmpty {
             if let existing = try await findContactByEmail(email) {
                 return try await updateContact(
@@ -45,9 +94,9 @@ final class CRMService {
                         fullName: insert.fullName,
                         phone: phone.isEmpty ? nil : phone,
                         email: email,
-                        notes: insert.notes,
-                        address: insert.address,
-                        tags: insert.tags,
+                        notes: mergedNotes(existing: existing.notes, incoming: insert.notes),
+                        address: mergedAddress(existing: existing.address, incoming: insert.address),
+                        tags: mergedTags(existing: existing.tags, incoming: insert.tags),
                         stage: insert.stage,
                         source: insert.source,
                         lastContactedAt: insert.lastContactedAt
@@ -64,9 +113,9 @@ final class CRMService {
                         fullName: insert.fullName,
                         phone: phone,
                         email: email.isEmpty ? nil : email,
-                        notes: insert.notes,
-                        address: insert.address,
-                        tags: insert.tags,
+                        notes: mergedNotes(existing: existing.notes, incoming: insert.notes),
+                        address: mergedAddress(existing: existing.address, incoming: insert.address),
+                        tags: mergedTags(existing: existing.tags, incoming: insert.tags),
                         stage: insert.stage,
                         source: insert.source,
                         lastContactedAt: insert.lastContactedAt
@@ -106,9 +155,9 @@ final class CRMService {
                             fullName: insert.fullName,
                             phone: phone.isEmpty ? nil : phone,
                             email: email,
-                            notes: insert.notes,
-                            address: insert.address,
-                            tags: insert.tags,
+                            notes: mergedNotes(existing: existing.notes, incoming: insert.notes),
+                            address: mergedAddress(existing: existing.address, incoming: insert.address),
+                            tags: mergedTags(existing: existing.tags, incoming: insert.tags),
                             stage: insert.stage,
                             source: insert.source,
                             lastContactedAt: insert.lastContactedAt
@@ -122,9 +171,9 @@ final class CRMService {
                             fullName: insert.fullName,
                             phone: phone,
                             email: email.isEmpty ? nil : email,
-                            notes: insert.notes,
-                            address: insert.address,
-                            tags: insert.tags,
+                            notes: mergedNotes(existing: existing.notes, incoming: insert.notes),
+                            address: mergedAddress(existing: existing.address, incoming: insert.address),
+                            tags: mergedTags(existing: existing.tags, incoming: insert.tags),
                             stage: insert.stage,
                             source: insert.source,
                             lastContactedAt: insert.lastContactedAt

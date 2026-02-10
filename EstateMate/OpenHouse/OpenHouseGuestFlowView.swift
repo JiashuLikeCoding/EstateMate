@@ -908,6 +908,7 @@ struct OpenHouseKioskFillView: View {
                 eventId: eventId,
                 formId: event.formId,
                 eventTitle: event.title,
+                eventLocation: event.location,
                 form: form,
                 data: payload
             )
