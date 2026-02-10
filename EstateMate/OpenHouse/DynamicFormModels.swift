@@ -341,6 +341,8 @@ struct SubmissionV2: Codable, Identifiable, Hashable {
     let eventId: UUID
     /// Snapshot of which form template was used when submitting.
     let formId: UUID?
+    /// Optional link to CRM contact (best-effort; may be nil for legacy submissions).
+    let contactId: UUID?
     let ownerId: UUID?
     let data: [String: AnyJSON]
     let tags: [String]?
@@ -351,6 +353,7 @@ struct SubmissionV2: Codable, Identifiable, Hashable {
         case id
         case eventId = "event_id"
         case formId = "form_id"
+        case contactId = "contact_id"
         case ownerId = "owner_id"
         case data
         case tags

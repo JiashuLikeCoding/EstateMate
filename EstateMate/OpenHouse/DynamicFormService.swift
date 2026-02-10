@@ -235,13 +235,13 @@ final class DynamicFormService {
             .value
 
         // Auto-add to CRM (best effort; never block submission).
-        await bestEffortUpsertCRMContact(eventId: eventId, eventTitle: eventTitle, form: form, data: data)
+        await bestEffortUpsertCRMContact(submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
 
         return created
     }
 
     private func bestEffortUpsertCRMContact(
-        eventId: UUID,
+        submissionId: UUID,
         eventTitle: String?,
         form: FormRecord?,
         data: [String: AnyJSON]
@@ -261,7 +261,7 @@ final class DynamicFormService {
 
             let mergedNotes = [prefix, extracted.notes].joined(separator: extracted.notes.isEmpty ? "" : "\n")
 
-            _ = try await service.createOrMergeContact(
+            let contact = try await service.createOrMergeContact(
                 CRMContactInsert(
                     fullName: extracted.fullName,
                     phone: extracted.phone,
@@ -273,6 +273,13 @@ final class DynamicFormService {
                     lastContactedAt: nil
                 )
             )
+
+            // Best-effort back-link: mark the submission with contact_id for faster future queries.
+            _ = try? await client
+                .from("openhouse_submissions")
+                .update(["contact_id": contact.id.uuidString])
+                .eq("id", value: submissionId.uuidString)
+                .execute()
         } catch {
             // no-op
         }
@@ -357,6 +364,16 @@ final class DynamicFormService {
             .from("openhouse_submissions")
             .select()
             .eq("event_id", value: eventId.uuidString)
+            .order("created_at", ascending: false)
+            .execute()
+            .value
+    }
+
+    func listSubmissions(contactId: UUID) async throws -> [SubmissionV2] {
+        try await client
+            .from("openhouse_submissions")
+            .select()
+            .eq("contact_id", value: contactId.uuidString)
             .order("created_at", ascending: false)
             .execute()
             .value

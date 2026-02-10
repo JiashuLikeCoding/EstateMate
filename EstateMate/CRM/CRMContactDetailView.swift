@@ -67,6 +67,42 @@ struct CRMContactDetailView: View {
                                 }
                             }
                         }
+
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                NavigationLink {
+                                    CRMContactActivitiesView(contactId: contactId)
+                                } label: {
+                                    HStack {
+                                        Text("参与的活动")
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(EMTheme.ink)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.footnote.weight(.semibold))
+                                            .foregroundStyle(EMTheme.ink2.opacity(0.7))
+                                    }
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider().overlay(EMTheme.line)
+
+                                NavigationLink {
+                                    CRMEmailLogsView(contactId: contactId)
+                                } label: {
+                                    HStack {
+                                        Text("来往的邮件")
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(EMTheme.ink)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.footnote.weight(.semibold))
+                                            .foregroundStyle(EMTheme.ink2.opacity(0.7))
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
 
                     Spacer(minLength: 20)
