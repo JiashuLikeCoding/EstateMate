@@ -395,6 +395,14 @@ struct FormPreviewView: View {
 
     private func canSubmit() -> Bool {
         for f in fields where f.required {
+            // Decoration / layout fields should NEVER block submission, even if old schemas accidentally set required=true.
+            switch f.type {
+            case .sectionTitle, .sectionSubtitle, .divider, .splice:
+                continue
+            default:
+                break
+            }
+
             switch f.type {
             case .checkbox:
                 if boolValues[f.key, default: false] == false { return false }
