@@ -199,6 +199,11 @@ struct EmailTemplateEditView: View {
 
                             EMTextField(title: "要填写的内容", text: $newVarLabel, prompt: "例如：客户姓名 / 活动地址 / 经纪人姓名" )
 
+                            Text("说明：这是预览时要让你填写的内容提示（会用在预览页输入框标题）。")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, -4)
+
                             Button {
                                 addVariable()
                             } label: {
