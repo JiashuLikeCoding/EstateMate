@@ -403,7 +403,11 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
 
 Deno.serve(async (req) => {
   try {
-    const { user, token } = await requireUser(req)
+    const authHeader = req.headers.get("Authorization") ?? ""
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : ""
+
+    const { user, errorResponse } = await requireUser(req)
+    if (errorResponse || !user) return errorResponse!
 
     const body = await req.json().catch(() => null)
     if (!body) return badRequest("缺少 JSON body")
