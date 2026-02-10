@@ -457,6 +457,21 @@ struct FormBuilderCanvasView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
+                if isSelected {
+                    HStack(spacing: 8) {
+                        Text("双击编辑")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(EMTheme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 999, style: .continuous)
+                                    .fill(EMTheme.accent.opacity(0.10))
+                            )
+                        Spacer(minLength: 0)
+                    }
+                }
+
                 switch f.type {
                 case .divider:
                     HStack(spacing: 10) {
