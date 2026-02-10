@@ -200,7 +200,7 @@ struct FormBuilderCanvasView: View {
                 if let msg = state.errorMessage {
                     Text(msg)
                         .font(.callout)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(messageColor(for: msg))
                 }
 
                 EMCard {
@@ -610,6 +610,16 @@ struct FormBuilderCanvasView: View {
             }
         )
         .contentShape(Rectangle())
+    }
+
+    private func messageColor(for msg: String) -> Color {
+        // We reuse `state.errorMessage` for both errors and short-lived UX hints.
+        // Only true errors should be red; hints/normalization notices should be neutral.
+        let isHint = msg.hasPrefix("已选中")
+            || msg.hasPrefix("已将拼接放到可生效的位置")
+            || msg.hasPrefix("已自动修复表单中的拼接结构")
+
+        return isHint ? EMTheme.ink2 : .red
     }
 
     private func previewPlaceholder(for f: FormField) -> String {
