@@ -31,15 +31,12 @@ struct CRMEmailLogsView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("来往的邮件", subtitle: "已支持从 Gmail 拉取最近往来（MVP：只展示，不落库）")
+                    EMSectionHeader("来往的邮件")
 
                     if let email = contact?.email, !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         EMCard {
                             VStack(alignment: .leading, spacing: 10) {
                                 HStack {
-                                    Text("Gmail 往来")
-                                        .font(.headline)
-                                        .foregroundStyle(EMTheme.ink)
                                     Spacer()
                                     if isGmailLoading { ProgressView().controlSize(.small) }
                                 }
