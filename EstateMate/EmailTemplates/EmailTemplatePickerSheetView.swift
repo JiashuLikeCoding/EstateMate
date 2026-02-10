@@ -11,7 +11,23 @@ struct EmailTemplatePickerSheetView: View {
     let templates: [EmailTemplateRecord]
     @Binding var selectedTemplateId: UUID?
 
+    var defaultWorkspace: EstateMateWorkspaceKind = .openhouse
+
     @Environment(\.dismiss) private var dismiss
+
+    @State private var localTemplates: [EmailTemplateRecord]
+    @State private var isRefreshing: Bool = false
+
+    init(
+        templates: [EmailTemplateRecord],
+        selectedTemplateId: Binding<UUID?>,
+        defaultWorkspace: EstateMateWorkspaceKind = .openhouse
+    ) {
+        self.templates = templates
+        self._selectedTemplateId = selectedTemplateId
+        self.defaultWorkspace = defaultWorkspace
+        self._localTemplates = State(initialValue: templates)
+    }
 
     var body: some View {
         EMScreen {
@@ -38,7 +54,34 @@ struct EmailTemplatePickerSheetView: View {
                         .buttonStyle(.plain)
                     }
 
-                    ForEach(templates) { t in
+                    if localTemplates.isEmpty {
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("暂无邮件模版")
+                                    .font(.headline)
+                                    .foregroundStyle(EMTheme.ink)
+
+                                Text("你可以先新增邮件模版，然后回到这里刷新列表再选择绑定。")
+                                    .font(.subheadline)
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                NavigationLink {
+                                    EmailTemplateEditView(mode: .create(workspace: defaultWorkspace))
+                                } label: {
+                                    Text("新增邮件模版")
+                                }
+                                .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+
+                                Button(isRefreshing ? "刷新中..." : "我已创建，刷新列表") {
+                                    Task { await refreshTemplates() }
+                                }
+                                .buttonStyle(EMSecondaryButtonStyle())
+                                .disabled(isRefreshing)
+                            }
+                        }
+                    }
+
+                    ForEach(localTemplates) { t in
                         Button {
                             selectedTemplateId = t.id
                             dismiss()
@@ -88,6 +131,16 @@ struct EmailTemplatePickerSheetView: View {
         .navigationTitle("邮件模版")
         .navigationBarTitleDisplayMode(.inline)
         .onTapGesture { hideKeyboard() }
+    }
+
+    private func refreshTemplates() async {
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            localTemplates = try await EmailTemplateService().listTemplates(workspace: nil)
+        } catch {
+            // keep silent; empty state already guides user
+        }
     }
 }
 

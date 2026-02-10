@@ -172,8 +172,6 @@ struct OpenHouseEventEditView: View {
                                 .padding(.vertical, 10)
                             }
                             .buttonStyle(.plain)
-                            .disabled(templates.isEmpty)
-                            .opacity(templates.isEmpty ? 0.4 : 1)
                             .overlay(alignment: .bottom) {
                                 Divider().overlay(EMTheme.line)
                             }
