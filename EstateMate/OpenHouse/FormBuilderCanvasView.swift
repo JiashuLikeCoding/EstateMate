@@ -366,7 +366,9 @@ struct FormBuilderCanvasView: View {
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
 
-                Spacer(minLength: 20)
+                // Extra bottom space so the last field row is not stuck under the bottom area (safe area / buttons),
+                // especially on iPad portrait where available height is tighter.
+                Spacer(minLength: 140)
             }
             .padding(EMTheme.padding)
         }
