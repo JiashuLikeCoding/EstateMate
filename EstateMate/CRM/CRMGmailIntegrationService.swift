@@ -59,15 +59,28 @@ final class CRMGmailIntegrationService {
             // If we got a 401, try to refresh session once, then retry.
             if let e = error as? FunctionsError {
                 switch e {
-                case let .httpError(code, _):
+                case let .httpError(code, data):
+                    // If we got a 401, try to refresh session once, then retry.
                     if code == 401 {
                         do {
                             _ = try await client.auth.refreshSession()
                             let session = try await client.auth.session
                             return try await invokeOnce(accessToken: session.accessToken)
                         } catch {
-                            throw EMError.message("登录状态已过期或无权限（401）。请先退出登录再重新登录，然后重试连接 Gmail。")
+                            let serverBody = String(data: data, encoding: .utf8) ?? ""
+                            let detail = serverBody.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if detail.isEmpty {
+                                throw EMError.message("登录状态已过期或无权限（401）。请先退出登录再重新登录，然后重试连接 Gmail。")
+                            } else {
+                                throw EMError.message("登录状态已过期或无权限（401）。\n\n服务器返回：\n\(detail)")
+                            }
                         }
+                    }
+
+                    // Bubble up server body for easier debugging (non-401).
+                    let serverBody = String(data: data, encoding: .utf8) ?? ""
+                    if !serverBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        throw EMError.message("请求失败（\(code)）。\n\n服务器返回：\n\(serverBody)")
                     }
                 default:
                     break
