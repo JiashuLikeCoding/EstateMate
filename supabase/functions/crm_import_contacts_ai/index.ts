@@ -26,6 +26,15 @@ type ContactPatch = {
   source?: string
 }
 
+function createdAtFromSourceTime(sourceTime: string | null | undefined): string | null {
+  const s = normalizeString(sourceTime)
+  if (!s) return null
+  // We normalize source_time to YYYY-MM-DD (date-only). Store as UTC start-of-day.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00.000Z`
+  // If it's already ISO-ish, just trust it.
+  return s
+}
+
 type RowResult = {
   rowIndex: number
   action: "upsert" | "skip"
@@ -494,22 +503,46 @@ Deno.serve(async (req) => {
         continue
       }
 
-      const payload: Record<string, Json> = {
+      const basePayload: Record<string, Json> = {
         full_name: normalizeString(p.full_name),
         email: email || null,
         phone: phone || null,
         notes: normalizeString(p.notes),
         tags: Array.isArray(p.tags) ? p.tags : null,
       }
-      if (p.stage) payload.stage = p.stage
-      if (p.source) payload.source = p.source
+      if (p.stage) basePayload.stage = p.stage
+      if (p.source) basePayload.source = p.source
 
-      const { error } = await supabase.from("crm_contacts").upsert(payload, { onConflict })
+      const createdAt = createdAtFromSourceTime(r.source_time)
 
-      if (error) {
-        skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: `写入失败：${error.message}` })
+      // We MUST NOT overwrite created_at for existing contacts.
+      // So we do: check existence -> insert(with created_at) OR update(without created_at).
+      const existing = email
+        ? await supabase.from("crm_contacts").select("id").eq("email", email).maybeSingle()
+        : await supabase.from("crm_contacts").select("id").eq("phone", phone).maybeSingle()
+
+      if (existing.error) {
+        skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: `查询失败：${existing.error.message}` })
+        continue
+      }
+
+      if (existing.data?.id) {
+        const { error } = await supabase.from("crm_contacts").update(basePayload).eq("id", existing.data.id)
+        if (error) {
+          skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: `更新失败：${error.message}` })
+        } else {
+          upserted.push(r)
+        }
       } else {
-        upserted.push(r)
+        const payload: Record<string, Json> = { ...basePayload }
+        if (createdAt) payload.created_at = createdAt
+
+        const { error } = await supabase.from("crm_contacts").insert(payload)
+        if (error) {
+          skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: `写入失败：${error.message}` })
+        } else {
+          upserted.push(r)
+        }
       }
     }
 
