@@ -85,6 +85,15 @@ struct CRMHomeView: View {
                                 row(title: "待办任务", subtitle: "跟进提醒与记录")
                             }
                             .buttonStyle(.plain)
+
+                            Divider().overlay(EMTheme.line)
+
+                            NavigationLink {
+                                EmailTemplatesListView(workspace: .crm)
+                            } label: {
+                                row(title: "邮件模版", subtitle: "创建可复用的邮件内容")
+                            }
+                            .buttonStyle(.plain)
                         }
 
                         Button {
