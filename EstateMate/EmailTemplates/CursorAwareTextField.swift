@@ -31,6 +31,11 @@ struct CursorAwareTextField: UIViewRepresentable {
         tf.autocorrectionType = autocorrectionType
         tf.delegate = context.coordinator
         tf.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged), for: .editingChanged)
+
+        // Allow SwiftUI to constrain width; UITextField's intrinsic content size can otherwise cause horizontal overflow.
+        tf.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        tf.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
         return tf
     }
 
