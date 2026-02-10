@@ -181,6 +181,45 @@ final class FormBuilderState: ObservableObject {
         selectedFieldKey = nil
     }
 
+    /// Update the currently selected field to a new type (used when user is editing an existing field and picks a different type from the palette).
+    func updateSelectedFieldType(to newType: FormFieldType, presetLabel: String? = nil) {
+        guard let key = selectedFieldKey,
+              let idx = fields.firstIndex(where: { $0.key == key })
+        else { return }
+
+        var f = fields[idx]
+        f.type = newType
+
+        // Keep label unless a preset label was provided.
+        if let presetLabel {
+            f.label = presetLabel
+        }
+
+        // Reset type-specific props.
+        f.options = (newType == .select) ? (f.options?.isEmpty == false ? f.options : ["选项 1", "选项 2"]) : nil
+        f.textCase = (newType == .text) ? (f.textCase ?? .none) : nil
+
+        if newType == .name {
+            let format: NameFormat = f.nameFormat ?? .firstLast
+            f.nameFormat = format
+            f.nameKeys = makeUniqueNameKeys(for: format)
+        } else {
+            f.nameFormat = nil
+            f.nameKeys = nil
+        }
+
+        if newType == .phone {
+            let format: PhoneFormat = f.phoneFormat ?? .plain
+            f.phoneFormat = format
+            f.phoneKeys = makeUniquePhoneKeys(for: format)
+        } else {
+            f.phoneFormat = nil
+            f.phoneKeys = nil
+        }
+
+        fields[idx] = f
+    }
+
     func move(from: IndexSet, to: Int) {
         fields.move(fromOffsets: from, toOffset: to)
     }
@@ -271,18 +310,26 @@ private struct FormBuilderSplitView: View {
 
     private func paletteCard(title: String, systemImage: String, type: FormFieldType) -> some View {
         Button {
-            state.startDraft(type: type)
+            if state.selectedFieldKey != nil {
+                state.updateSelectedFieldType(to: type)
+            } else {
+                state.startDraft(type: type)
+            }
         } label: {
-            paletteCardBody(title: title, subtitle: "点击添加", systemImage: systemImage)
+            paletteCardBody(title: title, subtitle: state.selectedFieldKey != nil ? "点击更新" : "点击添加", systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
 
     private func palettePresetCard(title: String, subtitle: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
         Button {
-            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+            if state.selectedFieldKey != nil {
+                state.updateSelectedFieldType(to: type, presetLabel: title)
+            } else {
+                state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+            }
         } label: {
-            paletteCardBody(title: title, subtitle: subtitle, systemImage: systemImage)
+            paletteCardBody(title: title, subtitle: state.selectedFieldKey != nil ? "点击更新" : subtitle, systemImage: systemImage)
         }
         .buttonStyle(.plain)
     }
@@ -450,30 +497,36 @@ private struct FormBuilderDrawerView: View {
     }
 
     private func paletteRow(title: String, systemImage: String, type: FormFieldType) -> some View {
-        let added = state.fields.contains(where: { $0.type == type })
         return Button {
-            state.startDraft(type: type)
+            if state.selectedFieldKey != nil {
+                state.updateSelectedFieldType(to: type)
+            } else {
+                state.startDraft(type: type)
+            }
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage, added: added)
+            paletteRowBody(title: title, systemImage: systemImage, isUpdating: state.selectedFieldKey != nil)
         }
         .buttonStyle(.plain)
     }
 
     private func palettePresetRow(title: String, systemImage: String, presetKey: String, type: FormFieldType, required: Bool) -> some View {
-        let added = state.fields.contains(where: { $0.type == type })
         return Button {
-            state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+            if state.selectedFieldKey != nil {
+                state.updateSelectedFieldType(to: type, presetLabel: title)
+            } else {
+                state.startDraft(presetLabel: title, presetKey: presetKey, type: type, required: required)
+            }
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage, added: added)
+            paletteRowBody(title: title, systemImage: systemImage, isUpdating: state.selectedFieldKey != nil)
         }
         .buttonStyle(.plain)
     }
 
-    private func paletteRowBody(title: String, systemImage: String, added: Bool) -> some View {
+    private func paletteRowBody(title: String, systemImage: String, isUpdating: Bool) -> some View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .frame(width: 28)
@@ -483,11 +536,19 @@ private struct FormBuilderDrawerView: View {
                 .foregroundStyle(EMTheme.ink)
             Spacer()
 
-            if added {
-                Image(systemName: "checkmark.circle.fill")
+            if isUpdating {
+                Text("更新")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(EMTheme.accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 999, style: .continuous)
+                            .fill(EMTheme.accent.opacity(0.12))
+                    )
             } else {
-                Image(systemName: "plus.circle.fill")
+                Text("添加")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(EMTheme.accent)
             }
         }
