@@ -7,7 +7,6 @@ import SwiftUI
 
 struct OpenHouseHomeView: View {
     @EnvironmentObject var sessionStore: SessionStore
-    @Environment(\.dismiss) private var dismiss
 
     private let service = OpenHouseService()
 
@@ -148,7 +147,7 @@ struct OpenHouseHomeView: View {
             .buttonStyle(EMPrimaryButtonStyle(disabled: false))
 
             Button {
-                dismiss()
+                sessionStore.selectedWorkspace = nil
             } label: {
                 Text("返回")
                     .frame(maxWidth: .infinity)
@@ -179,7 +178,7 @@ struct OpenHouseHomeView: View {
             .buttonStyle(EMPrimaryButtonStyle(disabled: false))
 
             Button {
-                dismiss()
+                sessionStore.selectedWorkspace = nil
             } label: {
                 Text("返回")
                     .frame(maxWidth: .infinity)
