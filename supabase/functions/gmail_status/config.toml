@@ -1,0 +1,3 @@
+# Bypass the Edge Functions gateway JWT verifier (which can fail depending on project JWT signing mode).
+# We validate the Supabase session manually inside the function via supabase.auth.getUser(token).
+verify_jwt = false

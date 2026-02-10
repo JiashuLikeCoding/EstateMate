@@ -1,4 +1,4 @@
-import { supabaseServiceClient, supabaseClientForUser } from "../_shared/supabase.ts";
+import { supabaseServiceClient, requireUser } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
   try {
@@ -9,16 +9,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userClient = supabaseClientForUser(req);
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
-    }
+    const { user, errorResponse } = await requireUser(req);
+    if (errorResponse) return errorResponse;
 
-    const userId = userRes.user.id;
+    const userId = user!.id;
 
     const admin = supabaseServiceClient();
     const { error } = await admin.from("gmail_connections").delete().eq("user_id", userId);

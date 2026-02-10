@@ -1,4 +1,4 @@
-import { supabaseServiceClient, supabaseClientForUser } from "../_shared/supabase.ts";
+import { supabaseServiceClient, requireUser } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
   try {
@@ -9,26 +9,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userClient = supabaseClientForUser(req);
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) {
-      // Debug hint (safe): tell whether Authorization header is present.
-      const authHeader = req.headers.get("Authorization") ?? "";
-      return new Response(
-        JSON.stringify({
-          error: "unauthorized",
-          hint: "Edge Function 未识别到有效的 Supabase JWT。",
-          hasAuthHeader: authHeader.length > 0,
-          authHeaderPrefix: authHeader.slice(0, 20),
-        }),
-        {
-          status: 401,
-          headers: { "content-type": "application/json" },
-        },
-      );
-    }
+    const { user, errorResponse } = await requireUser(req);
+    if (errorResponse) return errorResponse;
 
-    const userId = userRes.user.id;
+    const userId = user!.id;
 
     const admin = supabaseServiceClient();
     const { data, error } = await admin

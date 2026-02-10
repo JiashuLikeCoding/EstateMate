@@ -1,0 +1,2 @@
+# Bypass gateway JWT verifier; validate manually in code.
+verify_jwt = false

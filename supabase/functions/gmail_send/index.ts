@@ -1,4 +1,4 @@
-import { supabaseClientForUser, supabaseServiceClient } from "../_shared/supabase.ts";
+import { requireUser, supabaseServiceClient } from "../_shared/supabase.ts";
 
 type SendBody = {
   to: string;
@@ -101,14 +101,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userClient = supabaseClientForUser(req);
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
-    }
+    const { user, errorResponse } = await requireUser(req);
+    if (errorResponse) return errorResponse;
 
     const body = (await req.json()) as Partial<SendBody>;
     const to = (body.to ?? "").trim();
@@ -124,7 +118,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userId = userRes.user.id;
+    const userId = user!.id;
 
     const admin = supabaseServiceClient();
 
@@ -199,9 +193,9 @@ Deno.serve(async (req) => {
     // 3) Refresh access token.
     const token = await googleRefreshAccessToken(conn.refresh_token);
 
-    const fromEmail = conn.email || userRes.user.email || "me";
-    const fromHeader = conn.email ? conn.email : (userRes.user.email ?? "me");
-    const replyTo = userRes.user.email ?? null;
+    const fromEmail = conn.email || user!.email || "me";
+    const fromHeader = conn.email ? conn.email : (user!.email ?? "me");
+    const replyTo = user!.email ?? null;
 
     const rfc822 = buildRfc822Message({
       from: fromHeader,

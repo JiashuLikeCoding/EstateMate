@@ -1,4 +1,4 @@
-import { supabaseServiceClient, supabaseClientForUser } from "../_shared/supabase.ts";
+import { supabaseServiceClient, requireUser } from "../_shared/supabase.ts";
 
 type ExchangeBody = {
   code: string;
@@ -58,14 +58,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userClient = supabaseClientForUser(req);
-    const { data: userRes, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
-    }
+    const { user, errorResponse } = await requireUser(req);
+    if (errorResponse) return errorResponse;
 
     const payload = (await req.json()) as Partial<ExchangeBody>;
     if (!payload.code || !payload.codeVerifier || !payload.redirectUri) {
@@ -92,13 +86,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const email = (await fetchUserEmail(token.access_token)) ?? userRes.user.email ?? null;
+    const email = (await fetchUserEmail(token.access_token)) ?? user!.email ?? null;
 
     const admin = supabaseServiceClient();
     const { error: upsertErr } = await admin
       .from("gmail_connections")
       .upsert({
-        user_id: userRes.user.id,
+        user_id: user!.id,
         email,
         refresh_token: token.refresh_token,
         scope: token.scope ?? null,
