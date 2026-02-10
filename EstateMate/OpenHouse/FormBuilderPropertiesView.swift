@@ -9,8 +9,11 @@ struct FormBuilderPropertiesView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
 
-    /// Called when user finishes an action (Add/Cancel/Delete) in a context that wants to keep the sheet open.
+    /// Called when user finishes an action (Cancel/Delete/etc.) in a context that wants to keep the sheet open.
     var onDone: (() -> Void)? = nil
+
+    /// Called after a draft is successfully committed (Add/Update). Useful to auto-close the palette sheet.
+    var onCommitDraft: (() -> Void)? = nil
 
     /// When provided (iPhone sheet), deleting a field should close the sheet instead of returning to the palette.
     var onDeleteClose: (() -> Void)? = nil
@@ -123,7 +126,11 @@ struct FormBuilderPropertiesView: View {
                             state.errorMessage = "该字段需要至少一个选项"
                             return
                         }
+                        let hadDraft = (state.draftField != nil)
                         state.confirmDraft()
+                        if hadDraft, state.draftField == nil {
+                            onCommitDraft?()
+                        }
                         if let onDone { onDone() } else { dismiss() }
                     } label: {
                         Text("更新字段")
@@ -174,7 +181,11 @@ struct FormBuilderPropertiesView: View {
                                 state.errorMessage = "该字段需要至少一个选项"
                                 return
                             }
+                            let hadDraft = (state.draftField != nil)
                             state.confirmDraft()
+                            if hadDraft, state.draftField == nil {
+                                onCommitDraft?()
+                            }
                             if let onDone { onDone() } else { dismiss() }
                         } label: {
                             Text("添加")

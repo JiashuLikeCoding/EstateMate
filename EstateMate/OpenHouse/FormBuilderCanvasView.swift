@@ -306,6 +306,14 @@ struct FormBuilderCanvasView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    markInsertionAnchor(key: f.key)
+                                } label: {
+                                    Label("选中", systemImage: "checkmark")
+                                }
+                                .tint(EMTheme.accent)
+                            }
                             .onDrop(
                                 of: [.text],
                                 delegate: FieldDropDelegate(
@@ -635,6 +643,16 @@ struct FormBuilderCanvasView: View {
     private func selectField(key: String) {
         state.selectedFieldKey = key
         onEditFieldRequested?()
+    }
+
+    private func markInsertionAnchor(key: String) {
+        state.selectedFieldKey = key
+        state.errorMessage = "已选中：新增字段将插入到该字段下方"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if state.errorMessage == "已选中：新增字段将插入到该字段下方" {
+                state.errorMessage = nil
+            }
+        }
     }
 
     private func summary(_ f: FormField) -> String {

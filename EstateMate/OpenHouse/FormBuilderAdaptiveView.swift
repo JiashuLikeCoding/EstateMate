@@ -234,15 +234,23 @@ final class FormBuilderState: ObservableObject {
            let idx = proposed.firstIndex(where: { $0.key == editingKey }) {
             proposed[idx] = draftField
         } else {
+            // Insert new fields right below the currently selected field (if any), otherwise append.
+            let insertionIndex: Int = {
+                guard let selectedKey = selectedFieldKey,
+                      let selectedIdx = fields.firstIndex(where: { $0.key == selectedKey })
+                else { return proposed.count }
+                return min(selectedIdx + 1, proposed.count)
+            }()
+
             // UX: adding a splice by default appends to the end, but a trailing splice has no effect.
-            // Instead, try to insert it at the nearest valid position (prefer near the end) so it becomes effective immediately.
+            // Instead, try to insert it at the nearest valid position (prefer near the intended insertion index).
             if draftField.type == .splice {
                 guard fields.count >= 2 else {
                     errorMessage = "至少需要先添加两个字段，才能使用拼接"
                     return
                 }
 
-                if let insertIndex = nearestValidSpliceInsertIndex(for: draftField, in: fields) {
+                if let insertIndex = nearestValidSpliceInsertIndex(for: draftField, in: fields, preferredIndex: insertionIndex) {
                     proposed.insert(draftField, at: insertIndex)
                     errorMessage = "已将拼接放到可生效的位置（开头/结尾拼接不会生效）"
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
@@ -255,7 +263,7 @@ final class FormBuilderState: ObservableObject {
                     return
                 }
             } else {
-                proposed.append(draftField)
+                proposed.insert(draftField, at: insertionIndex)
             }
         }
 
@@ -273,11 +281,10 @@ final class FormBuilderState: ObservableObject {
         self.editingFieldKey = nil
     }
 
-    private func nearestValidSpliceInsertIndex(for splice: FormField, in current: [FormField]) -> Int? {
+    private func nearestValidSpliceInsertIndex(for splice: FormField, in current: [FormField], preferredIndex: Int) -> Int? {
         guard splice.type == .splice else { return nil }
         // Valid splice positions are between two items: index 1...(count-1)
-        // Prefer near the end (count-1), which matches user expectation when they are appending fields.
-        let preferred = max(current.count - 1, 1)
+        let clampedPreferred = min(max(preferredIndex, 1), max(current.count - 1, 1))
 
         func isValid(at idx: Int) -> Bool {
             var test = current
@@ -285,17 +292,17 @@ final class FormBuilderState: ObservableObject {
             return spliceValidationError(in: test) == nil
         }
 
-        if isValid(at: preferred) { return preferred }
+        if isValid(at: clampedPreferred) { return clampedPreferred }
 
         // Search outward from the preferred index.
-        let maxDistance = max(preferred - 1, (current.count - 1) - preferred)
+        let maxDistance = max(clampedPreferred - 1, (current.count - 1) - clampedPreferred)
         if maxDistance <= 0 { return nil }
 
         for d in 1...maxDistance {
-            let left = preferred - d
+            let left = clampedPreferred - d
             if left >= 1, isValid(at: left) { return left }
 
-            let right = preferred + d
+            let right = clampedPreferred + d
             if right <= current.count - 1, isValid(at: right) { return right }
         }
 
@@ -707,6 +714,11 @@ private struct FormBuilderDrawerView: View {
                         FormBuilderPropertiesView(
                             onDone: {
                                 // keep sheet open, go back to palette for continuous adding
+                                mode = .palette
+                            },
+                            onCommitDraft: {
+                                // After successfully adding/updating, close the sheet so user can see the inserted field.
+                                isSheetPresented = false
                                 mode = .palette
                             },
                             onDeleteClose: {
