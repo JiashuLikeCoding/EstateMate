@@ -18,6 +18,9 @@ struct EmailTemplatesListView: View {
 
     @State private var isCreatePresented = false
 
+    @State private var isVariablesPresented = false
+    @State private var selectedTemplateForVariables: EmailTemplateRecord?
+
     private let service = EmailTemplateService()
 
     var filtered: [EmailTemplateRecord] {
@@ -95,9 +98,24 @@ struct EmailTemplatesListView: View {
 
                                         Spacer()
 
-                                        Text("变量：\(t.variables.count)")
-                                            .font(.footnote)
-                                            .foregroundStyle(EMTheme.ink2)
+                                        HStack(spacing: 8) {
+                                            Text("变量：\(t.variables.count)")
+                                                .font(.footnote)
+                                                .foregroundStyle(EMTheme.ink2)
+
+                                            Button {
+                                                selectedTemplateForVariables = t
+                                                isVariablesPresented = true
+                                            } label: {
+                                                Image(systemName: "slider.horizontal.3")
+                                                    .font(.footnote.weight(.semibold))
+                                                    .foregroundStyle(EMTheme.ink2)
+                                                    .frame(width: 28, height: 28)
+                                                    .background(Circle().fill(Color.white.opacity(0.7)))
+                                                    .overlay(Circle().stroke(EMTheme.line, lineWidth: 1))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
                                     }
 
                                     Text(t.subject.isEmpty ? "（无主题）" : t.subject)
@@ -140,6 +158,25 @@ struct EmailTemplatesListView: View {
             NavigationStack {
                 EmailTemplateEditView(mode: .create(workspace: workspace))
             }
+        .sheet(isPresented: $isVariablesPresented, onDismiss: {
+            selectedTemplateForVariables = nil
+        }) {
+            NavigationStack {
+                if let selectedTemplateForVariables {
+                    EmailTemplateVariablesEditView(
+                        template: selectedTemplateForVariables,
+                        onSaved: {
+                            isVariablesPresented = false
+                            Task { await reload() }
+                        },
+                        onCancel: {
+                            isVariablesPresented = false
+                        }
+                    )
+                }
+            }
+        }
+
         }
         .task {
             await reload()
@@ -169,6 +206,188 @@ struct EmailTemplatesListView: View {
         }
     }
 }
+
+private struct EmailTemplateVariablesEditView: View {
+    let template: EmailTemplateRecord
+    let onSaved: () -> Void
+    let onCancel: () -> Void
+
+    @State private var isSaving: Bool = false
+    @State private var errorMessage: String?
+
+    @State private var variables: [EmailTemplateVariable]
+
+    @State private var newKey: String = ""
+    @State private var newKeyError: String?
+    @State private var newLabel: String = ""
+
+    private let service = EmailTemplateService()
+
+    init(template: EmailTemplateRecord, onSaved: @escaping () -> Void, onCancel: @escaping () -> Void) {
+        self.template = template
+        self.onSaved = onSaved
+        self.onCancel = onCancel
+        _variables = State(initialValue: template.variables)
+    }
+
+    var body: some View {
+        EMScreen {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    EMSectionHeader("变量", subtitle: template.name.isEmpty ? "（未命名模版）" : template.name)
+
+                    if let errorMessage {
+                        EMCard {
+                            Text(errorMessage)
+                                .font(.subheadline)
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("已有变量")
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            if variables.isEmpty {
+                                Text("暂无变量")
+                                    .font(.subheadline)
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+
+                            ForEach(Array(variables.enumerated()), id: \.offset) { idx, v in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("{{\(v.key)}}")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(EMTheme.accent)
+                                        Spacer()
+                                        Button(role: .destructive) {
+                                            variables.remove(at: idx)
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .font(.footnote.weight(.semibold))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+
+                                    Text(v.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "—" : v.label)
+                                        .font(.subheadline)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    if idx != variables.count - 1 {
+                                        Divider().overlay(EMTheme.line)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("新增变量")
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            EMTextField(title: "key", text: $newKey, prompt: "例如：client_name")
+                                .onChange(of: newKey) { _, _ in
+                                    newKeyError = nil
+                                }
+
+                            if let newKeyError {
+                                Text(newKeyError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                    .padding(.top, -4)
+                            }
+
+                            Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, newKeyError == nil ? -4 : 0)
+
+                            EMTextField(title: "要填写的内容", text: $newLabel, prompt: "例如：客户姓名 / 活动地址 / 经纪人姓名")
+
+                            Button {
+                                addVariable()
+                            } label: {
+                                Text("添加变量")
+                            }
+                            .buttonStyle(EMSecondaryButtonStyle())
+                        }
+                    }
+
+                    Button {
+                        Task { await save() }
+                    } label: {
+                        Text(isSaving ? "保存中…" : "保存")
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isSaving))
+                    .disabled(isSaving)
+
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text("取消")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isSaving)
+
+                    Spacer(minLength: 20)
+                }
+                .padding(EMTheme.padding)
+            }
+            .safeAreaPadding(.top, 8)
+        }
+        .navigationTitle("变量")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func addVariable() {
+        let key = EmailTemplateRenderer.normalizeKey(newKey)
+        guard !key.isEmpty else {
+            newKeyError = "变量 key 不能为空（仅支持 a-z / 0-9 / _）"
+            return
+        }
+
+        if variables.contains(where: { $0.key == key }) {
+            newKeyError = "变量 key 重复：\(key)"
+            return
+        }
+
+        let label = newLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        variables.append(.init(key: key, label: label))
+        newKey = ""
+        newKeyError = nil
+        newLabel = ""
+        errorMessage = nil
+    }
+
+    private func save() async {
+        isSaving = true
+        errorMessage = nil
+        defer { isSaving = false }
+
+        do {
+            _ = try await service.updateTemplate(
+                id: template.id,
+                patch: EmailTemplateUpdate(
+                    workspace: nil,
+                    name: nil,
+                    subject: nil,
+                    body: nil,
+                    variables: variables,
+                    isArchived: nil
+                )
+            )
+            onSaved()
+        } catch {
+            errorMessage = "保存失败：\(error.localizedDescription)"
+        }
+    }
+}
+
 
 #Preview {
     NavigationStack {

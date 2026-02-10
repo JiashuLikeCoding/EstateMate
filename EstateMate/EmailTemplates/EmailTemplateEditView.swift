@@ -60,10 +60,6 @@ struct EmailTemplateEditView: View {
 
     @State private var variables: [EmailTemplateVariable] = []
 
-    @State private var newVarKey: String = ""
-    @State private var newVarKeyError: String?
-    @State private var newVarLabel: String = "" // 要填写的内容
-
     // AI format + save
     @State private var isAIFormatting: Bool = false
     @State private var isAIPreviewPresented: Bool = false
@@ -251,40 +247,6 @@ struct EmailTemplateEditView: View {
 
                             Divider().overlay(EMTheme.line)
 
-                            Text("新增变量")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(EMTheme.ink)
-
-                            EMTextField(title: "key", text: $newVarKey, prompt: "例如：client_name")
-                                .onChange(of: newVarKey) { _, _ in
-                                    newVarKeyError = nil
-                                }
-
-                            if let newVarKeyError {
-                                Text(newVarKeyError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                                    .padding(.top, -4)
-                            }
-
-                            Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                                .padding(.top, newVarKeyError == nil ? -4 : 0)
-
-                            EMTextField(title: "要填写的内容", text: $newVarLabel, prompt: "例如：客户姓名 / 活动地址 / 经纪人姓名" )
-
-                            Text("说明：这是预览时要让你填写的内容提示（会用在预览页输入框标题）。")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                                .padding(.top, -4)
-
-                            Button {
-                                addVariable()
-                            } label: {
-                                Text("添加变量")
-                            }
-                            .buttonStyle(EMSecondaryButtonStyle())
 
                         }
                     }
@@ -410,26 +372,7 @@ struct EmailTemplateEditView: View {
         }
     }
 
-    private func addVariable() {
-        let key = EmailTemplateRenderer.normalizeKey(newVarKey)
-        guard !key.isEmpty else {
-            newVarKeyError = "变量 key 不能为空（仅支持 a-z / 0-9 / _）"
-            return
-        }
 
-        if variables.contains(where: { $0.key == key }) {
-            newVarKeyError = "变量 key 重复：\(key)"
-            return
-        }
-
-        let label = newVarLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        variables.append(.init(key: key, label: label))
-        newVarKey = ""
-        newVarKeyError = nil
-        newVarLabel = ""
-        errorMessage = nil
-    }
 
     private func insertVariableToken(_ key: String) {
         let token = "{{\(key)}}"
