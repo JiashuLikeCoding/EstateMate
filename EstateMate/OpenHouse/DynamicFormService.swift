@@ -247,7 +247,7 @@ final class DynamicFormService {
 
         // Auto-send email (best effort; never block submission).
         Task { [weak self] in
-            await self?.bestEffortSendAutoEmailResend(eventId: eventId, submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+            await self?.bestEffortSendAutoEmailGmail(eventId: eventId, submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
         }
 
         return created
@@ -372,7 +372,7 @@ final class DynamicFormService {
         )
     }
 
-    private func bestEffortSendAutoEmailResend(
+    private func bestEffortSendAutoEmailGmail(
         eventId: UUID,
         submissionId: UUID,
         eventTitle: String?,
@@ -439,28 +439,25 @@ final class DynamicFormService {
                 return
             }
 
-            // 5) Invoke Edge Function (Resend) with user's JWT.
+            // 5) Invoke Edge Function (Gmail) with user's JWT.
             struct SendBody: Encodable {
                 let to: String
                 let subject: String
                 let text: String
-                let replyTo: String?
                 let submissionId: String
             }
 
             let session = try await client.auth.session
             let headers = ["Authorization": "Bearer \(session.accessToken)"]
 
-            let replyTo = session.user.email
             _ = try await client.functions.invoke(
-                "resend_send",
+                "gmail_send",
                 options: .init(
                     headers: headers,
                     body: SendBody(
                         to: to,
                         subject: subject,
                         text: bodyText,
-                        replyTo: replyTo,
                         submissionId: submissionId.uuidString
                     )
                 )
