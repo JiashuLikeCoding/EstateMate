@@ -143,7 +143,7 @@ struct EmailTemplateEditView: View {
                                 .foregroundStyle(EMTheme.ink2)
 
                             CursorAwareTextView(text: $bodyText, selection: $bodySelection, isFocused: $isBodyFocused)
-                                .frame(minHeight: 180)
+                                .frame(minHeight: 180, maxHeight: 260)
                                 .padding(10)
                                 .background(
                                     RoundedRectangle(cornerRadius: 14)

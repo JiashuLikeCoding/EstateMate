@@ -23,7 +23,10 @@ struct CursorAwareTextView: UIViewRepresentable {
         tv.textContainerInset = .zero
         tv.textContainer.lineFragmentPadding = 0
         tv.delegate = context.coordinator
+        // Avoid the text view trying to grow unbounded inside SwiftUI layouts.
         tv.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        tv.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        tv.setContentHuggingPriority(.defaultLow, for: .vertical)
         return tv
     }
 
