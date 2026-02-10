@@ -254,6 +254,12 @@ struct FormBuilderPropertiesView: View {
             }
             .padding(EMTheme.padding)
         }
+        .onAppear {
+            // Editing an existing field is live (binding directly into `fields[idx]`).
+            // Ensure we are not accidentally in the draft/update mode, otherwise the UI may show a misleading "保存/更新" action.
+            state.draftField = nil
+            state.editingFieldKey = nil
+        }
     }
 
     private func fieldCard(binding: Binding<FormField>) -> some View {
