@@ -418,6 +418,7 @@ private struct OpenHouseEventListCardView: View {
 
                         Spacer()
                     }
+                    .contentShape(Rectangle())
                     .padding(.vertical, 12)
                 }
                 .buttonStyle(.plain)
