@@ -688,9 +688,16 @@ struct FormBuilderCanvasView: View {
                 }
             }
 
-            // 2) Splice rules
+            // 2) Basic required presence
+            // OpenHouse 现场表单必须至少能联系到客人：手机号/邮箱二选一。
+            let hasPhoneOrEmail = state.fields.contains(where: { $0.type == .phone || $0.type == .email })
+            if hasPhoneOrEmail == false {
+                throw NSError(domain: "FormBuilder", code: 2, userInfo: [NSLocalizedDescriptionKey: "表单必须包含“手机号”或“邮箱”字段（至少一个），否则无法保存"])
+            }
+
+            // 3) Splice rules
             if state.fields.first?.type == .splice || state.fields.last?.type == .splice {
-                throw NSError(domain: "FormBuilder", code: 2, userInfo: [NSLocalizedDescriptionKey: "拼接不能放在表单的开头或结尾"])
+                throw NSError(domain: "FormBuilder", code: 3, userInfo: [NSLocalizedDescriptionKey: "拼接不能放在表单的开头或结尾"])
             }
 
             for i in 1..<state.fields.count {
