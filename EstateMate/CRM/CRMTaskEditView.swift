@@ -33,9 +33,11 @@ struct CRMTaskEditView: View {
     @State private var dueAt = Date()
 
     @State private var selectedContactId: UUID?
+    @State private var selectedContact: CRMContact?
     @State private var isContactPickerPresented = false
 
     private let service = CRMTasksService()
+    private let crm = CRMService()
 
     var body: some View {
         EMScreen {
@@ -122,6 +124,10 @@ struct CRMTaskEditView: View {
                 selectedContactId = contactId
             }
             await loadIfNeeded()
+            await loadSelectedContact()
+        }
+        .onChange(of: selectedContactId) { _, _ in
+            Task { await loadSelectedContact() }
         }
         .onTapGesture {
             hideKeyboard()
@@ -163,8 +169,29 @@ struct CRMTaskEditView: View {
         }
     }
 
+    private func loadSelectedContact() async {
+        guard let id = selectedContactId else {
+            selectedContact = nil
+            return
+        }
+
+        do {
+            selectedContact = try await crm.getContact(id: id)
+        } catch {
+            // Keep UI usable even if the contact cannot be fetched.
+            selectedContact = nil
+        }
+    }
+
     private var selectedContactLabel: String {
-        guard selectedContactId != nil else { return "不指定" }
+        guard let _ = selectedContactId else { return "不指定" }
+        if let c = selectedContact {
+            let n = c.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !n.isEmpty { return n }
+            if !c.email.isEmpty { return c.email }
+            if !c.phone.isEmpty { return c.phone }
+            return "未命名客户"
+        }
         return "已指定"
     }
 

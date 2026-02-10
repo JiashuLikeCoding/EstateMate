@@ -45,20 +45,23 @@ struct CRMTaskContactPickerView: View {
                     }
 
                     EMCard {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 0) {
                             NavigationLink {
                                 CRMTaskPickByEventView(selectedContactId: selectedContactId) { result in
                                     onPick(result)
                                     dismiss()
                                 }
                             } label: {
-                                HStack {
+                                HStack(spacing: 10) {
                                     Text("从活动选择")
+                                        .font(.callout)
                                         .foregroundStyle(EMTheme.ink)
                                     Spacer()
                                     Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
                                         .foregroundStyle(EMTheme.ink2)
                                 }
+                                .padding(.vertical, 10)
                             }
                             .buttonStyle(.plain)
 
@@ -74,28 +77,36 @@ struct CRMTaskContactPickerView: View {
                                     dismiss()
                                 }
                             } label: {
-                                HStack {
+                                HStack(spacing: 10) {
                                     Text("从客户列表选择")
+                                        .font(.callout)
                                         .foregroundStyle(EMTheme.ink)
                                     Spacer()
                                     Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
                                         .foregroundStyle(EMTheme.ink2)
                                 }
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+
+                            Divider().overlay(EMTheme.line)
+
+                            Button {
+                                onPick(.none)
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Text("不指定")
+                                        .font(.callout)
+                                        .foregroundStyle(EMTheme.ink2)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 10)
                             }
                             .buttonStyle(.plain)
                         }
                     }
-
-                    EMCard {
-                        Button("不指定") {
-                            onPick(.none)
-                            dismiss()
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(EMTheme.ink2)
-                    }
-
-                    Spacer(minLength: 20)
                 }
                 .padding(EMTheme.padding)
             }
@@ -104,7 +115,13 @@ struct CRMTaskContactPickerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("关闭") { dismiss() }
+                Button {
+                    dismiss()
+                } label: {
+                    Text("关闭")
+                        .foregroundStyle(EMTheme.ink)
+                }
+                .buttonStyle(.plain)
             }
         }
         .task {
