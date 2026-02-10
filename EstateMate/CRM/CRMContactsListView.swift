@@ -21,9 +21,10 @@ struct CRMContactsListView: View {
     @State private var isSelecting = false
     @State private var selectedIds = Set<UUID>()
 
-    @State private var showFilterSheet = false
-    @State private var filter = ContactsFilter()
-    @State private var participatedContactIds: Set<UUID>? = nil
+    // 筛选功能暂时移除（后续再加）
+    // @State private var showFilterSheet = false
+    // @State private var filter = ContactsFilter()
+    // @State private var participatedContactIds: Set<UUID>? = nil
 
     @State private var showDeleteConfirm = false
     @State private var showBulkEditSheet = false
@@ -161,11 +162,7 @@ struct CRMContactsListView: View {
         .refreshable {
             await reload()
         }
-        .sheet(isPresented: $showFilterSheet) {
-            CRMContactsFilterSheet(filter: $filter, allTags: allTags) { selectedEventId in
-                Task { await updateParticipatedContactIds(for: selectedEventId) }
-            }
-        }
+        // 筛选 sheet 暂时移除（后续再加）
         .confirmationDialog(
             "删除客户",
             isPresented: $showDeleteConfirm,
@@ -207,12 +204,6 @@ struct CRMContactsListView: View {
             Spacer(minLength: 8)
 
             HStack(spacing: 12) {
-                Button {
-                    showFilterSheet = true
-                } label: {
-                    Image(systemName: filter.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                }
-
                 Button {
                     withAnimation(.snappy) {
                         isSelecting.toggle()
@@ -278,41 +269,18 @@ struct CRMContactsListView: View {
 
     private var filteredContacts: [CRMContact] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tagQ = filter.tagContains.trimmingCharacters(in: .whitespacesAndNewlines)
-        let addressQ = filter.addressContains.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return contacts }
 
         return contacts.filter { c in
-            if let stage = filter.stage, c.stage != stage { return false }
-            if let source = filter.source, c.source != source { return false }
+            let hay = [
+                c.fullName,
+                c.phone,
+                c.email,
+                c.address,
+                c.notes,
+                (c.tags ?? []).joined(separator: " ")
+            ].joined(separator: " ")
 
-            if let from = filter.createdFrom, c.createdAt < from.startOfDay { return false }
-            if let to = filter.createdTo, c.createdAt > to.endOfDay { return false }
-
-            if filter.participatedEventId != nil {
-                guard let set = participatedContactIds else { return false }
-                if !set.contains(c.id) { return false }
-            }
-
-            if filter.mustHaveEmail, c.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
-            if filter.mustHavePhone, c.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
-            if filter.mustHaveAddress, c.address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
-
-            if !filter.selectedTags.isEmpty {
-                let tags = Set(c.tags ?? [])
-                if tags.isDisjoint(with: filter.selectedTags) { return false }
-            }
-
-            if !tagQ.isEmpty {
-                let tags = (c.tags ?? []).joined(separator: " ")
-                if !tags.localizedCaseInsensitiveContains(tagQ) { return false }
-            }
-
-            if !addressQ.isEmpty {
-                if !c.address.localizedCaseInsensitiveContains(addressQ) { return false }
-            }
-
-            if q.isEmpty { return true }
-            let hay = [c.fullName, c.phone, c.email, c.address, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
             return hay.localizedCaseInsensitiveContains(q)
         }
     }
@@ -445,22 +413,6 @@ struct CRMContactsListView: View {
         }
     }
 
-    private func updateParticipatedContactIds(for eventId: UUID?) async {
-        participatedContactIds = nil
-        filter.participatedEventId = eventId
-        guard let eventId else { return }
-
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-
-        do {
-            participatedContactIds = try await service.listContactIdsParticipated(eventId: eventId)
-        } catch {
-            errorMessage = "加载活动参与数据失败：\(error.localizedDescription)"
-        }
-    }
-
     private func reload() async {
         hideKeyboard()
         isLoading = true
@@ -469,9 +421,6 @@ struct CRMContactsListView: View {
 
         do {
             contacts = try await service.listContacts()
-            if let eventId = filter.participatedEventId {
-                participatedContactIds = try await service.listContactIdsParticipated(eventId: eventId)
-            }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }

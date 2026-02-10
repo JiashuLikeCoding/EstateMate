@@ -137,9 +137,41 @@ final class CRMService {
     }
 
     func isUniqueConstraintViolation(_ error: Error) -> Bool {
-        let msg = error.localizedDescription.lowercased()
-        return msg.contains("duplicate key value violates unique constraint")
-            || msg.contains("23505")
+        // Supabase/PostgREST errors can be wrapped; localizedDescription isn't always stable.
+        // We check multiple surfaces and unwrap nested errors defensively.
+
+        func messageHits(_ s: String) -> Bool {
+            let m = s.lowercased()
+            return m.contains("duplicate key value violates unique constraint")
+                || m.contains("unique constraint")
+                || m.contains("23505")
+                || m.contains("duplicate key")
+        }
+
+        // Direct PostgREST error (preferred).
+        if let e = error as? PostgrestError {
+            if let code = e.code, code == "23505" { return true }
+            if messageHits(e.message) { return true }
+            if let detail = e.detail, messageHits(detail) { return true }
+            if let hint = e.hint, messageHits(hint) { return true }
+        }
+
+        // Walk underlying errors.
+        var cur: Error? = error
+        var depth = 0
+        while let err = cur, depth < 6 {
+            if messageHits(err.localizedDescription) { return true }
+
+            let ns = err as NSError
+            if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? Error {
+                cur = underlying
+            } else {
+                cur = nil
+            }
+            depth += 1
+        }
+
+        return false
     }
 
     private func findContactByEmail(_ email: String) async throws -> CRMContact? {
