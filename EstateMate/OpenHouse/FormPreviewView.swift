@@ -269,7 +269,8 @@ struct FormPreviewView: View {
                                 .font(.callout)
                                 .foregroundStyle(EMTheme.ink)
 
-                            if let sub = field.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines), sub.isEmpty == false {
+                            // Do NOT trim: subtitle may intentionally contain leading/trailing spaces.
+                            if let sub = field.subtitle, sub.isEmpty == false {
                                 Text(sub)
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)

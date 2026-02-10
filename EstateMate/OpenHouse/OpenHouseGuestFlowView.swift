@@ -580,7 +580,7 @@ struct OpenHouseKioskFillView: View {
                                 .font(.callout)
                                 .foregroundStyle(EMTheme.ink)
 
-                            if let sub = field.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines), sub.isEmpty == false {
+                            if let sub = field.subtitle, sub.isEmpty == false {
                                 Text(sub)
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)

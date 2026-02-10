@@ -539,7 +539,7 @@ struct FormBuilderPropertiesView: View {
                     title: "小标题（可选）",
                     text: Binding(
                         get: { binding.wrappedValue.subtitle ?? "" },
-                        set: { binding.wrappedValue.subtitle = $0.nilIfBlank }
+                        set: { binding.wrappedValue.subtitle = $0.nilIfEmpty }
                     ),
                     prompt: "例如：点一下切换"
                 )
