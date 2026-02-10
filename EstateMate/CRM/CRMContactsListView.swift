@@ -706,17 +706,27 @@ private struct CRMContactCardContent: View {
 
             let addresses = splitInterestedAddresses(contact.address)
             if !addresses.isEmpty {
-                FlowLayout(maxPerRow: 3, spacing: 8) {
-                    ForEach(addresses, id: \.self) { a in
-                        EMChip(text: a, isOn: false)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("感兴趣的地址：")
+                        .font(.caption2)
+                        .foregroundStyle(EMTheme.ink2)
+                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                        ForEach(addresses, id: \.self) { a in
+                            EMChip(text: a, isOn: false)
+                        }
                     }
                 }
             }
 
             if let tags = contact.tags, !tags.isEmpty {
-                FlowLayout(maxPerRow: 99, spacing: 8) {
-                    ForEach(tags, id: \.self) { t in
-                        EMChip(text: t, isOn: true)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("标签：")
+                        .font(.caption2)
+                        .foregroundStyle(EMTheme.ink2)
+                    FlowLayout(maxPerRow: 99, spacing: 8) {
+                        ForEach(tags, id: \.self) { t in
+                            EMChip(text: t, isOn: true)
+                        }
                     }
                 }
             }
