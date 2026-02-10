@@ -25,24 +25,21 @@ struct EmailTemplateVariable: Codable, Hashable, Identifiable {
     /// Variable key used in templates, e.g. {{client_name}}
     var key: String
 
-    /// Display name in UI
+    /// What the user should fill when previewing/sending.
+    /// (Previously called "显示名".)
     var label: String
 
-    /// Example value used for preview
+    /// Legacy: example value used for preview. (We no longer require input in UI.)
     var example: String
 
     /// Optional description (future)
     var desc: String?
 
-    init(key: String, label: String, example: String, desc: String? = nil) {
+    init(key: String, label: String, example: String = "", desc: String? = nil) {
         self.key = key
         self.label = label
         self.example = example
         self.desc = desc
-    }
-
-    static var sample: EmailTemplateVariable {
-        .init(key: "client_name", label: "客户姓名", example: "张三")
     }
 }
 
