@@ -39,10 +39,10 @@ create policy "openhouse_active_device_delete_own"
 -- - Same device: refresh last_seen
 -- - Different device: allow takeover only if force=true OR stale (last_seen older than stale_seconds)
 create or replace function public.claim_openhouse_lock(
-  device_id text,
-  device_name text default null,
-  force boolean default false,
-  stale_seconds int default 120
+  p_device_id text,
+  p_device_name text default null,
+  p_force boolean default false,
+  p_stale_seconds int default 120
 )
 returns jsonb
 language plpgsql
@@ -60,7 +60,7 @@ begin
     raise exception 'Not authenticated';
   end if;
 
-  v_stale_before := now() - make_interval(secs => stale_seconds);
+  v_stale_before := now() - make_interval(secs => p_stale_seconds);
 
   select owner_id, device_id as existing_device_id, device_name as existing_device_name, last_seen
     into v_existing
@@ -69,26 +69,26 @@ begin
 
   if not found then
     insert into public.openhouse_active_device (owner_id, device_id, device_name, last_seen)
-    values (v_owner, claim_openhouse_lock.device_id, claim_openhouse_lock.device_name, now());
+    values (v_owner, p_device_id, p_device_name, now());
 
     v_status := 'claimed';
   else
-    if v_existing.existing_device_id = claim_openhouse_lock.device_id then
+    if v_existing.existing_device_id = p_device_id then
       update public.openhouse_active_device
-        set device_name = coalesce(claim_openhouse_lock.device_name, device_name),
+        set device_name = coalesce(p_device_name, device_name),
             last_seen = now()
       where owner_id = v_owner;
 
       v_status := 'refreshed';
     else
-      if force = true or v_existing.last_seen < v_stale_before then
+      if p_force = true or v_existing.last_seen < v_stale_before then
         update public.openhouse_active_device
-          set device_id = claim_openhouse_lock.device_id,
-              device_name = claim_openhouse_lock.device_name,
+          set device_id = p_device_id,
+              device_name = p_device_name,
               last_seen = now()
         where owner_id = v_owner;
 
-        v_status := case when force then 'taken_over' else 'taken_over_stale' end;
+        v_status := case when p_force then 'taken_over' else 'taken_over_stale' end;
       else
         v_status := 'in_use';
       end if;
@@ -98,8 +98,8 @@ begin
   return jsonb_build_object(
     'status', v_status,
     'owner_id', v_owner,
-    'device_id', claim_openhouse_lock.device_id,
-    'device_name', claim_openhouse_lock.device_name,
+    'device_id', p_device_id,
+    'device_name', p_device_name,
     'existing_device_id', coalesce(v_existing.existing_device_id, null),
     'existing_device_name', coalesce(v_existing.existing_device_name, null),
     'existing_last_seen', coalesce(v_existing.last_seen, null)
