@@ -17,115 +17,68 @@ struct CRMTaskContactPickerView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var events: [OpenHouseEvent] = []
     @State private var allContacts: [CRMContact] = []
-
-    @State private var isLoadingEvents = false
     @State private var isLoadingContacts = false
     @State private var errorMessage: String?
 
     let selectedContactId: UUID?
     let onPick: (PickerResult) -> Void
 
-    private let openHouse = OpenHouseService()
     private let crm = CRMService()
 
     var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("选择客户")
+        List {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
 
-                    if let errorMessage {
-                        EMCard {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundStyle(.red)
-                        }
+            Section {
+                NavigationLink {
+                    CRMTaskPickByEventView(selectedContactId: selectedContactId) { result in
+                        onPick(result)
+                        dismiss()
                     }
-
-                    EMCard {
-                        VStack(alignment: .leading, spacing: 0) {
-                            NavigationLink {
-                                CRMTaskPickByEventView(selectedContactId: selectedContactId) { result in
-                                    onPick(result)
-                                    dismiss()
-                                }
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Text("从活动选择")
-                                        .font(.callout)
-                                        .foregroundStyle(EMTheme.ink)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(EMTheme.ink2)
-                                }
-                                .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider().overlay(EMTheme.line)
-
-                            NavigationLink {
-                                CRMTaskPickFromAllContactsView(
-                                    contacts: allContacts,
-                                    isLoading: isLoadingContacts,
-                                    selectedContactId: selectedContactId
-                                ) { result in
-                                    onPick(result)
-                                    dismiss()
-                                }
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Text("从客户列表选择")
-                                        .font(.callout)
-                                        .foregroundStyle(EMTheme.ink)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.footnote.weight(.semibold))
-                                        .foregroundStyle(EMTheme.ink2)
-                                }
-                                .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider().overlay(EMTheme.line)
-
-                            Button {
-                                onPick(.none)
-                                dismiss()
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Text("不指定")
-                                        .font(.callout)
-                                        .foregroundStyle(EMTheme.ink2)
-                                    Spacer()
-                                }
-                                .padding(.vertical, 10)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                } label: {
+                    Text("从活动选择")
                 }
-                .padding(EMTheme.padding)
+
+                NavigationLink {
+                    CRMTaskPickFromAllContactsView(
+                        contacts: allContacts,
+                        isLoading: isLoadingContacts,
+                        selectedContactId: selectedContactId
+                    ) { result in
+                        onPick(result)
+                        dismiss()
+                    }
+                } label: {
+                    Text("从客户列表选择")
+                }
+
+                Button {
+                    onPick(.none)
+                    dismiss()
+                } label: {
+                    Text("不指定")
+                        .foregroundStyle(EMTheme.ink2)
+                }
+            } header: {
+                Text("来源")
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(EMTheme.paper)
         .navigationTitle("选择客户")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Text("关闭")
-                        .foregroundStyle(EMTheme.ink)
-                }
-                .buttonStyle(.plain)
+                Button("关闭") { dismiss() }
+                    .foregroundStyle(EMTheme.ink2)
             }
         }
         .task {
-            // Load contacts for the “all contacts” list.
             await loadAllContacts()
         }
     }
@@ -147,8 +100,6 @@ struct CRMTaskContactPickerView: View {
 }
 
 private struct CRMTaskPickByEventView: View {
-    @Environment(\.dismiss) private var dismiss
-
     let selectedContactId: UUID?
     let onPick: (CRMTaskContactPickerView.PickerResult) -> Void
 
@@ -159,74 +110,47 @@ private struct CRMTaskPickByEventView: View {
     private let openHouse = OpenHouseService()
 
     var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("选择活动")
+        List {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
 
-                    if let errorMessage {
-                        EMCard {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundStyle(.red)
-                        }
-                    }
-
-                    if isLoading {
-                        EMCard {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                Text("正在加载…")
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        }
-                    }
-
-                    if !isLoading, events.isEmpty {
-                        EMCard {
-                            Text("暂无活动")
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
-
-                    VStack(spacing: 10) {
-                        ForEach(events) { e in
-                            NavigationLink {
-                                CRMTaskPickContactFromEventSubmissionsView(
-                                    event: e,
-                                    selectedContactId: selectedContactId,
-                                    onPick: onPick
-                                )
-                            } label: {
-                                EMCard {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(e.title)
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                            Text("进入该活动的客户列表")
-                                                .font(.caption)
-                                                .foregroundStyle(EMTheme.ink2)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(EMTheme.ink2)
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Spacer(minLength: 20)
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
                 }
-                .padding(EMTheme.padding)
+            }
+
+            if !isLoading, events.isEmpty {
+                Text("暂无活动")
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            ForEach(events) { e in
+                NavigationLink {
+                    CRMTaskPickContactFromEventSubmissionsView(
+                        event: e,
+                        selectedContactId: selectedContactId,
+                        onPick: onPick
+                    )
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(e.title)
+                            .foregroundStyle(EMTheme.ink)
+                        Text("进入该活动的客户列表")
+                            .font(.caption)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                    .padding(.vertical, 4)
+                }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(EMTheme.paper)
         .navigationTitle("活动")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -267,79 +191,61 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
     private let crm = CRMService()
 
     var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("客户（来自该活动表单）")
+        List {
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
 
-                    if let errorMessage {
-                        EMCard {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundStyle(.red)
-                        }
-                    }
-
-                    if isLoading {
-                        EMCard {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                Text("正在加载…")
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        }
-                    }
-
-                    if !isLoading, contacts.isEmpty {
-                        EMCard {
-                            Text("该活动还没有产生客户（可能还没有提交，或提交未回写 contact_id）。")
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
-
-                    VStack(spacing: 10) {
-                        ForEach(contacts) { c in
-                            Button {
-                                onPick(.contact(c.id))
-                                dismiss()
-                            } label: {
-                                EMCard {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(contactLabel(c))
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                            if !c.email.isEmpty {
-                                                Text(c.email)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                            } else if !c.phone.isEmpty {
-                                                Text(c.phone)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                            }
-                                        }
-                                        Spacer()
-                                        if selectedContactId == c.id {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(EMTheme.accent)
-                                        }
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Spacer(minLength: 20)
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
                 }
-                .padding(EMTheme.padding)
+            }
+
+            if !isLoading, contacts.isEmpty {
+                Text("该活动还没有产生客户（可能还没有提交，或提交未回写 contact_id）。")
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            ForEach(contacts) { c in
+                Button {
+                    onPick(.contact(c.id))
+                    dismiss()
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(contactLabel(c))
+                                .foregroundStyle(EMTheme.ink)
+
+                            if !c.email.isEmpty {
+                                Text(c.email)
+                                    .font(.caption)
+                                    .foregroundStyle(EMTheme.ink2)
+                            } else if !c.phone.isEmpty {
+                                Text(c.phone)
+                                    .font(.caption)
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                        }
+
+                        Spacer()
+
+                        if selectedContactId == c.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(EMTheme.accent)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(EMTheme.paper)
         .navigationTitle(event.title)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -361,7 +267,6 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
         do {
             let contactIds = try await listContactIdsForEvent(eventId: event.id)
 
-            // Load contacts in parallel.
             var fetched: [CRMContact] = []
             fetched.reserveCapacity(contactIds.count)
 
@@ -371,13 +276,11 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
                         try await crm.getContact(id: id)
                     }
                 }
-
                 for try await c in group {
                     fetched.append(c)
                 }
             }
 
-            // stable-ish order
             contacts = fetched.sorted { $0.updatedAt > $1.updatedAt }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
@@ -387,10 +290,7 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
     private func listContactIdsForEvent(eventId: UUID) async throws -> [UUID] {
         struct Row: Decodable {
             var contactId: UUID?
-
-            enum CodingKeys: String, CodingKey {
-                case contactId = "contact_id"
-            }
+            enum CodingKeys: String, CodingKey { case contactId = "contact_id" }
         }
 
         let rows: [Row] = try await SupabaseClientProvider.client
@@ -401,7 +301,6 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
             .value
 
         let ids = rows.compactMap { $0.contactId }
-        // unique
         var seen = Set<UUID>()
         var unique: [UUID] = []
         for id in ids {
@@ -430,71 +329,55 @@ private struct CRMTaskPickFromAllContactsView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("客户列表")
-
-                    if isLoading {
-                        EMCard {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                Text("正在加载…")
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        }
-                    }
-
-                    if !isLoading, contacts.isEmpty {
-                        EMCard {
-                            Text("暂无客户")
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
-
-                    VStack(spacing: 10) {
-                        ForEach(contacts) { c in
-                            Button {
-                                onPick(.contact(c.id))
-                                dismiss()
-                            } label: {
-                                EMCard {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(contactLabel(c))
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                            if !c.email.isEmpty {
-                                                Text(c.email)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                            } else if !c.phone.isEmpty {
-                                                Text(c.phone)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                            }
-                                        }
-                                        Spacer()
-                                        if selectedContactId == c.id {
-                                            Image(systemName: "checkmark")
-                                                .foregroundStyle(EMTheme.accent)
-                                        }
-                                    }
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Spacer(minLength: 20)
+        List {
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
                 }
-                .padding(EMTheme.padding)
+            }
+
+            if !isLoading, contacts.isEmpty {
+                Text("暂无客户")
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            ForEach(contacts) { c in
+                Button {
+                    onPick(.contact(c.id))
+                    dismiss()
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(contactLabel(c))
+                                .foregroundStyle(EMTheme.ink)
+
+                            if !c.email.isEmpty {
+                                Text(c.email)
+                                    .font(.caption)
+                                    .foregroundStyle(EMTheme.ink2)
+                            } else if !c.phone.isEmpty {
+                                Text(c.phone)
+                                    .font(.caption)
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                        }
+
+                        Spacer()
+
+                        if selectedContactId == c.id {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(EMTheme.accent)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(EMTheme.paper)
         .navigationTitle("客户")
         .navigationBarTitleDisplayMode(.inline)
     }
