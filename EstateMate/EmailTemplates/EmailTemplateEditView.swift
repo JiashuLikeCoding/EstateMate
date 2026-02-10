@@ -168,6 +168,11 @@ struct EmailTemplateEditView: View {
                                 .foregroundStyle(EMTheme.ink)
 
                             EMTextField(title: "key", text: $newVarKey, prompt: "例如：client_name")
+
+                            Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, -4)
                             EMTextField(title: "显示名", text: $newVarLabel, prompt: "例如：客户姓名")
                             EMTextField(title: "示例值", text: $newVarExample, prompt: "例如：张三")
 
