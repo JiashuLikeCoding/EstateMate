@@ -91,5 +91,8 @@ struct CRMContactUpdate: Codable {
         case email
         case notes
         case tags
+        case stage
+        case source
+        case lastContactedAt = "last_contacted_at"
     }
 }
