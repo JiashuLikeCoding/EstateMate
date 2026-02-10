@@ -447,31 +447,7 @@ struct FormBuilderCanvasView: View {
         let selectedLineWidth: CGFloat = isSelected ? 2 : 1
 
         return HStack(alignment: .center, spacing: 12) {
-            if isSelected {
-                // A subtle, always-visible insertion anchor marker.
-                RoundedRectangle(cornerRadius: 999, style: .continuous)
-                    .fill(EMTheme.accent)
-                    .frame(width: 4)
-                    .padding(.vertical, 8)
-                    .transition(.opacity)
-            }
-
             VStack(alignment: .leading, spacing: 6) {
-                if isSelected {
-                    HStack(spacing: 8) {
-                        Text("双击编辑")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(EMTheme.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 999, style: .continuous)
-                                    .fill(EMTheme.accent.opacity(0.10))
-                            )
-                        Spacer(minLength: 0)
-                    }
-                }
-
                 switch f.type {
                 case .divider:
                     HStack(spacing: 10) {
@@ -563,6 +539,29 @@ struct FormBuilderCanvasView: View {
                     )
             }
         )
+        .overlay(alignment: .leading) {
+            // Insertion anchor marker (overlay so it doesn't shift layout on selection)
+            RoundedRectangle(cornerRadius: 999, style: .continuous)
+                .fill(isSelected ? EMTheme.accent : .clear)
+                .frame(width: 4)
+                .padding(.vertical, 8)
+                .padding(.leading, 10)
+        }
+        .overlay(alignment: .topLeading) {
+            if isSelected {
+                Text("双击编辑")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(EMTheme.accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 999, style: .continuous)
+                            .fill(EMTheme.accent.opacity(0.10))
+                    )
+                    .padding(.leading, 18)
+                    .padding(.top, 8)
+            }
+        }
         .contentShape(Rectangle())
     }
 
@@ -616,13 +615,9 @@ struct FormBuilderCanvasView: View {
     }
 
     private func markInsertionAnchor(key: String) {
+        // Selection should feel instant and never shift the scroll position.
+        // Avoid updating the top message here (it can reflow the layout and cause a perceived "jump").
         state.selectedFieldKey = key
-        state.errorMessage = "已选中：新增字段将插入到该字段下方（双击编辑）"
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            if state.errorMessage == "已选中：新增字段将插入到该字段下方（双击编辑）" {
-                state.errorMessage = nil
-            }
-        }
     }
 
     private func summary(_ f: FormField) -> String {
