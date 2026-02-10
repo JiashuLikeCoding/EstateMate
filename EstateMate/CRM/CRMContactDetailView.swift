@@ -49,9 +49,6 @@ struct CRMContactDetailView: View {
                         EMCard {
                             infoRow(label: "阶段", value: contact.stage.displayName)
 
-                            Divider().overlay(EMTheme.line)
-                            infoRow(label: "来源", value: contact.source.displayName)
-
                             let addresses = splitInterestedAddresses(contact.address)
                             if !addresses.isEmpty {
                                 Divider().overlay(EMTheme.line)

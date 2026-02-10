@@ -696,7 +696,6 @@ private struct CRMContactCardContent: View {
 
             HStack(spacing: 8) {
                 EMChip(text: contact.stage.displayName, isOn: true)
-                EMChip(text: contact.source.displayName, isOn: false)
                 Spacer()
                 if let dt = contact.lastContactedAt {
                     Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
