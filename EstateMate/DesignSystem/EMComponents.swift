@@ -113,17 +113,20 @@ struct EMTextField: View {
             Group {
                 if isSecure {
                     SecureField(prompt ?? "", text: text)
+                        .font(.callout)
                         .foregroundStyle(textColor ?? EMTheme.ink)
                 } else {
                     TextField(prompt ?? "", text: text)
                         .keyboardType(keyboard)
                         .textInputAutocapitalization(.sentences)
                         .autocorrectionDisabled(false)
+                        .font(.callout)
                         .foregroundStyle(textColor ?? EMTheme.ink)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
+            .frame(minHeight: 44)
             .background(
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                     .fill(EMTheme.paper2)
@@ -207,6 +210,7 @@ struct EMEmailField: View {
                         .lineLimit(1)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 12)
+                        .frame(minHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                                 .fill(EMTheme.paper2)
@@ -227,11 +231,12 @@ struct EMEmailField: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(EMTheme.ink2)
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
+                        .frame(minHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                .fill(Color.white)
+                                .fill(EMTheme.paper2)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
@@ -240,16 +245,6 @@ struct EMEmailField: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                    .fill(EMTheme.paper2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                    .stroke(EMTheme.line, lineWidth: 1)
-            )
 
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
@@ -408,8 +403,10 @@ struct EMInlineTextField: View {
             .keyboardType(keyboard)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled(true)
+            .font(.callout)
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
+            .frame(minHeight: 44)
             .background(
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                     .fill(EMTheme.paper2)
