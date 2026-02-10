@@ -12,6 +12,7 @@ struct CRMGmailConnectView: View {
     var onConnected: ((String) -> Void)? = nil
 
     @State private var isLoading: Bool = false
+    @State private var isStatusLoading: Bool = false
     @State private var errorMessage: String?
 
     @State private var connectedEmail: String?
@@ -66,11 +67,11 @@ struct CRMGmailConnectView: View {
                             .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
                             .disabled(isLoading)
 
-                            Button(isLoading ? "处理中…" : "刷新状态") {
+                            Button(isStatusLoading ? "刷新中…" : "刷新状态") {
                                 Task { await loadStatus() }
                             }
                             .buttonStyle(EMSecondaryButtonStyle())
-                            .disabled(isLoading)
+                            .disabled(isLoading || isStatusLoading)
 
                             if connectedEmail != nil {
                                 Button("断开连接") {
@@ -112,8 +113,8 @@ struct CRMGmailConnectView: View {
     }
 
     private func loadStatus() async {
-        isLoading = true
-        defer { isLoading = false }
+        isStatusLoading = true
+        defer { isStatusLoading = false }
         errorMessage = nil
         do {
             let status = try await CRMGmailIntegrationService().status()
