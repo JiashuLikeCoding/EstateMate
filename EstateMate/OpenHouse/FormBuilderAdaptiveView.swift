@@ -46,7 +46,11 @@ final class FormBuilderState: ObservableObject {
     @Published var selectedFieldKey: String? = nil
 
     /// When adding a new field, we stage it here so user can confirm Add/Cancel.
+    /// Also used when updating an existing field type via the palette (confirm Update/Cancel).
     @Published var draftField: FormField? = nil
+
+    /// When not nil, the draft is editing an existing field (key), not adding a new one.
+    @Published var editingFieldKey: String? = nil
 
     @Published var errorMessage: String? = nil
     @Published var isSaving: Bool = false
@@ -66,6 +70,11 @@ final class FormBuilderState: ObservableObject {
 
     func startDraft(type: FormFieldType) {
         startDraft(presetLabel: nil, presetKey: nil, type: type, required: false)
+    }
+
+    func cancelDraft() {
+        draftField = nil
+        editingFieldKey = nil
     }
 
     func startDraft(presetLabel: String?, presetKey: String?, type: FormFieldType, required: Bool) {
@@ -166,13 +175,20 @@ final class FormBuilderState: ObservableObject {
 
     func confirmDraft() {
         guard let draftField else { return }
-        fields.append(draftField)
-        selectedFieldKey = draftField.key
-        self.draftField = nil
-    }
 
-    func cancelDraft() {
-        draftField = nil
+        if let editingKey = editingFieldKey,
+           let idx = fields.firstIndex(where: { $0.key == editingKey }) {
+            // Update existing
+            fields[idx] = draftField
+            selectedFieldKey = draftField.key
+        } else {
+            // Add new
+            fields.append(draftField)
+            selectedFieldKey = draftField.key
+        }
+
+        self.draftField = nil
+        self.editingFieldKey = nil
     }
 
     func deleteSelectedIfPossible() {
@@ -197,7 +213,7 @@ final class FormBuilderState: ObservableObject {
 
         // Reset type-specific props.
         f.options = (newType == .select) ? (f.options?.isEmpty == false ? f.options : ["选项 1", "选项 2"]) : nil
-        f.textCase = (newType == .text) ? (f.textCase ?? .none) : nil
+        f.textCase = (newType == .text) ? (f.textCase ?? TextCase.none) : nil
 
         if newType == .name {
             let format: NameFormat = f.nameFormat ?? .firstLast
@@ -217,7 +233,9 @@ final class FormBuilderState: ObservableObject {
             f.phoneKeys = nil
         }
 
-        fields[idx] = f
+        // Stage as a draft update so UI can show "更新字段" instead of delete.
+        editingFieldKey = key
+        draftField = f
     }
 
     func move(from: IndexSet, to: Int) {
