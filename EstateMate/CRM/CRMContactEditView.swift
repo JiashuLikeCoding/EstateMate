@@ -31,8 +31,13 @@ struct CRMContactEditView: View {
     @State private var phone = ""
     @State private var email = ""
     @State private var notes = ""
-    @State private var address = ""
+    @State private var address = "" // 感兴趣的地址
+    @State private var createdLocation = "" // 新增地点（自动）
     @State private var tagsText = "" // comma-separated
+
+    @State private var isFillingLocation = false
+    @State private var showLocationError = false
+    @State private var locationErrorMessage: String?
     @State private var stage: CRMContactStage = .newLead
     @State private var source: CRMContactSource = .manual
 
@@ -43,7 +48,7 @@ struct CRMContactEditView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader(mode.title, subtitle: "先做最小可用：姓名/电话/邮箱/地址/标签/备注")
+                    EMSectionHeader(mode.title, subtitle: "先做最小可用：姓名/电话/邮箱/感兴趣地址/标签/备注")
 
                     if let errorMessage {
                         EMCard {
@@ -58,21 +63,22 @@ struct CRMContactEditView: View {
                         EMTextField(title: "手机号", text: $phone, prompt: "例如：13800000000", keyboard: .phonePad)
                         EMTextField(title: "邮箱", text: $email, prompt: "例如：name@email.com", keyboard: .emailAddress)
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("地址")
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(EMTheme.ink2)
-                                Spacer()
-                                Button {
-                                    Task { await fillAddress() }
-                                } label: {
-                                    Text("一键获取")
-                                        .font(.footnote.weight(.semibold))
-                                }
-                                .buttonStyle(.plain)
+                        EMTextField(title: "感兴趣的地址", text: $address, prompt: "例如：Finch 地铁站附近 / 123 Main St")
+
+                        EMLocationField(
+                            title: "新增地点（自动）",
+                            text: $createdLocation,
+                            prompt: "点击右侧图标获取",
+                            isLoading: isFillingLocation,
+                            onFillFromCurrentLocation: {
+                                hideKeyboard()
+                                Task { await fillCreatedLocation() }
                             }
-                            EMTextField(title: "", text: $address, prompt: "例如：123 Main St, Toronto, ON")
+                        )
+                        .alert("无法获取当前位置", isPresented: $showLocationError) {
+                            Button("好的", role: .cancel) {}
+                        } message: {
+                            Text(locationErrorMessage ?? "请稍后重试")
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -148,6 +154,7 @@ struct CRMContactEditView: View {
             email = c.email
             notes = c.notes
             address = c.address
+            createdLocation = extractCreatedLocation(from: c.notes)
             tagsText = (c.tags ?? []).joined(separator: ", ")
             stage = c.stage
             source = c.source
@@ -207,15 +214,116 @@ struct CRMContactEditView: View {
         }
     }
 
-    private func fillAddress() async {
-        hideKeyboard()
+    private func fillCreatedLocation() async {
+        isFillingLocation = true
+        defer { isFillingLocation = false }
         do {
             let line = try await locationService.fillCurrentAddress()
-            if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                address = line
-            }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { return }
+
+            createdLocation = trimmed
+            notes = upsertCreatedLocationNote(into: notes, locationLine: trimmed)
         } catch {
-            errorMessage = "获取地址失败：\(error.localizedDescription)"
+            locationErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            showLocationError = true
+        }
+    }
+
+    private func upsertCreatedLocationNote(into notes: String, locationLine: String) -> String {
+        let prefix = "新增地点："
+        let stamp = createdAtStamp()
+        let newLine = "\(prefix)\(locationLine)（\(stamp)）"
+
+        var lines = notes
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+
+        lines.removeAll(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(prefix) })
+
+        if lines.isEmpty {
+            return newLine
+        }
+
+        // Put it on top for visibility.
+        if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
+            lines[0] = newLine
+        } else {
+            lines.insert(newLine, at: 0)
+        }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private func extractCreatedLocation(from notes: String) -> String {
+        let prefix = "新增地点："
+        for raw in notes.split(separator: "\n") {
+            let line = String(raw).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard line.hasPrefix(prefix) else { continue }
+            var rest = String(line.dropFirst(prefix.count))
+            // Strip trailing full-width parentheses stamp if present.
+            if let range = rest.range(of: "（", options: .backwards) {
+                rest = String(rest[..<range.lowerBound])
+            }
+            return rest.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return ""
+    }
+
+    private func createdAtStamp() -> String {
+        let f = DateFormatter()
+        f.locale = .current
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.string(from: Date())
+    }
+}
+
+private struct EMLocationField: View {
+    let title: String
+    @Binding var text: String
+    var prompt: String
+
+    var isLoading: Bool
+    var onFillFromCurrentLocation: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(EMTheme.ink2)
+
+            HStack(spacing: 10) {
+                TextField(prompt, text: $text)
+                    .textInputAutocapitalization(.sentences)
+                    .autocorrectionDisabled(false)
+
+                Button {
+                    onFillFromCurrentLocation()
+                } label: {
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "location.fill")
+                            .font(.callout.weight(.semibold))
+                    }
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(EMTheme.accent)
+                .disabled(isLoading)
+                .accessibilityLabel("使用当前位置")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .fill(EMTheme.paper2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .stroke(EMTheme.line, lineWidth: 1)
+            )
         }
     }
 }
