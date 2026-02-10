@@ -337,26 +337,15 @@ struct FormBuilderCanvasView: View {
                     .padding(.top, 6)
                 }
 
-                EMCard {
-                    Button {
-                        hideKeyboard()
-                        showPreviewSheet = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "eye")
-                                .foregroundStyle(EMTheme.ink2)
-
-                            Text("预览表单")
-                                .font(.headline)
-                                .foregroundStyle(EMTheme.ink)
-                                .frame(maxWidth: .infinity)
-                        }
-                        .padding(.vertical, 2)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(state.fields.isEmpty)
-                    .opacity(state.fields.isEmpty ? 0.45 : 1)
+                Button {
+                    hideKeyboard()
+                    showPreviewSheet = true
+                } label: {
+                    Text("预览表单")
                 }
+                .buttonStyle(EMSecondaryButtonStyle())
+                .disabled(state.fields.isEmpty)
+                .opacity(state.fields.isEmpty ? 0.45 : 1)
 
                 Button(state.isSaving ? "保存中..." : "保存表单") {
                     Task { await save() }
