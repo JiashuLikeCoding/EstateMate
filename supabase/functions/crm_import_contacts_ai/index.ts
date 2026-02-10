@@ -237,6 +237,19 @@ async function aiInferMapping(params: { template: Json; columns: string[]; sampl
   return mapping
 }
 
+function isIdLikeColumn(name: string): boolean {
+  const raw = name.trim().toLowerCase()
+  if (!raw) return false
+  // Normalize separators to spaces then split into tokens.
+  const tokens = raw.replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean)
+  if (tokens.includes("id") || tokens.includes("uuid")) return true
+  if (raw === "id" || raw === "uuid") return true
+  if (raw.endsWith("_id") || raw.startsWith("id_") || raw.endsWith("-id") || raw.startsWith("id-")) return true
+  // Common variants
+  if (raw.includes("submission_id") || raw.includes("contact_id") || raw.includes("event_id") || raw.includes("form_id")) return true
+  return false
+}
+
 function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping): ContactPatch {
   const used = new Set<string>()
 
@@ -285,6 +298,7 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
   if (mapping.extras_to_notes !== false) {
     for (const [k, v] of Object.entries(row)) {
       if (used.has(k)) continue
+      if (isIdLikeColumn(k)) continue
       const vv = normalizeString(v)
       if (!vv) continue
       notesParts.push(`${k}: ${vv}`)
