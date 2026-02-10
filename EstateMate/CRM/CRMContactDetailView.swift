@@ -58,13 +58,24 @@ struct CRMContactDetailView: View {
                                 }
                             }
 
-                            let addresses = splitInterestedAddresses(contact.address)
-                            if !addresses.isEmpty {
-                                Divider().overlay(EMTheme.line)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("感兴趣的地址")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
+                            Divider().overlay(EMTheme.line)
+                            infoRow(label: "手机号", value: contact.phone)
+
+                            Divider().overlay(EMTheme.line)
+                            infoRow(label: "邮箱", value: contact.email)
+
+                            Divider().overlay(EMTheme.line)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("感兴趣的地址")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                let addresses = splitInterestedAddresses(contact.address)
+                                if addresses.isEmpty {
+                                    Text("—")
+                                        .font(.body)
+                                        .foregroundStyle(EMTheme.ink)
+                                } else {
                                     FlowLayout(maxPerRow: 3, spacing: 8) {
                                         ForEach(addresses, id: \.self) { a in
                                             EMChip(text: a, isOn: true)
@@ -76,12 +87,18 @@ struct CRMContactDetailView: View {
                             Divider().overlay(EMTheme.line)
                             infoRow(label: "备注", value: contact.notes)
 
-                            if let tags = contact.tags, !tags.isEmpty {
-                                Divider().overlay(EMTheme.line)
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("标签")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
+                            Divider().overlay(EMTheme.line)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("标签")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                let tags = contact.tags ?? []
+                                if tags.isEmpty {
+                                    Text("—")
+                                        .font(.body)
+                                        .foregroundStyle(EMTheme.ink)
+                                } else {
                                     FlowLayout(maxPerRow: 99, spacing: 8) {
                                         ForEach(tags, id: \.self) { t in
                                             EMChip(text: t, isOn: true)
