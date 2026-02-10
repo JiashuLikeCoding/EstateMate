@@ -50,6 +50,28 @@ struct CRMContactDetailView: View {
                             infoRow(label: "手机号", value: contact.phone)
                             Divider().overlay(EMTheme.line)
                             infoRow(label: "邮箱", value: contact.email)
+
+                            Divider().overlay(EMTheme.line)
+                            infoRow(label: "阶段", value: contact.stage.displayName)
+
+                            Divider().overlay(EMTheme.line)
+                            infoRow(label: "来源", value: contact.source.displayName)
+
+                            let addresses = splitInterestedAddresses(contact.address)
+                            if !addresses.isEmpty {
+                                Divider().overlay(EMTheme.line)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("感兴趣的地址")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(EMTheme.ink2)
+                                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                                        ForEach(addresses, id: \.self) { a in
+                                            EMChip(text: a, isOn: true)
+                                        }
+                                    }
+                                }
+                            }
+
                             Divider().overlay(EMTheme.line)
                             infoRow(label: "备注", value: contact.notes)
 
@@ -164,5 +186,22 @@ struct CRMContactDetailView: View {
         }
         .padding(.vertical, 14)
         .contentShape(Rectangle())
+    }
+
+    private func splitInterestedAddresses(_ raw: String) -> [String] {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return [] }
+
+        let replaced = s
+            .replacingOccurrences(of: "\n", with: ",")
+            .replacingOccurrences(of: "，", with: ",")
+            .replacingOccurrences(of: "|", with: ",")
+            .replacingOccurrences(of: "/", with: ",")
+            .replacingOccurrences(of: "、", with: ",")
+
+        return replaced
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 }
