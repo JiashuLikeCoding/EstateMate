@@ -12,11 +12,14 @@ import Supabase
 final class EmailTemplateService {
     private let client = SupabaseClientProvider.client
 
-    func listTemplates(workspace: EstateMateWorkspaceKind, includeArchived: Bool = false) async throws -> [EmailTemplateRecord] {
+    func listTemplates(workspace: EstateMateWorkspaceKind? = nil, includeArchived: Bool = false) async throws -> [EmailTemplateRecord] {
         var q = client
             .from("email_templates")
             .select()
-            .eq("workspace", value: workspace.rawValue)
+
+        if let workspace {
+            q = q.eq("workspace", value: workspace.rawValue)
+        }
 
         if !includeArchived {
             q = q.eq("is_archived", value: false)

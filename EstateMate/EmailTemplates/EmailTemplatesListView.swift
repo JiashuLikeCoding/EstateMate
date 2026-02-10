@@ -35,7 +35,7 @@ struct EmailTemplatesListView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("邮件模版", subtitle: "\(workspace.title) · 支持变量：{{key}}")
+                    EMSectionHeader("邮件模版", subtitle: "开放日 & 客户管理共用 · 支持变量：{{key}}")
 
                     EMCard {
                         EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
@@ -82,11 +82,19 @@ struct EmailTemplatesListView: View {
                             EMCard {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
-                                        Text(t.name.isEmpty ? "（未命名模版）" : t.name)
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-                                            .lineLimit(1)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(t.name.isEmpty ? "（未命名模版）" : t.name)
+                                                .font(.headline)
+                                                .foregroundStyle(EMTheme.ink)
+                                                .lineLimit(1)
+
+                                            Text(t.workspace.title)
+                                                .font(.caption)
+                                                .foregroundStyle(EMTheme.ink2)
+                                        }
+
                                         Spacer()
+
                                         Text("变量：\(t.variables.count)")
                                             .font(.footnote)
                                             .foregroundStyle(EMTheme.ink2)
@@ -142,7 +150,8 @@ struct EmailTemplatesListView: View {
         defer { isLoading = false }
 
         do {
-            templates = try await service.listTemplates(workspace: workspace)
+            // Shared templates across OpenHouse + CRM.
+            templates = try await service.listTemplates(workspace: nil)
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }

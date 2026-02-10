@@ -36,10 +36,17 @@ struct EmailTemplateEditView: View {
 
     let mode: Mode
 
+    init(mode: Mode) {
+        self.mode = mode
+        _workspace = State(initialValue: mode.workspace)
+    }
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+
+    @State private var workspace: EstateMateWorkspaceKind
 
     @State private var name: String = ""
     @State private var subject: String = ""
@@ -77,6 +84,14 @@ struct EmailTemplateEditView: View {
                     }
 
                     EMCard {
+                        Picker("归属", selection: $workspace) {
+                            ForEach(EstateMateWorkspaceKind.allCases, id: \.self) { w in
+                                Text(w.title).tag(w)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .tint(EMTheme.accent)
+
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访（开放日）")
                         EMTextField(title: "主题", text: $subject, prompt: "例如：很高兴在开放日见到您，{{client_name}}")
 
@@ -276,8 +291,9 @@ struct EmailTemplateEditView: View {
 
         do {
             // MVP: list+find by workspace; small dataset.
-            let all = try await service.listTemplates(workspace: mode.workspace, includeArchived: true)
+            let all = try await service.listTemplates(workspace: nil, includeArchived: true)
             if let t = all.first(where: { $0.id == id }) {
+                workspace = t.workspace
                 name = t.name
                 subject = t.subject
                 bodyText = t.body
@@ -332,7 +348,7 @@ struct EmailTemplateEditView: View {
                 _ = try await service.updateTemplate(
                     id: id,
                     patch: EmailTemplateUpdate(
-                        workspace: mode.workspace,
+                        workspace: workspace,
                         name: n,
                         subject: s,
                         body: b,
@@ -342,7 +358,7 @@ struct EmailTemplateEditView: View {
                 )
             } else {
                 _ = try await service.createTemplate(
-                    EmailTemplateInsert(workspace: mode.workspace, name: n, subject: s, body: b, variables: variables)
+                    EmailTemplateInsert(workspace: workspace, name: n, subject: s, body: b, variables: variables)
                 )
             }
 
