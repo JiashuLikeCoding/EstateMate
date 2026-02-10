@@ -106,6 +106,7 @@ private struct CRMTaskPickByEventView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var events: [OpenHouseEventV2] = []
+    @State private var searchText: String = ""
 
     private let openHouse = DynamicFormService()
 
@@ -130,7 +131,7 @@ private struct CRMTaskPickByEventView: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            ForEach(events) { e in
+            ForEach(filteredEvents) { e in
                 NavigationLink {
                     CRMTaskPickContactFromEventSubmissionsView(
                         event: e,
@@ -168,11 +169,21 @@ private struct CRMTaskPickByEventView: View {
         .background(EMTheme.paper)
         .navigationTitle("活动")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索活动标题/地点")
         .task {
             await load()
         }
         .refreshable {
             await load(force: true)
+        }
+    }
+
+    private var filteredEvents: [OpenHouseEventV2] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return events }
+        return events.filter { e in
+            let hay = [e.title, e.location ?? "", e.host ?? "", e.assistant ?? ""].joined(separator: " ")
+            return hay.localizedCaseInsensitiveContains(q)
         }
     }
 
@@ -229,6 +240,7 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var contacts: [CRMContact] = []
+    @State private var searchText: String = ""
 
     private let crm = CRMService()
 
@@ -253,7 +265,7 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            ForEach(contacts) { c in
+            ForEach(filteredContacts) { c in
                 Button {
                     onPick(.contact(c.id))
                     dismiss()
@@ -294,11 +306,21 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
         .background(EMTheme.paper)
         .navigationTitle(event.title)
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索客户姓名/邮箱/电话/标签")
         .task {
             await load()
         }
         .refreshable {
             await load(force: true)
+        }
+    }
+
+    private var filteredContacts: [CRMContact] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return contacts }
+        return contacts.filter { c in
+            let hay = [c.fullName, c.email, c.phone, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
+            return hay.localizedCaseInsensitiveContains(q)
         }
     }
 
@@ -366,6 +388,8 @@ private struct CRMTaskPickFromAllContactsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    @State private var searchText: String = ""
+
     var body: some View {
         List {
             if isLoading {
@@ -381,7 +405,7 @@ private struct CRMTaskPickFromAllContactsView: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            ForEach(contacts) { c in
+            ForEach(filteredContacts) { c in
                 Button {
                     onPick(.contact(c.id))
                     dismiss()
@@ -422,6 +446,16 @@ private struct CRMTaskPickFromAllContactsView: View {
         .background(EMTheme.paper)
         .navigationTitle("客户")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索客户姓名/邮箱/电话/标签")
+    }
+
+    private var filteredContacts: [CRMContact] {
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return contacts }
+        return contacts.filter { c in
+            let hay = [c.fullName, c.email, c.phone, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
+            return hay.localizedCaseInsensitiveContains(q)
+        }
     }
 
 }
