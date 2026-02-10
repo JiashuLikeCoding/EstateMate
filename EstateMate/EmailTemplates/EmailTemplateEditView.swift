@@ -64,8 +64,6 @@ struct EmailTemplateEditView: View {
     @State private var newVarKeyError: String?
     @State private var newVarLabel: String = "" // 要填写的内容
 
-    @State private var isPreviewPresented: Bool = false
-
     // AI format + save
     @State private var isAIFormatting: Bool = false
     @State private var isAIPreviewPresented: Bool = false
@@ -79,30 +77,6 @@ struct EmailTemplateEditView: View {
 
     private let service = EmailTemplateService()
     private let aiFormatService = EmailTemplateAIFormatService()
-
-    private var builtInPreviewOverrides: [String: String] {
-        guard workspace == .openhouse else { return [:] }
-        return [
-            "firstname": "小明",
-            "lastname": "张",
-            "middle_name": "",
-            "address": "123 Example St",
-            "date": "2026-02-10",
-            "time": "14:00",
-            "event_title": "周末开放日",
-            "client_name": "张小明",
-            "client_email": "test@example.com"
-        ]
-    }
-
-    var renderedSubject: String {
-        // For quick inline preview.
-        EmailTemplateRenderer.render(subject, variables: variables, overrides: builtInPreviewOverrides)
-    }
-
-    var renderedBody: String {
-        EmailTemplateRenderer.render(bodyText, variables: variables, overrides: builtInPreviewOverrides)
-    }
 
     var body: some View {
         EMScreen {
@@ -274,6 +248,44 @@ struct EmailTemplateEditView: View {
                                     }
                                 }
                             }
+
+                            Divider().overlay(EMTheme.line)
+
+                            Text("新增变量")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(EMTheme.ink)
+
+                            EMTextField(title: "key", text: $newVarKey, prompt: "例如：client_name")
+                                .onChange(of: newVarKey) { _, _ in
+                                    newVarKeyError = nil
+                                }
+
+                            if let newVarKeyError {
+                                Text(newVarKeyError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                    .padding(.top, -4)
+                            }
+
+                            Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, newVarKeyError == nil ? -4 : 0)
+
+                            EMTextField(title: "要填写的内容", text: $newVarLabel, prompt: "例如：客户姓名 / 活动地址 / 经纪人姓名" )
+
+                            Text("说明：这是预览时要让你填写的内容提示（会用在预览页输入框标题）。")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, -4)
+
+                            Button {
+                                addVariable()
+                            } label: {
+                                Text("添加变量")
+                            }
+                            .buttonStyle(EMSecondaryButtonStyle())
+
                         }
                     }
 
@@ -313,69 +325,9 @@ struct EmailTemplateEditView: View {
                                 }
                             }
 
-                            Divider().overlay(EMTheme.line)
-
-                            Text("新增变量")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(EMTheme.ink)
-
-                            EMTextField(title: "key", text: $newVarKey, prompt: "例如：client_name")
-                                .onChange(of: newVarKey) { _, _ in
-                                    newVarKeyError = nil
-                                }
-
-                            if let newVarKeyError {
-                                Text(newVarKeyError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.red)
-                                    .padding(.top, -4)
-                            }
-
-                            Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                                .padding(.top, newVarKeyError == nil ? -4 : 0)
-
-                            EMTextField(title: "要填写的内容", text: $newVarLabel, prompt: "例如：客户姓名 / 活动地址 / 经纪人姓名" )
-
-                            Text("说明：这是预览时要让你填写的内容提示（会用在预览页输入框标题）。")
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                                .padding(.top, -4)
-
-                            Button {
-                                addVariable()
-                            } label: {
-                                Text("添加变量")
-                            }
-                            .buttonStyle(EMSecondaryButtonStyle())
                         }
                     }
 
-                    EMCard {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("预览")
-                                .font(.headline)
-                                .foregroundStyle(EMTheme.ink)
-
-                            Text("点击预览后，会先让你填写每个变量的内容，然后展示整封邮件。")
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink2)
-
-                            Button {
-                                hideKeyboard()
-                                isPreviewPresented = true
-                            } label: {
-                                Text("预览")
-                            }
-                            .buttonStyle(EMSecondaryButtonStyle())
-                        }
-                    }
-                    .sheet(isPresented: $isPreviewPresented) {
-                        NavigationStack {
-                            EmailTemplatePreviewView(subject: subject, bodyText: bodyText, variables: variables)
-                        }
-                    }
 
                     Button {
                         Task { await aiFormatAndPreview() }
@@ -707,98 +659,6 @@ struct EmailTemplateEditView: View {
         } catch {
             errorMessage = "归档失败：\(error.localizedDescription)"
         }
-    }
-}
-
-private struct EmailTemplatePreviewView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let subject: String
-    let bodyText: String
-    let variables: [EmailTemplateVariable]
-
-    @State private var values: [String: String] = [:]
-
-    var renderedSubject: String {
-        EmailTemplateRenderer.render(subject, variables: variables, overrides: values)
-    }
-
-    var renderedBody: String {
-        EmailTemplateRenderer.render(bodyText, variables: variables, overrides: values)
-    }
-
-    var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("预览邮件", subtitle: variables.isEmpty ? "无变量" : "先填写变量，再查看完整邮件")
-
-                    if !variables.isEmpty {
-                        EMCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("填写变量")
-                                    .font(.headline)
-                                    .foregroundStyle(EMTheme.ink)
-
-                                ForEach(variables) { v in
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        let title = v.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? v.key : v.label
-
-                                        EMTextField(
-                                            title: title,
-                                            text: Binding(
-                                                get: { values[v.key, default: ""] },
-                                                set: { values[v.key] = $0 }
-                                            ),
-                                            prompt: "对应 {{\(v.key)}}"
-                                        )
-
-                                        Text("token：{{\(v.key)}}")
-                                            .font(.footnote)
-                                            .foregroundStyle(EMTheme.ink2)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    EMCard {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("主题")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(EMTheme.ink2)
-                            Text(renderedSubject.isEmpty ? "（无主题）" : renderedSubject)
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink)
-
-                            Divider().overlay(EMTheme.line)
-
-                            Text("正文")
-                                .font(.footnote.weight(.medium))
-                                .foregroundStyle(EMTheme.ink2)
-                            Text(renderedBody.isEmpty ? "（无正文）" : renderedBody)
-                                .font(.subheadline)
-                                .foregroundStyle(EMTheme.ink)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-
-                    Button {
-                        dismiss()
-                    } label: {
-                        Text("关闭")
-                    }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: false))
-
-                    Spacer(minLength: 20)
-                }
-                .padding(EMTheme.padding)
-            }
-            .safeAreaPadding(.top, 8)
-        }
-        .navigationTitle("预览")
-        .navigationBarTitleDisplayMode(.inline)
-        .onTapGesture { hideKeyboard() }
     }
 }
 
