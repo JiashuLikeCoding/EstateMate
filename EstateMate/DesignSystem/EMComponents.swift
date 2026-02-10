@@ -105,6 +105,8 @@ struct EMTextField: View {
     /// When provided, the input text will use this color.
     var textColor: Color? = nil
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -116,10 +118,12 @@ struct EMTextField: View {
             Group {
                 if isSecure {
                     SecureField(prompt ?? "", text: text)
+                        .focused($isFocused)
                         .font(.callout)
                         .foregroundStyle(textColor ?? EMTheme.ink)
                 } else {
                     TextField(prompt ?? "", text: text)
+                        .focused($isFocused)
                         .keyboardType(keyboard)
                         .textInputAutocapitalization(.sentences)
                         .autocorrectionDisabled(false)
@@ -130,6 +134,12 @@ struct EMTextField: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .frame(minHeight: 44)
+            // Make the whole rounded rect tappable; tapping inside the field should keep/focus editing
+            // instead of being interpreted as a background tap (which would dismiss the keyboard).
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isFocused = true
+            }
             .background(
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
                     .fill(EMTheme.paper2)
