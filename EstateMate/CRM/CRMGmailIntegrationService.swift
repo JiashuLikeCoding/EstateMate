@@ -24,42 +24,56 @@ final class CRMGmailIntegrationService {
         body: some Encodable,
         timeoutSeconds: UInt64 = 12
     ) async throws -> T {
+        func invokeOnce(accessToken: String) async throws -> T {
+            let headers = [
+                "Authorization": "Bearer \(accessToken)"
+            ]
+
+            return try await withThrowingTaskGroup(of: T.self) { group in
+                group.addTask {
+                    let res: T = try await self.client.functions.invoke(name, options: .init(headers: headers, body: body))
+                    return res
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: timeoutSeconds * 1_000_000_000)
+                    throw EMError.message("请求超时（Supabase Function：\(name)）。请确认已部署 gmail_* functions，并稍后重试。")
+                }
+
+                do {
+                    let first = try await group.next()!
+                    group.cancelAll()
+                    return first
+                } catch {
+                    group.cancelAll()
+                    throw error
+                }
+            }
+        }
+
         // Make sure we pass the user's JWT to Edge Functions.
         // Some environments don't automatically attach Authorization for function calls.
-        let session = try await client.auth.session
-        let headers = [
-            "Authorization": "Bearer \(session.accessToken)"
-        ]
-
-        return try await withThrowingTaskGroup(of: T.self) { group in
-            group.addTask {
-                let res: T = try await self.client.functions.invoke(name, options: .init(headers: headers, body: body))
-                return res
-            }
-            group.addTask {
-                try await Task.sleep(nanoseconds: timeoutSeconds * 1_000_000_000)
-                throw EMError.message("请求超时（Supabase Function：\(name)）。请确认已部署 gmail_* functions，并稍后重试。")
-            }
-
-            do {
-                let first = try await group.next()!
-                group.cancelAll()
-                return first
-            } catch {
-                group.cancelAll()
-                // Make common function errors more user-friendly.
-                if let e = error as? FunctionsError {
-                    switch e {
-                    case let .httpError(code, _):
-                        if code == 401 {
+        do {
+            let session = try await client.auth.session
+            return try await invokeOnce(accessToken: session.accessToken)
+        } catch {
+            // If we got a 401, try to refresh session once, then retry.
+            if let e = error as? FunctionsError {
+                switch e {
+                case let .httpError(code, _):
+                    if code == 401 {
+                        do {
+                            _ = try await client.auth.refreshSession()
+                            let session = try await client.auth.session
+                            return try await invokeOnce(accessToken: session.accessToken)
+                        } catch {
                             throw EMError.message("登录状态已过期或无权限（401）。请先退出登录再重新登录，然后重试连接 Gmail。")
                         }
-                    default:
-                        break
                     }
+                default:
+                    break
                 }
-                throw error
             }
+            throw error
         }
     }
 
