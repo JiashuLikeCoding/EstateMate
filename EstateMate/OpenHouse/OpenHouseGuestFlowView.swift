@@ -306,9 +306,16 @@ struct OpenHouseKioskFillView: View {
                         EMCard {
                             VStack(spacing: 12) {
                                 ForEach(fieldRows(form.schema.fields), id: \.self) { row in
-                                    if row.count <= 1 || hSizeClass != .regular {
+                                    if row.count <= 1 {
                                         if let f = row.first {
                                             fieldRow(f, reserveTitleSpace: false)
+                                        }
+                                    } else if hSizeClass != .regular {
+                                        // On iPhone, show spliced fields stacked vertically (splice affects layout on large screens only).
+                                        VStack(alignment: .leading, spacing: 12) {
+                                            ForEach(row) { f in
+                                                fieldRow(f, reserveTitleSpace: false)
+                                            }
                                         }
                                     } else {
                                         HStack(alignment: .top, spacing: 12) {
