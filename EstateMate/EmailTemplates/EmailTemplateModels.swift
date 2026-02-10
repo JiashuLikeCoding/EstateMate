@@ -120,6 +120,16 @@ enum EmailTemplateRenderer {
     static func render(_ text: String, variables: [EmailTemplateVariable], overrides: [String: String] = [:]) -> String {
         var result = text
 
+        // 1) Built-in: always allow direct overrides, even if the key isn't declared in variables.
+        // This supports "固定变量" like {{firstname}} / {{address}} without requiring the user to add them.
+        for (rawKey, rawValue) in overrides {
+            let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { continue }
+            let token = "{{\(key)}}"
+            result = result.replacingOccurrences(of: token, with: rawValue)
+        }
+
+        // 2) Declared variables: fallback to example when no override is provided.
         for v in variables {
             let key = v.key.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else { continue }

@@ -62,13 +62,28 @@ struct EmailTemplateEditView: View {
 
     private let service = EmailTemplateService()
 
+    private var builtInPreviewOverrides: [String: String] {
+        guard workspace == .openhouse else { return [:] }
+        return [
+            "firstname": "小明",
+            "lastname": "张",
+            "middle_name": "",
+            "address": "123 Example St",
+            "date": "2026-02-10",
+            "time": "14:00",
+            "event_title": "周末开放日",
+            "client_name": "张小明",
+            "client_email": "test@example.com"
+        ]
+    }
+
     var renderedSubject: String {
-        // Legacy: for quick inline preview, uses example (usually empty).
-        EmailTemplateRenderer.render(subject, variables: variables)
+        // For quick inline preview.
+        EmailTemplateRenderer.render(subject, variables: variables, overrides: builtInPreviewOverrides)
     }
 
     var renderedBody: String {
-        EmailTemplateRenderer.render(bodyText, variables: variables)
+        EmailTemplateRenderer.render(bodyText, variables: variables, overrides: builtInPreviewOverrides)
     }
 
     var body: some View {
@@ -106,9 +121,28 @@ struct EmailTemplateEditView: View {
                                         )
                                 )
 
-                            if !variables.isEmpty {
+                            let builtInKeys: [String] = {
+                                guard workspace == .openhouse else { return [] }
+                                return ["firstname", "lastname", "middle_name", "address", "date", "time", "event_title"]
+                            }()
+
+                            if !(variables.isEmpty && builtInKeys.isEmpty) {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 10) {
+                                        ForEach(builtInKeys, id: \.self) { key in
+                                            Button {
+                                                insertVariableToken(key)
+                                            } label: {
+                                                Text("+ {{\(key)}}")
+                                                    .font(.footnote.weight(.medium))
+                                                    .foregroundStyle(EMTheme.accent)
+                                                    .padding(.horizontal, 10)
+                                                    .padding(.vertical, 6)
+                                                    .background(Capsule().fill(EMTheme.accent.opacity(0.10)))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+
                                         ForEach(variables) { v in
                                             Button {
                                                 insertVariableToken(v.key)
@@ -118,9 +152,7 @@ struct EmailTemplateEditView: View {
                                                     .foregroundStyle(EMTheme.accent)
                                                     .padding(.horizontal, 10)
                                                     .padding(.vertical, 6)
-                                                    .background(
-                                                        Capsule().fill(EMTheme.accent.opacity(0.10))
-                                                    )
+                                                    .background(Capsule().fill(EMTheme.accent.opacity(0.10)))
                                             }
                                             .buttonStyle(.plain)
                                         }

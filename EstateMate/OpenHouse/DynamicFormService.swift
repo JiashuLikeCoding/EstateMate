@@ -492,18 +492,22 @@ final class DynamicFormService {
             struct EventEmailTemplate: Decodable {
                 let id: UUID
                 let title: String
+                let location: String?
+                let startsAt: Date?
                 let emailTemplateId: UUID?
 
                 enum CodingKeys: String, CodingKey {
                     case id
                     case title
+                    case location
+                    case startsAt = "starts_at"
                     case emailTemplateId = "email_template_id"
                 }
             }
 
             let event: EventEmailTemplate = try await client
                 .from("openhouse_events")
-                .select("id,title,email_template_id")
+                .select("id,title,location,starts_at,email_template_id")
                 .eq("id", value: eventId.uuidString)
                 .single()
                 .execute()
@@ -514,11 +518,56 @@ final class DynamicFormService {
             // 3) Load template.
             let template = try await EmailTemplateService().getTemplate(id: templateId)
 
-            // 4) Build variable overrides from submission data.
+            // 4) Build variable overrides from submission data + event.
             var overrides: [String: String] = [:]
-            overrides["event_title"] = (eventTitle?.isEmpty == false ? eventTitle : event.title)
+
+            let resolvedEventTitle = (eventTitle?.isEmpty == false ? eventTitle : event.title)
+            overrides["event_title"] = resolvedEventTitle
+            overrides["address"] = event.location ?? ""
+
+            if let startsAt = event.startsAt {
+                let df = DateFormatter()
+                df.locale = .current
+                df.timeZone = .current
+                df.dateFormat = "yyyy-MM-dd"
+                overrides["date"] = df.string(from: startsAt)
+
+                let tf = DateFormatter()
+                tf.locale = .current
+                tf.timeZone = .current
+                tf.dateFormat = "HH:mm"
+                overrides["time"] = tf.string(from: startsAt)
+            }
+
             overrides["client_email"] = to
             overrides["client_name"] = extracted.fullName
+
+            // Name parts (prefer explicit keys, else derive from fullName when possible)
+            let lastName = (data["last_name"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let firstName = (data["first_name"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let middleName = (data["middle_name"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if !firstName.isEmpty { overrides["firstname"] = firstName }
+            if !lastName.isEmpty { overrides["lastname"] = lastName }
+            if !middleName.isEmpty { overrides["middle_name"] = middleName }
+
+            if overrides["firstname"] == nil || overrides["lastname"] == nil {
+                let parts = extracted.fullName
+                    .split(whereSeparator: { $0 == " " || $0 == "\t" || $0 == "\n" })
+                    .map(String.init)
+                    .filter { !$0.isEmpty }
+
+                if parts.count >= 2 {
+                    overrides["firstname"] = overrides["firstname"] ?? parts.first
+                    overrides["lastname"] = overrides["lastname"] ?? parts.last
+                    if parts.count > 2 {
+                        let mid = parts.dropFirst().dropLast().joined(separator: " ")
+                        if !mid.isEmpty {
+                            overrides["middle_name"] = overrides["middle_name"] ?? mid
+                        }
+                    }
+                }
+            }
 
             for v in template.variables {
                 let key = v.key
