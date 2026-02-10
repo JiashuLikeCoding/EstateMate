@@ -182,12 +182,12 @@ struct OpenHouseEventEditView: View {
                                 }
                             }
 
-                            HStack(spacing: 10) {
+                            if shouldShowMarkOngoing {
                                 Button("设为进行中") {
                                     Task { await markOngoing() }
                                 }
                                 .buttonStyle(EMSecondaryButtonStyle())
-
+                            } else {
                                 Button("设为已结束") {
                                     Task { await markEndedNow() }
                                 }
@@ -232,6 +232,17 @@ struct OpenHouseEventEditView: View {
     private var canEndEarly: Bool {
         // Only show when event has a time range and is not yet ended.
         hasTimeRange && endsAt > Date()
+    }
+
+    private var shouldShowMarkOngoing: Bool {
+        // Only show ONE of: "设为进行中" vs "设为已结束"
+        // - If event hasn't started yet (startsAt in future) -> show "设为进行中"
+        // - If event already ended -> show "设为进行中"
+        // - Otherwise (already started and not ended) -> show "设为已结束"
+        let now = Date()
+        let notStartedYet = startsAt > now
+        let ended = hasTimeRange && endsAt <= now
+        return notStartedYet || ended
     }
 
     private var selectedFormName: String {
