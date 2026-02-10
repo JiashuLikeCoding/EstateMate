@@ -46,6 +46,10 @@ struct CRMContactsListView: View {
         var mustHaveEmail: Bool = false
         var mustHavePhone: Bool = false
 
+        /// address filters
+        var addressContains: String = ""
+        var mustHaveAddress: Bool = false
+
         /// tag filters
         var tagContains: String = ""
         var selectedTags: Set<String> = []
@@ -58,6 +62,8 @@ struct CRMContactsListView: View {
             participatedEventId != nil ||
             mustHaveEmail ||
             mustHavePhone ||
+            mustHaveAddress ||
+            !addressContains.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !tagContains.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !selectedTags.isEmpty
         }
@@ -273,6 +279,7 @@ struct CRMContactsListView: View {
     private var filteredContacts: [CRMContact] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         let tagQ = filter.tagContains.trimmingCharacters(in: .whitespacesAndNewlines)
+        let addressQ = filter.addressContains.trimmingCharacters(in: .whitespacesAndNewlines)
 
         return contacts.filter { c in
             if let stage = filter.stage, c.stage != stage { return false }
@@ -288,6 +295,7 @@ struct CRMContactsListView: View {
 
             if filter.mustHaveEmail, c.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
             if filter.mustHavePhone, c.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+            if filter.mustHaveAddress, c.address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
 
             if !filter.selectedTags.isEmpty {
                 let tags = Set(c.tags ?? [])
@@ -297,6 +305,10 @@ struct CRMContactsListView: View {
             if !tagQ.isEmpty {
                 let tags = (c.tags ?? []).joined(separator: " ")
                 if !tags.localizedCaseInsensitiveContains(tagQ) { return false }
+            }
+
+            if !addressQ.isEmpty {
+                if !c.address.localizedCaseInsensitiveContains(addressQ) { return false }
             }
 
             if q.isEmpty { return true }
@@ -583,6 +595,22 @@ private struct CRMContactsFilterSheet: View {
                             .foregroundStyle(EMTheme.ink2)
                     }
 
+                    Section("感兴趣的地址") {
+                        HStack {
+                            Text("地址包含")
+                            Spacer()
+                            TextField("例如：Finch / 50 Morecambe", text: $filter.addressContains)
+                                .multilineTextAlignment(.trailing)
+                                .textInputAutocapitalization(.sentences)
+                                .autocorrectionDisabled(false)
+                        }
+
+                        Button(filter.addressContains.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "快速：清空" : "清除地址包含") {
+                            filter.addressContains = ""
+                        }
+                        .foregroundStyle(EMTheme.ink2)
+                    }
+
                     Section("标签") {
                         HStack {
                             Text("标签包含")
@@ -610,6 +638,7 @@ private struct CRMContactsFilterSheet: View {
                     Section("条件") {
                         Toggle("必须有邮箱", isOn: $filter.mustHaveEmail)
                         Toggle("必须有电话", isOn: $filter.mustHavePhone)
+                        Toggle("必须有感兴趣地址", isOn: $filter.mustHaveAddress)
                     }
 
                     Section {
