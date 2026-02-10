@@ -15,6 +15,13 @@ private extension Array {
 }
 
 struct FormBuilderCanvasView: View {
+    private enum GroupPosition {
+        case none
+        case start
+        case middle
+        case end
+    }
+
     private struct Grouping {
         var ids: [Int?] = []
         var counts: [Int: Int] = [:]
@@ -22,6 +29,96 @@ struct FormBuilderCanvasView: View {
         func isGrouped(at index: Int) -> Bool {
             guard ids.indices.contains(index), let gid = ids[index] else { return false }
             return (counts[gid] ?? 0) > 1
+        }
+
+        func position(at index: Int) -> GroupPosition {
+            guard isGrouped(at: index), let gid = ids[safe: index] else { return .none }
+
+            let prevSame: Bool = {
+                let j = index - 1
+                guard ids.indices.contains(j) else { return false }
+                return ids[j] == gid
+            }()
+
+            let nextSame: Bool = {
+                let j = index + 1
+                guard ids.indices.contains(j) else { return false }
+                return ids[j] == gid
+            }()
+
+            switch (prevSame, nextSame) {
+            case (false, false): return .none
+            case (false, true): return .start
+            case (true, true): return .middle
+            case (true, false): return .end
+            }
+        }
+    }
+
+    private struct GroupOutlineShape: Shape {
+        var position: GroupPosition
+        var cornerRadius: CGFloat
+
+        func path(in rect: CGRect) -> Path {
+            var p = Path()
+            let r = min(cornerRadius, min(rect.width, rect.height) / 2)
+
+            // Draw only the edges needed so multiple rows visually form one dashed box.
+            switch position {
+            case .none:
+                return p
+
+            case .start:
+                // Top + sides (rounded top corners). No bottom edge.
+                p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+                p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+                p.addArc(
+                    center: CGPoint(x: rect.minX + r, y: rect.minY + r),
+                    radius: r,
+                    startAngle: .degrees(180),
+                    endAngle: .degrees(270),
+                    clockwise: false
+                )
+                p.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+                p.addArc(
+                    center: CGPoint(x: rect.maxX - r, y: rect.minY + r),
+                    radius: r,
+                    startAngle: .degrees(270),
+                    endAngle: .degrees(0),
+                    clockwise: false
+                )
+                p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+
+            case .middle:
+                // Sides only.
+                p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+                p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+                p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+                p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+
+            case .end:
+                // Bottom + sides (rounded bottom corners). No top edge.
+                p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+                p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - r))
+                p.addArc(
+                    center: CGPoint(x: rect.minX + r, y: rect.maxY - r),
+                    radius: r,
+                    startAngle: .degrees(180),
+                    endAngle: .degrees(90),
+                    clockwise: true
+                )
+                p.addLine(to: CGPoint(x: rect.maxX - r, y: rect.maxY))
+                p.addArc(
+                    center: CGPoint(x: rect.maxX - r, y: rect.maxY - r),
+                    radius: r,
+                    startAngle: .degrees(90),
+                    endAngle: .degrees(0),
+                    clockwise: true
+                )
+                p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            }
+
+            return p
         }
     }
 
@@ -204,8 +301,8 @@ struct FormBuilderCanvasView: View {
                             } label: {
                                 fieldRow(
                                     field: f,
-                                    groupId: (grouping.ids.indices.contains(idx) ? grouping.ids[idx] : nil),
-                                    isGrouped: grouping.isGrouped(at: idx)
+                                    isGrouped: grouping.isGrouped(at: idx),
+                                    groupPosition: grouping.position(at: idx)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -308,12 +405,13 @@ struct FormBuilderCanvasView: View {
         }
     }
 
-    private func fieldRow(field f: FormField, groupId: Int?, isGrouped: Bool) -> some View {
+    private func fieldRow(field f: FormField, isGrouped: Bool, groupPosition: GroupPosition) -> some View {
         let isSplice = (f.type == .splice)
         let isDivider = (f.type == .divider)
 
         // Option B: when fields are connected by `.splice`, show them as a visually unified module.
         let groupTint = isGrouped ? EMTheme.accent.opacity(0.06) : .clear
+        let groupStroke = EMTheme.accent.opacity(0.38)
 
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
@@ -428,14 +526,24 @@ struct FormBuilderCanvasView: View {
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                .strokeBorder(
-                    state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line,
-                    style: StrokeStyle(
-                        lineWidth: 1,
-                        dash: (isSplice || isDivider) ? [6, 4] : []
+            ZStack {
+                if groupPosition != .none {
+                    GroupOutlineShape(position: groupPosition, cornerRadius: EMTheme.radiusSmall)
+                        .stroke(
+                            groupStroke,
+                            style: StrokeStyle(lineWidth: 1, dash: [6, 4])
+                        )
+                }
+
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .strokeBorder(
+                        state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line,
+                        style: StrokeStyle(
+                            lineWidth: 1,
+                            dash: (isSplice || isDivider) ? [6, 4] : []
+                        )
                     )
-                )
+            }
         )
         .contentShape(Rectangle())
     }
