@@ -267,7 +267,15 @@ Deno.serve(async (req) => {
     const token = await googleRefreshAccessToken(conn.refresh_token);
 
     const fromEmail = conn.email || user!.email || "me";
-    const fromHeader = conn.email ? conn.email : (user!.email ?? "me");
+
+    // Gmail inbox list shows the sender display name (if present). If we only send the raw email,
+    // Gmail iOS will show something like "4524...@gmail.com" as the sender.
+    // Use a stable display name while keeping the address the same as the authenticated Gmail account.
+    const displayName = envOptional("GMAIL_FROM_NAME") ?? "EstateMate";
+    const fromHeader = conn.email
+      ? `${displayName} <${conn.email}>`
+      : (user!.email ?? "me");
+
     const replyTo = user!.email ?? null;
 
     const rfc822 = buildRfc822Message({
