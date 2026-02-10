@@ -31,6 +31,7 @@ struct CRMContact: Codable, Identifiable, Equatable {
     var phone: String
     var email: String
     var notes: String
+    var address: String
     var tags: [String]?
     var stage: CRMContactStage
     var source: CRMContactSource
@@ -44,6 +45,7 @@ struct CRMContact: Codable, Identifiable, Equatable {
         case phone
         case email
         case notes
+        case address
         case tags
         case stage
         case source
@@ -58,6 +60,7 @@ struct CRMContactInsert: Codable {
     var phone: String
     var email: String
     var notes: String
+    var address: String
     var tags: [String]?
     var stage: CRMContactStage
     var source: CRMContactSource
@@ -68,6 +71,7 @@ struct CRMContactInsert: Codable {
         case phone
         case email
         case notes
+        case address
         case tags
         case stage
         case source
@@ -80,6 +84,7 @@ struct CRMContactUpdate: Codable {
     var phone: String?
     var email: String?
     var notes: String?
+    var address: String?
     var tags: [String]?
     var stage: CRMContactStage?
     var source: CRMContactSource?
@@ -90,6 +95,7 @@ struct CRMContactUpdate: Codable {
         case phone
         case email
         case notes
+        case address
         case tags
         case stage
         case source

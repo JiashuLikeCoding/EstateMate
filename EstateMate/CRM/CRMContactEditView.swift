@@ -31,17 +31,19 @@ struct CRMContactEditView: View {
     @State private var phone = ""
     @State private var email = ""
     @State private var notes = ""
+    @State private var address = ""
     @State private var tagsText = "" // comma-separated
     @State private var stage: CRMContactStage = .newLead
     @State private var source: CRMContactSource = .manual
 
     private let service = CRMService()
+    private let locationService = LocationAddressService()
 
     var body: some View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader(mode.title, subtitle: "先做最小可用：姓名/电话/邮箱/标签/备注")
+                    EMSectionHeader(mode.title, subtitle: "先做最小可用：姓名/电话/邮箱/地址/标签/备注")
 
                     if let errorMessage {
                         EMCard {
@@ -55,6 +57,23 @@ struct CRMContactEditView: View {
                         EMTextField(title: "姓名", text: $fullName, prompt: "例如：王小明")
                         EMTextField(title: "手机号", text: $phone, prompt: "例如：13800000000", keyboard: .phonePad)
                         EMTextField(title: "邮箱", text: $email, prompt: "例如：name@email.com", keyboard: .emailAddress)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("地址")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
+                                Spacer()
+                                Button {
+                                    Task { await fillAddress() }
+                                } label: {
+                                    Text("一键获取")
+                                        .font(.footnote.weight(.semibold))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            EMTextField(title: "", text: $address, prompt: "例如：123 Main St, Toronto, ON")
+                        }
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("阶段")
@@ -128,6 +147,7 @@ struct CRMContactEditView: View {
             phone = c.phone
             email = c.email
             notes = c.notes
+            address = c.address
             tagsText = (c.tags ?? []).joined(separator: ", ")
             stage = c.stage
             source = c.source
@@ -156,6 +176,7 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                        address: address.trimmingCharacters(in: .whitespacesAndNewlines),
                         tags: tags.isEmpty ? nil : tags,
                         stage: stage,
                         source: source,
@@ -172,6 +193,7 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                        address: address.trimmingCharacters(in: .whitespacesAndNewlines),
                         tags: tags.isEmpty ? [] : tags,
                         stage: stage,
                         source: source,
@@ -182,6 +204,18 @@ struct CRMContactEditView: View {
             }
         } catch {
             errorMessage = "保存失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func fillAddress() async {
+        hideKeyboard()
+        do {
+            let line = try await locationService.fillCurrentAddress()
+            if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                address = line
+            }
+        } catch {
+            errorMessage = "获取地址失败：\(error.localizedDescription)"
         }
     }
 }

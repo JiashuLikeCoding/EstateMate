@@ -7,6 +7,7 @@ create table if not exists public.crm_contacts (
   phone text not null default '',
   email text not null default '',
   notes text not null default '',
+  address text not null default '',
   tags text[] null,
 
   created_by uuid not null default auth.uid(),

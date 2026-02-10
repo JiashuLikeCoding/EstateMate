@@ -280,6 +280,7 @@ final class DynamicFormService {
                     phone: extracted.phone,
                     email: extracted.email,
                     notes: mergedNotes,
+                    address: "",
                     tags: extracted.tags,
                     stage: .newLead,
                     source: .openHouse,
@@ -287,10 +288,15 @@ final class DynamicFormService {
                 )
             )
 
+            struct SubmissionContactPatch: Encodable {
+                let contactId: UUID
+                enum CodingKeys: String, CodingKey { case contactId = "contact_id" }
+            }
+
             // Best-effort back-link: mark the submission with contact_id for faster future queries.
             _ = try? await client
                 .from("openhouse_submissions")
-                .update(["contact_id": contact.id.uuidString])
+                .update(SubmissionContactPatch(contactId: contact.id))
                 .eq("id", value: submissionId.uuidString)
                 .execute()
         } catch {

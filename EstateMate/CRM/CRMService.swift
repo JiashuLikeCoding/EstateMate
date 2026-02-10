@@ -46,6 +46,7 @@ final class CRMService {
                         phone: phone.isEmpty ? nil : phone,
                         email: email,
                         notes: insert.notes,
+                        address: insert.address,
                         tags: insert.tags,
                         stage: insert.stage,
                         source: insert.source,
@@ -64,6 +65,7 @@ final class CRMService {
                         phone: phone,
                         email: email.isEmpty ? nil : email,
                         notes: insert.notes,
+                        address: insert.address,
                         tags: insert.tags,
                         stage: insert.stage,
                         source: insert.source,
@@ -78,19 +80,66 @@ final class CRMService {
             phone: phone,
             email: email,
             notes: insert.notes,
+            address: insert.address,
             tags: insert.tags,
             stage: insert.stage,
             source: insert.source,
             lastContactedAt: insert.lastContactedAt
         )
 
-        return try await client
-            .from("crm_contacts")
-            .insert(normalized)
-            .select()
-            .single()
-            .execute()
-            .value
+        do {
+            return try await client
+                .from("crm_contacts")
+                .insert(normalized)
+                .select()
+                .single()
+                .execute()
+                .value
+        } catch {
+            // Defensive: if we race with another insert (or data wasn't normalized),
+            // fall back to find+update instead of surfacing a unique constraint error.
+            if isUniqueConstraintViolation(error) {
+                if !email.isEmpty, let existing = try await findContactByEmail(email) {
+                    return try await updateContact(
+                        id: existing.id,
+                        patch: CRMContactUpdate(
+                            fullName: insert.fullName,
+                            phone: phone.isEmpty ? nil : phone,
+                            email: email,
+                            notes: insert.notes,
+                            address: insert.address,
+                            tags: insert.tags,
+                            stage: insert.stage,
+                            source: insert.source,
+                            lastContactedAt: insert.lastContactedAt
+                        )
+                    )
+                }
+                if !phone.isEmpty, let existing = try await findContactByPhone(phone) {
+                    return try await updateContact(
+                        id: existing.id,
+                        patch: CRMContactUpdate(
+                            fullName: insert.fullName,
+                            phone: phone,
+                            email: email.isEmpty ? nil : email,
+                            notes: insert.notes,
+                            address: insert.address,
+                            tags: insert.tags,
+                            stage: insert.stage,
+                            source: insert.source,
+                            lastContactedAt: insert.lastContactedAt
+                        )
+                    )
+                }
+            }
+            throw error
+        }
+    }
+
+    private func isUniqueConstraintViolation(_ error: Error) -> Bool {
+        let msg = error.localizedDescription.lowercased()
+        return msg.contains("duplicate key value violates unique constraint")
+            || msg.contains("23505")
     }
 
     private func findContactByEmail(_ email: String) async throws -> CRMContact? {
