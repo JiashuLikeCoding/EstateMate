@@ -78,7 +78,16 @@ final class FormBuilderState: ObservableObject {
     func load(form: FormRecord) {
         formId = form.id
         formName = form.name
-        fields = form.schema.fields
+
+        let original = form.schema.fields
+        let normalized = normalizeSplices(in: original)
+        fields = normalized
+
+        // If the existing form contains invalid splice structure (older versions), normalize it on load.
+        if normalized.map(\.type) != original.map(\.type) {
+            errorMessage = "已自动修复表单中的拼接结构（开头/结尾拼接、相邻拼接、超出最大拼接链）"
+        }
+
         presentation = form.schema.presentation ?? .init(background: nil)
         selectedFieldKey = fields.first?.key
     }
@@ -238,6 +247,69 @@ final class FormBuilderState: ObservableObject {
         selectedFieldKey = draftField.key
         self.draftField = nil
         self.editingFieldKey = nil
+    }
+
+    private func normalizeSplices(in fields: [FormField]) -> [FormField] {
+        guard fields.isEmpty == false else { return [] }
+
+        var out: [FormField] = []
+        out.reserveCapacity(fields.count)
+
+        var chainFieldCount = 0
+        var chainSpliceCount = 0
+
+        func resetChain() {
+            chainFieldCount = 0
+            chainSpliceCount = 0
+        }
+
+        for f in fields {
+            if f.type == .splice {
+                // Drop leading splices (or splices right after another splice).
+                if out.isEmpty { continue }
+                if out.last?.type == .splice { continue }
+
+                // Enforce max 3 splices inside a chain.
+                if chainSpliceCount >= 3 { continue }
+
+                out.append(f)
+                chainSpliceCount += 1
+                continue
+            }
+
+            // Non-splice field
+            if out.last?.type == .splice {
+                // continuing chain
+                chainFieldCount += 1
+            } else {
+                // new chain
+                resetChain()
+                chainFieldCount = 1
+            }
+
+            // If chain already has 4 fields, we should not allow additional fields joined by splice.
+            // Here we only append fields; the splice insertion is handled above.
+            out.append(f)
+        }
+
+        // Drop trailing splice if any.
+        if out.last?.type == .splice {
+            out.removeLast()
+        }
+
+        // As a final safety, if there is still any invalidity (e.g. chain too long due to odd data),
+        // strip extra splices until it becomes valid.
+        while let _ = spliceValidationError(in: out) {
+            // Prefer removing splices first.
+            if let idx = out.lastIndex(where: { $0.type == .splice }) {
+                out.remove(at: idx)
+            } else {
+                break
+            }
+            if out.last?.type == .splice { out.removeLast() }
+        }
+
+        return out
     }
 
     func spliceValidationError(in fields: [FormField]) -> String? {
