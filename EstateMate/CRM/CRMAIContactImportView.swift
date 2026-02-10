@@ -302,7 +302,7 @@ struct CRMAIContactImportView: View {
                 var subtitleBits: [String] = []
                 let contactLine = [r.patch?.email?.nilIfBlank, r.patch?.phone?.nilIfBlank].compactMap { $0 }.joined(separator: " · ")
                 if !contactLine.isEmpty { subtitleBits.append(contactLine) }
-                if let st = r.sourceTime?.nilIfBlank { subtitleBits.append("来源时间：\(st)") }
+                if let st = r.sourceTime?.nilIfBlank { subtitleBits.append(st) }
 
                 let subtitle = subtitleBits.joined(separator: "\n")
                 let notes = r.patch?.notes?.nilIfBlank

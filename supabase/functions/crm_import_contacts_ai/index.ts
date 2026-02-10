@@ -86,10 +86,27 @@ function normalizePhoneCandidate(text: string): string {
   return s
 }
 
+function looksLikeYyyyMmDdDigits(s: string): boolean {
+  if (!/^\d{8}$/.test(s)) return false
+  const year = Number(s.slice(0, 4))
+  const month = Number(s.slice(4, 6))
+  const day = Number(s.slice(6, 8))
+  if (year < 1900 || year > 2100) return false
+  if (month < 1 || month > 12) return false
+  if (day < 1 || day > 31) return false
+  return true
+}
+
 function extractFirstPhone(text: string): string | null {
-  // Heuristic: extract a 7-15 digit phone (optionally starting with +)
+  // Heuristic: extract a 10-15 digit phone (optionally starting with +)
+  // Avoid treating dates like 20240504 as phone.
   const cleaned = normalizePhoneCandidate(text)
-  const m = cleaned.match(/\+?\d{7,15}/)
+
+  // If it's exactly 8 digits and looks like YYYYMMDD, ignore.
+  const digitsOnly = cleaned.replace(/^\+/, "")
+  if (looksLikeYyyyMmDdDigits(digitsOnly)) return null
+
+  const m = cleaned.match(/\+?\d{10,15}/)
   return m ? m[0] : null
 }
 
@@ -274,12 +291,22 @@ function isTimeLikeColumn(name: string): boolean {
 function normalizeSourceTime(value: string): string | null {
   const v = value.trim()
   if (!v) return null
-  // If it's already a reasonable date string, keep it.
+
+  // If it's 8 digits like 20240504, treat as date.
+  const digits = v.replace(/[^0-9]/g, "")
+  if (digits.length === 8 && looksLikeYyyyMmDdDigits(digits)) {
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`
+  }
+
   const t = Date.parse(v)
   if (!Number.isNaN(t)) {
-    // Return ISO-ish local-free string for consistency.
-    return new Date(t).toISOString()
+    const d = new Date(t)
+    const yyyy = d.getUTCFullYear()
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0")
+    const dd = String(d.getUTCDate()).padStart(2, "0")
+    return `${yyyy}-${mm}-${dd}`
   }
+
   return null
 }
 
@@ -298,7 +325,9 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
 
   // Regex fallbacks: scan all values if missing.
   if (!email) {
-    for (const v of Object.values(row)) {
+    for (const [k, v] of Object.entries(row)) {
+      // skip time/id-like columns to reduce false positives
+      if (isTimeLikeColumn(k) || isIdLikeColumn(k)) continue
       const e = extractFirstEmail(normalizeString(v))
       if (e) {
         email = e
@@ -307,7 +336,8 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
     }
   }
   if (!phone) {
-    for (const v of Object.values(row)) {
+    for (const [k, v] of Object.entries(row)) {
+      if (isTimeLikeColumn(k) || isIdLikeColumn(k)) continue
       const p = extractFirstPhone(normalizeString(v))
       if (p) {
         phone = p
@@ -348,11 +378,6 @@ function applyMappingToRow(row: Record<string, string>, mapping: ColumnMapping):
       break
     }
   }
-  if (sourceTime) {
-    // Put it at the top of notes so it is preserved in CRM.
-    notesParts.unshift(`来源时间: ${sourceTime}`)
-  }
-
   const notes = notesParts.join("\n")
 
   const patch: ContactPatch = {}
