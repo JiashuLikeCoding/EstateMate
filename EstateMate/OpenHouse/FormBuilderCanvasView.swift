@@ -375,7 +375,7 @@ struct FormBuilderCanvasView: View {
                     Text("表单已保存")
                 }
 
-                Text("提示：点右侧“＋”添加字段；单击字段选中插入锚点；双击字段编辑；长按右侧拖动把手调整顺序")
+                Text("提示：点右侧“＋”添加字段；单击字段选中；双击编辑；长按右侧拖动把手调整顺序")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
 
@@ -602,9 +602,9 @@ struct FormBuilderCanvasView: View {
 
     private func markInsertionAnchor(key: String) {
         state.selectedFieldKey = key
-        state.errorMessage = "已选中插入锚点：新增字段将插入到该字段下方（双击可编辑）"
+        state.errorMessage = "已选中：新增字段将插入到该字段下方（双击编辑）"
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            if state.errorMessage == "已选中插入锚点：新增字段将插入到该字段下方（双击可编辑）" {
+            if state.errorMessage == "已选中：新增字段将插入到该字段下方（双击编辑）" {
                 state.errorMessage = nil
             }
         }
