@@ -834,7 +834,13 @@ struct OpenHouseKioskFillView: View {
                 }
             }
 
-            _ = try await service.createSubmission(eventId: eventId, formId: event.formId, data: payload)
+            _ = try await service.createSubmission(
+                eventId: eventId,
+                formId: event.formId,
+                eventTitle: event.title,
+                form: form,
+                data: payload
+            )
             submittedCount += 1
             values = [:]
             boolValues = [:]
