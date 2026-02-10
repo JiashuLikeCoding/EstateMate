@@ -690,9 +690,41 @@ struct FormBuilderCanvasView: View {
         defer { state.isSaving = false }
 
         do {
+            // 1) Options validation
             for f in state.fields where (f.type == .select || f.type == .dropdown || f.type == .multiSelect) {
                 if (f.options ?? []).isEmpty {
                     throw NSError(domain: "FormBuilder", code: 1, userInfo: [NSLocalizedDescriptionKey: "字段 \"\(f.label)\" 需要选项"])
+                }
+            }
+
+            // 2) Splice rules
+            if state.fields.first?.type == .splice || state.fields.last?.type == .splice {
+                throw NSError(domain: "FormBuilder", code: 2, userInfo: [NSLocalizedDescriptionKey: "拼接不能放在表单的开头或结尾"])
+            }
+
+            for i in 1..<state.fields.count {
+                if state.fields[i].type == .splice, state.fields[i - 1].type == .splice {
+                    throw NSError(domain: "FormBuilder", code: 3, userInfo: [NSLocalizedDescriptionKey: "不允许两个拼接挨在一起"])
+                }
+            }
+
+            // Max chain: field splice field splice field splice field (max 4 fields, i.e. max 3 splices in a chain)
+            var chainCount = 0
+            for i in state.fields.indices {
+                let f = state.fields[i]
+                if f.type == .splice {
+                    continue
+                }
+
+                // new chain unless previous was splice
+                if i > 0, state.fields[i - 1].type == .splice {
+                    chainCount += 1
+                } else {
+                    chainCount = 1
+                }
+
+                if chainCount > 4 {
+                    throw NSError(domain: "FormBuilder", code: 4, userInfo: [NSLocalizedDescriptionKey: "拼接最大支持一行 4 个字段（字段 拼接 字段 拼接 字段 拼接 字段）"])
                 }
             }
 
