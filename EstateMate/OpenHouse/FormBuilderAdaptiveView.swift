@@ -397,28 +397,6 @@ private struct FormBuilderDrawerView: View {
                 )
                 .environmentObject(state)
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        mode = .properties
-                        isSheetPresented = true
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .padding(10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.white)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(EMTheme.line, lineWidth: 1)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(state.selectedFieldKey == nil)
-                    .opacity(state.selectedFieldKey == nil ? 0.4 : 1)
-                }
-            }
             .sheet(isPresented: $isSheetPresented) {
                 NavigationStack {
                     Group {
