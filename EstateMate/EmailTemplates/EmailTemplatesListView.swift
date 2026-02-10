@@ -119,7 +119,19 @@ struct EmailTemplatesListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("新增") { isCreatePresented = true }
+                Menu {
+                    if workspace == .openhouse {
+                        NavigationLink {
+                            EmailTemplateFooterEditView(workspace: .openhouse)
+                        } label: {
+                            Label("统一邮件结尾", systemImage: "text.append")
+                        }
+                    }
+
+                    Button("新增") { isCreatePresented = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
             }
         }
         .sheet(isPresented: $isCreatePresented, onDismiss: {

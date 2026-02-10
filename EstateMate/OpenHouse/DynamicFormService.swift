@@ -475,6 +475,36 @@ final class DynamicFormService {
         )
     }
 
+    private func stripHTML(_ html: String) -> String {
+        // Minimal HTML -> text for the plain-text part.
+        // Keep it simple (we only need a readable fallback for Gmail).
+        var s = html
+        s = s.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
+        s = s.replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
+        s = s.replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
+        s = s.replacingOccurrences(of: "</p>", with: "\n\n", options: .caseInsensitive)
+        s = s.replacingOccurrences(of: "</div>", with: "\n", options: .caseInsensitive)
+
+        // Strip tags
+        let pattern = "<[^>]+>"
+        if let re = try? NSRegularExpression(pattern: pattern, options: []) {
+            let range = NSRange(s.startIndex..<s.endIndex, in: s)
+            s = re.stringByReplacingMatches(in: s, options: [], range: range, withTemplate: "")
+        }
+
+        // Decode a few common entities
+        s = s.replacingOccurrences(of: "&nbsp;", with: " ")
+        s = s.replacingOccurrences(of: "&amp;", with: "&")
+        s = s.replacingOccurrences(of: "&lt;", with: "<")
+        s = s.replacingOccurrences(of: "&gt;", with: ">")
+        s = s.replacingOccurrences(of: "&quot;", with: "\"")
+        s = s.replacingOccurrences(of: "&#39;", with: "'")
+
+        // Normalize whitespace
+        while s.contains("\n\n\n") { s = s.replacingOccurrences(of: "\n\n\n", with: "\n\n") }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func bestEffortSendAutoEmailGmail(
         eventId: UUID,
         submissionId: UUID,
@@ -584,7 +614,22 @@ final class DynamicFormService {
             }
 
             let subject = EmailTemplateRenderer.render(template.subject, variables: template.variables, overrides: overrides)
-            let bodyText = EmailTemplateRenderer.render(template.body, variables: template.variables, overrides: overrides)
+
+            // Body can be either plain text or HTML.
+            var bodyRaw = EmailTemplateRenderer.render(template.body, variables: template.variables, overrides: overrides)
+
+            // Append unified footer (OpenHouse workspace only).
+            if let settings = try? await EmailTemplateSettingsService().getSettings(workspace: .openhouse) {
+                if !settings.footerHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    bodyRaw += "\n\n" + settings.footerHTML
+                } else if !settings.footerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    bodyRaw += "\n\n" + settings.footerText
+                }
+            }
+
+            let isHTML = bodyRaw.contains("<") && bodyRaw.contains(">")
+            let bodyHTML = isHTML ? bodyRaw : nil
+            let bodyText = isHTML ? stripHTML(bodyRaw) : bodyRaw
 
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -596,6 +641,7 @@ final class DynamicFormService {
                 let to: String
                 let subject: String
                 let text: String
+                let html: String?
                 let submissionId: String
             }
 
@@ -610,6 +656,7 @@ final class DynamicFormService {
                         to: to,
                         subject: subject,
                         text: bodyText,
+                        html: bodyHTML,
                         submissionId: submissionId.uuidString
                     )
                 )
