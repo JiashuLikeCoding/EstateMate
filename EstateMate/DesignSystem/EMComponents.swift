@@ -99,6 +99,9 @@ struct EMTextField: View {
     var keyboard: UIKeyboardType = .default
     var isSecure: Bool = false
 
+    /// When provided, the input text will use this color.
+    var textColor: Color? = nil
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -110,11 +113,13 @@ struct EMTextField: View {
             Group {
                 if isSecure {
                     SecureField(prompt ?? "", text: text)
+                        .foregroundStyle(textColor ?? EMTheme.ink)
                 } else {
                     TextField(prompt ?? "", text: text)
                         .keyboardType(keyboard)
                         .textInputAutocapitalization(.sentences)
                         .autocorrectionDisabled(false)
+                        .foregroundStyle(textColor ?? EMTheme.ink)
                 }
             }
             .padding(.horizontal, 12)

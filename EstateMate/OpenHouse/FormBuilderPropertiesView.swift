@@ -295,10 +295,12 @@ struct FormBuilderPropertiesView: View {
                     }
 
             } else if binding.wrappedValue.type == .sectionTitle {
-                EMTextField(title: "大标题文字", text: binding.label, prompt: "例如：基本信息")
+                let c = EMTheme.decorationColor(for: binding.wrappedValue.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink
+                EMTextField(title: "大标题文字", text: binding.label, prompt: "例如：基本信息", textColor: c)
 
             } else if binding.wrappedValue.type == .sectionSubtitle {
-                EMTextField(title: "小标题文字", text: binding.label, prompt: "例如：请如实填写")
+                let c = EMTheme.decorationColor(for: binding.wrappedValue.decorationColorKey ?? EMTheme.DecorationColorKey.default.rawValue) ?? EMTheme.ink2
+                EMTextField(title: "小标题文字", text: binding.label, prompt: "例如：请如实填写", textColor: c)
 
             } else {
                 EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
@@ -369,6 +371,30 @@ struct FormBuilderPropertiesView: View {
                             }
                             .buttonStyle(.plain)
                         }
+
+                        Button {
+                            // Switch to custom (initialize with accent if empty)
+                            if (binding.wrappedValue.decorationColorKey ?? "").hasPrefix("#") == false {
+                                binding.wrappedValue.decorationColorKey = EMTheme.hexFromColor(EMTheme.accent) ?? "#2F7A63"
+                            }
+                        } label: {
+                            EMChip(text: "自定义", isOn: (binding.wrappedValue.decorationColorKey ?? "").hasPrefix("#"))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if let key = binding.wrappedValue.decorationColorKey, key.hasPrefix("#") {
+                        let pickerBinding = Binding<Color>(
+                            get: { EMTheme.colorFromHex(key) ?? EMTheme.accent },
+                            set: { newValue in
+                                if let hex = EMTheme.hexFromColor(newValue) {
+                                    binding.wrappedValue.decorationColorKey = hex
+                                }
+                            }
+                        )
+
+                        ColorPicker("", selection: pickerBinding, supportsOpacity: false)
+                            .labelsHidden()
                     }
                 }
             }
@@ -429,6 +455,29 @@ struct FormBuilderPropertiesView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+
+                            Button {
+                                if (binding.wrappedValue.decorationColorKey ?? "").hasPrefix("#") == false {
+                                    binding.wrappedValue.decorationColorKey = EMTheme.hexFromColor(EMTheme.accent) ?? "#2F7A63"
+                                }
+                            } label: {
+                                EMChip(text: "自定义", isOn: (binding.wrappedValue.decorationColorKey ?? "").hasPrefix("#"))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if let key = binding.wrappedValue.decorationColorKey, key.hasPrefix("#") {
+                            let pickerBinding = Binding<Color>(
+                                get: { EMTheme.colorFromHex(key) ?? EMTheme.accent },
+                                set: { newValue in
+                                    if let hex = EMTheme.hexFromColor(newValue) {
+                                        binding.wrappedValue.decorationColorKey = hex
+                                    }
+                                }
+                            )
+
+                            ColorPicker("", selection: pickerBinding, supportsOpacity: false)
+                                .labelsHidden()
                         }
                     }
                 }
