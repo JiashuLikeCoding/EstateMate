@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct EmailTemplateEditView: View {
     enum Mode: Equatable {
@@ -51,6 +52,7 @@ struct EmailTemplateEditView: View {
     @State private var name: String = ""
     @State private var subject: String = ""
     @State private var bodyText: String = ""
+    @State private var bodySelection: NSRange = NSRange(location: 0, length: 0)
 
     @State private var variables: [EmailTemplateVariable] = []
 
@@ -109,7 +111,7 @@ struct EmailTemplateEditView: View {
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
-                            TextEditor(text: $bodyText)
+                            CursorAwareTextView(text: $bodyText, selection: $bodySelection)
                                 .frame(minHeight: 180)
                                 .padding(10)
                                 .background(
@@ -352,8 +354,26 @@ struct EmailTemplateEditView: View {
 
     private func insertVariableToken(_ key: String) {
         let token = "{{\(key)}}"
-        if !bodyText.isEmpty, !bodyText.hasSuffix(" ") { bodyText += " " }
-        bodyText += token
+
+        // Insert at cursor/selection instead of always appending to the end.
+        let ns = bodyText as NSString
+        let safeLoc = min(max(bodySelection.location, 0), ns.length)
+        let safeLen = min(max(bodySelection.length, 0), ns.length - safeLoc)
+        let range = NSRange(location: safeLoc, length: safeLen)
+
+        let needsLeadingSpace: Bool = {
+            guard range.location > 0 else { return false }
+            let prev = ns.substring(with: NSRange(location: range.location - 1, length: 1))
+            return prev != " " && prev != "\n"
+        }()
+
+        let insertion = (needsLeadingSpace ? " " : "") + token
+        let updated = ns.replacingCharacters(in: range, with: insertion)
+        bodyText = updated
+
+        // Move cursor to the end of inserted token
+        let newCursor = range.location + (insertion as NSString).length
+        bodySelection = NSRange(location: newCursor, length: 0)
     }
 
     private func save() async {
