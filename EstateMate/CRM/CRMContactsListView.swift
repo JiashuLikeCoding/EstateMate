@@ -28,8 +28,6 @@ struct CRMContactsListView: View {
     @State private var showDeleteConfirm = false
     @State private var showBulkEditSheet = false
 
-    @State private var isUpdatingStageIds = Set<UUID>()
-
     @State private var navigateToContact: ContactNavTarget? = nil
 
     private let service = CRMService()
@@ -122,13 +120,7 @@ struct CRMContactsListView: View {
                                         }
                                         .buttonStyle(.plain)
 
-                                        CRMContactCardContent(
-                                            contact: c,
-                                            isUpdatingStage: isUpdatingStageIds.contains(c.id),
-                                            onSelectStage: { newStage in
-                                                await updateStage(contactId: c.id, newStage: newStage)
-                                            }
-                                        )
+                                        CRMContactCardContent(contact: c)
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
@@ -137,13 +129,7 @@ struct CRMContactsListView: View {
                                 }
                             } else {
                                 EMCard {
-                                    CRMContactCardContent(
-                                        contact: c,
-                                        isUpdatingStage: isUpdatingStageIds.contains(c.id),
-                                        onSelectStage: { newStage in
-                                            await updateStage(contactId: c.id, newStage: newStage)
-                                        }
-                                    )
+                                    CRMContactCardContent(contact: c)
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -370,47 +356,6 @@ struct CRMContactsListView: View {
             selectedIds.remove(id)
         } else {
             selectedIds.insert(id)
-        }
-    }
-
-    private func updateStage(contactId: UUID, newStage: CRMContactStage) async {
-        guard !isUpdatingStageIds.contains(contactId) else { return }
-        guard let idx = contacts.firstIndex(where: { $0.id == contactId }) else { return }
-        guard contacts[idx].stage != newStage else { return }
-
-        hideKeyboard()
-        isUpdatingStageIds.insert(contactId)
-        errorMessage = nil
-        defer { isUpdatingStageIds.remove(contactId) }
-
-        let old = contacts[idx]
-
-        // optimistic UI
-        var optimistic = old
-        optimistic.stage = newStage
-        optimistic.updatedAt = Date()
-        contacts[idx] = optimistic
-
-        do {
-            _ = try await service.updateContact(
-                id: contactId,
-                patch: CRMContactUpdate(
-                    fullName: nil,
-                    phone: nil,
-                    email: nil,
-                    notes: nil,
-                    tags: nil,
-                    stage: newStage,
-                    source: nil,
-                    lastContactedAt: nil
-                )
-            )
-
-            // keep server truth if needed
-            contacts[idx] = try await service.getContact(id: contactId)
-        } catch {
-            contacts[idx] = old
-            errorMessage = "更新阶段失败：\(error.localizedDescription)"
         }
     }
 
@@ -738,26 +683,8 @@ private extension Date {
     }
 }
 
-private struct CRMContactCard: View {
-    let contact: CRMContact
-    let isUpdatingStage: Bool
-    let onSelectStage: (CRMContactStage) async -> Void
-
-    var body: some View {
-        EMCard {
-            CRMContactCardContent(
-                contact: contact,
-                isUpdatingStage: isUpdatingStage,
-                onSelectStage: onSelectStage
-            )
-        }
-    }
-}
-
 private struct CRMContactCardContent: View {
     let contact: CRMContact
-    let isUpdatingStage: Bool
-    let onSelectStage: (CRMContactStage) async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -765,20 +692,19 @@ private struct CRMContactCardContent: View {
                 Text(contact.fullName.isEmpty ? "（未命名）" : contact.fullName)
                     .font(.headline)
                     .foregroundStyle(EMTheme.ink)
+
+                EMChip(text: contact.stage.displayName, isOn: true)
+
                 Spacer()
                 Text(CRMDate.shortDateTime.string(from: contact.updatedAt))
                     .font(.caption2)
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            HStack(alignment: .top, spacing: 8) {
-                stageTabs(current: contact.stage)
-                Spacer()
-                if let dt = contact.lastContactedAt {
-                    Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
-                        .font(.caption2)
-                        .foregroundStyle(EMTheme.ink2)
-                }
+            if let dt = contact.lastContactedAt {
+                Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
+                    .font(.caption2)
+                    .foregroundStyle(EMTheme.ink2)
             }
 
             let addresses = splitInterestedAddresses(contact.address)
@@ -809,31 +735,6 @@ private struct CRMContactCardContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func stageTabs(current: CRMContactStage) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(CRMContactStage.allCases, id: \.self) { s in
-                    Button {
-                        guard !isUpdatingStage else { return }
-                        guard s != current else { return }
-                        Task { await onSelectStage(s) }
-                    } label: {
-                        EMChip(text: s.displayName, isOn: s == current)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isUpdatingStage)
-                }
-
-                if isUpdatingStage {
-                    ProgressView()
-                        .scaleEffect(0.9)
-                        .padding(.leading, 4)
-                }
-            }
-            .padding(.vertical, 2)
-        }
     }
 
     private func splitInterestedAddresses(_ raw: String) -> [String] {

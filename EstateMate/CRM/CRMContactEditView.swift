@@ -35,6 +35,7 @@ struct CRMContactEditView: View {
     // Interested addresses (chips)
     @State private var addressInput = ""
     @State private var interestedAddresses: [String] = []
+    @State private var locationService = LocationAddressService()
 
     @State private var tagsText = "" // comma-separated
     @State private var stage: CRMContactStage = .newLead
@@ -79,6 +80,20 @@ struct CRMContactEditView: View {
                                 TextField("例如：Finch 地铁站附近 / 123 Main St", text: $addressInput)
                                     .textInputAutocapitalization(.sentences)
                                     .autocorrectionDisabled(false)
+                                    .submitLabel(.done)
+                                    .onSubmit {
+                                        addInterestedAddressFromInput()
+                                    }
+
+                                Button {
+                                    Task { await fillCurrentAddress() }
+                                } label: {
+                                    Image(systemName: "location.fill")
+                                        .font(.callout.weight(.semibold))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(EMTheme.accent)
+                                .accessibilityLabel("一键获取当前位置")
 
                                 Button {
                                     addInterestedAddressFromInput()
@@ -185,6 +200,9 @@ struct CRMContactEditView: View {
     }
 
     private func save() async {
+        // If user typed a new address but didn't hit + / Return, we still treat Save as adding it.
+        addInterestedAddressFromInput()
+
         hideKeyboard()
         isLoading = true
         errorMessage = nil
@@ -248,6 +266,23 @@ struct CRMContactEditView: View {
         }
 
         addressInput = ""
+    }
+
+    private func fillCurrentAddress() async {
+        hideKeyboard()
+        errorMessage = nil
+
+        do {
+            let addr = try await locationService.fillCurrentAddress()
+            let trimmed = addr.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                errorMessage = "获取地址失败：返回为空"
+                return
+            }
+            addressInput = trimmed
+        } catch {
+            errorMessage = "获取地址失败：\(error.localizedDescription)"
+        }
     }
 
     private func removeInterestedAddress(_ a: String) {
