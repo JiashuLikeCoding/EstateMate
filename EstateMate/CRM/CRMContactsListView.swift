@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct CRMContactsListView: View {
+    struct ContactNavTarget: Identifiable, Equatable, Hashable {
+        let id: UUID
+    }
+
     @State private var searchText: String = ""
 
     @State private var isLoading = false
@@ -23,6 +27,10 @@ struct CRMContactsListView: View {
 
     @State private var showDeleteConfirm = false
     @State private var showBulkEditSheet = false
+
+    @State private var isUpdatingStageIds = Set<UUID>()
+
+    @State private var navigateToContact: ContactNavTarget? = nil
 
     private let service = CRMService()
 
@@ -103,27 +111,44 @@ struct CRMContactsListView: View {
                         ForEach(filteredContacts) { c in
                             if isSelecting {
                                 EMCard {
-                                    Button {
-                                        toggleSelect(c.id)
-                                    } label: {
-                                        HStack(alignment: .top, spacing: 10) {
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Button {
+                                            toggleSelect(c.id)
+                                        } label: {
                                             Image(systemName: selectedIds.contains(c.id) ? "checkmark.circle.fill" : "circle")
                                                 .foregroundStyle(selectedIds.contains(c.id) ? EMTheme.accent : EMTheme.ink2)
                                                 .font(.system(size: 18, weight: .semibold))
                                                 .padding(.top, 2)
-
-                                            CRMContactCardContent(contact: c)
                                         }
+                                        .buttonStyle(.plain)
+
+                                        CRMContactCardContent(
+                                            contact: c,
+                                            isUpdatingStage: isUpdatingStageIds.contains(c.id),
+                                            onSelectStage: { newStage in
+                                                await updateStage(contactId: c.id, newStage: newStage)
+                                            }
+                                        )
                                     }
-                                    .buttonStyle(.plain)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        toggleSelect(c.id)
+                                    }
                                 }
                             } else {
-                                NavigationLink {
-                                    CRMContactDetailView(contactId: c.id)
-                                } label: {
-                                    CRMContactCard(contact: c)
+                                EMCard {
+                                    CRMContactCardContent(
+                                        contact: c,
+                                        isUpdatingStage: isUpdatingStageIds.contains(c.id),
+                                        onSelectStage: { newStage in
+                                            await updateStage(contactId: c.id, newStage: newStage)
+                                        }
+                                    )
                                 }
-                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    navigateToContact = ContactNavTarget(id: c.id)
+                                }
                             }
                         }
                     }
@@ -135,6 +160,9 @@ struct CRMContactsListView: View {
         }
         .navigationTitle("客户")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $navigateToContact) { target in
+            CRMContactDetailView(contactId: target.id)
+        }
         .task {
             await reload()
         }
@@ -286,7 +314,7 @@ struct CRMContactsListView: View {
             }
 
             if q.isEmpty { return true }
-            let hay = [c.fullName, c.phone, c.email, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
+            let hay = [c.fullName, c.phone, c.email, c.address, c.notes, (c.tags ?? []).joined(separator: " ")].joined(separator: " ")
             return hay.localizedCaseInsensitiveContains(q)
         }
     }
@@ -342,6 +370,47 @@ struct CRMContactsListView: View {
             selectedIds.remove(id)
         } else {
             selectedIds.insert(id)
+        }
+    }
+
+    private func updateStage(contactId: UUID, newStage: CRMContactStage) async {
+        guard !isUpdatingStageIds.contains(contactId) else { return }
+        guard let idx = contacts.firstIndex(where: { $0.id == contactId }) else { return }
+        guard contacts[idx].stage != newStage else { return }
+
+        hideKeyboard()
+        isUpdatingStageIds.insert(contactId)
+        errorMessage = nil
+        defer { isUpdatingStageIds.remove(contactId) }
+
+        let old = contacts[idx]
+
+        // optimistic UI
+        var optimistic = old
+        optimistic.stage = newStage
+        optimistic.updatedAt = Date()
+        contacts[idx] = optimistic
+
+        do {
+            _ = try await service.updateContact(
+                id: contactId,
+                patch: CRMContactUpdate(
+                    fullName: nil,
+                    phone: nil,
+                    email: nil,
+                    notes: nil,
+                    tags: nil,
+                    stage: newStage,
+                    source: nil,
+                    lastContactedAt: nil
+                )
+            )
+
+            // keep server truth if needed
+            contacts[idx] = try await service.getContact(id: contactId)
+        } catch {
+            contacts[idx] = old
+            errorMessage = "更新阶段失败：\(error.localizedDescription)"
         }
     }
 
@@ -671,16 +740,24 @@ private extension Date {
 
 private struct CRMContactCard: View {
     let contact: CRMContact
+    let isUpdatingStage: Bool
+    let onSelectStage: (CRMContactStage) async -> Void
 
     var body: some View {
         EMCard {
-            CRMContactCardContent(contact: contact)
+            CRMContactCardContent(
+                contact: contact,
+                isUpdatingStage: isUpdatingStage,
+                onSelectStage: onSelectStage
+            )
         }
     }
 }
 
 private struct CRMContactCardContent: View {
     let contact: CRMContact
+    let isUpdatingStage: Bool
+    let onSelectStage: (CRMContactStage) async -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -694,8 +771,8 @@ private struct CRMContactCardContent: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
-            HStack(spacing: 8) {
-                EMChip(text: contact.stage.displayName, isOn: true)
+            HStack(alignment: .top, spacing: 8) {
+                stageTabs(current: contact.stage)
                 Spacer()
                 if let dt = contact.lastContactedAt {
                     Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
@@ -732,6 +809,31 @@ private struct CRMContactCardContent: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func stageTabs(current: CRMContactStage) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(CRMContactStage.allCases, id: \.self) { s in
+                    Button {
+                        guard !isUpdatingStage else { return }
+                        guard s != current else { return }
+                        Task { await onSelectStage(s) }
+                    } label: {
+                        EMChip(text: s.displayName, isOn: s == current)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isUpdatingStage)
+                }
+
+                if isUpdatingStage {
+                    ProgressView()
+                        .scaleEffect(0.9)
+                        .padding(.leading, 4)
+                }
+            }
+            .padding(.vertical, 2)
+        }
     }
 
     private func splitInterestedAddresses(_ raw: String) -> [String] {
