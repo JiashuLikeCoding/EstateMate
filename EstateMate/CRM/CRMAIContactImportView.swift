@@ -17,7 +17,13 @@ struct CRMAIContactImportView: View {
     @State private var errorMessage: String?
 
     @State private var summaryText: String?
-    @State private var previewRows: [PreviewRow] = []
+
+    @State private var allPreviewRows: [PreviewRow] = []
+    @State private var page: Int = 0
+    private let pageSize = 20
+
+    @State private var selectedRowIndices = Set<Int>()
+    @State private var lastAppliedUpsertedCount: Int? = nil
 
     private let service = CRMAIContactImportService()
 
@@ -26,6 +32,7 @@ struct CRMAIContactImportView: View {
         var rowIndex: Int
         var title: String
         var subtitle: String?
+        var notes: String?
         var action: String
         var reason: String?
     }
@@ -60,7 +67,10 @@ struct CRMAIContactImportView: View {
                                 hideKeyboard()
                                 errorMessage = nil
                                 summaryText = nil
-                                previewRows = []
+                                allPreviewRows = []
+                                selectedRowIndices = []
+                                page = 0
+                                lastAppliedUpsertedCount = nil
                                 showFileImporter = true
                             } label: {
                                 Text("选择文件")
@@ -90,58 +100,115 @@ struct CRMAIContactImportView: View {
                         }
                     }
 
-                    if !previewRows.isEmpty {
-                        EMSectionHeader("预览", subtitle: "只展示前 20 行。导入时会处理全部。")
+                    if !allPreviewRows.isEmpty {
+                        EMSectionHeader("预览", subtitle: "一次显示 20 行，可翻页。默认全选，可点选取消。")
+
+                        let visibleRows = pageRows
 
                         VStack(spacing: 10) {
-                            ForEach(previewRows.prefix(20)) { r in
+                            ForEach(visibleRows) { r in
                                 EMCard {
-                                    HStack(alignment: .top, spacing: 10) {
-                                        Text("#\(r.rowIndex)")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(EMTheme.ink2)
-                                            .frame(width: 44, alignment: .leading)
+                                    Button {
+                                        guard r.action == "upsert" else { return }
+                                        if selectedRowIndices.contains(r.rowIndex) {
+                                            selectedRowIndices.remove(r.rowIndex)
+                                        } else {
+                                            selectedRowIndices.insert(r.rowIndex)
+                                        }
+                                    } label: {
+                                        HStack(alignment: .top, spacing: 10) {
+                                            Image(systemName: r.action == "upsert"
+                                                  ? (selectedRowIndices.contains(r.rowIndex) ? "checkmark.circle.fill" : "circle")
+                                                  : "minus.circle")
+                                                .foregroundStyle(r.action == "upsert"
+                                                                 ? (selectedRowIndices.contains(r.rowIndex) ? EMTheme.accent : EMTheme.ink2)
+                                                                 : EMTheme.ink2)
+                                                .font(.system(size: 18, weight: .semibold))
+                                                .padding(.top, 2)
 
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(r.title)
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                                .lineLimit(1)
+                                            Text("#\(r.rowIndex)")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(EMTheme.ink2)
+                                                .frame(width: 44, alignment: .leading)
 
-                                            if let subtitle = r.subtitle, !subtitle.isEmpty {
-                                                Text(subtitle)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                    .lineLimit(2)
-                                            }
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                Text(r.title)
+                                                    .font(.headline)
+                                                    .foregroundStyle(EMTheme.ink)
+                                                    .lineLimit(1)
 
-                                            HStack(spacing: 8) {
-                                                Text(r.action == "upsert" ? "将写入/更新" : "跳过")
-                                                    .font(.caption2.weight(.semibold))
-                                                    .foregroundStyle(r.action == "upsert" ? EMTheme.accent : EMTheme.ink2)
-
-                                                if let reason = r.reason, !reason.isEmpty {
-                                                    Text(reason)
-                                                        .font(.caption2)
+                                                if let subtitle = r.subtitle, !subtitle.isEmpty {
+                                                    Text(subtitle)
+                                                        .font(.caption)
                                                         .foregroundStyle(EMTheme.ink2)
                                                         .lineLimit(2)
                                                 }
-                                            }
-                                        }
 
-                                        Spacer()
+                                                if let notes = r.notes, !notes.isEmpty {
+                                                    Text(notes)
+                                                        .font(.caption2)
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                        .lineLimit(3)
+                                                }
+
+                                                HStack(spacing: 8) {
+                                                    Text(r.action == "upsert" ? "将写入/更新" : "跳过")
+                                                        .font(.caption2.weight(.semibold))
+                                                        .foregroundStyle(r.action == "upsert" ? EMTheme.accent : EMTheme.ink2)
+
+                                                    if let reason = r.reason, !reason.isEmpty {
+                                                        Text(reason)
+                                                            .font(.caption2)
+                                                            .foregroundStyle(EMTheme.ink2)
+                                                            .lineLimit(2)
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer()
+                                        }
                                     }
+                                    .buttonStyle(.plain)
                                 }
+                            }
+                        }
+
+                        EMCard {
+                            HStack {
+                                Button("上一页") {
+                                    page = max(0, page - 1)
+                                }
+                                .disabled(page == 0)
+
+                                Spacer()
+
+                                Text("第 \(page + 1) / \(pageCount) 页")
+                                    .font(.caption)
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Spacer()
+
+                                Button("下一页") {
+                                    page = min(pageCount - 1, page + 1)
+                                }
+                                .disabled(page >= pageCount - 1)
                             }
                         }
 
                         Button {
                             Task { await apply() }
                         } label: {
-                            Text(isApplying ? "导入中…" : "一键导入")
+                            let selectedCount = selectedRowIndices.count
+                            Text(isApplying ? "导入中…" : "一键导入（已选 \(selectedCount) 条）")
                         }
-                        .buttonStyle(EMPrimaryButtonStyle(disabled: isApplying))
-                        .disabled(isApplying)
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: isApplying || selectedRowIndices.isEmpty))
+                        .disabled(isApplying || selectedRowIndices.isEmpty)
+
+                        if let lastAppliedUpsertedCount {
+                            Text("本次已导入：\(lastAppliedUpsertedCount) 条")
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
                     }
 
                     Button {
@@ -182,10 +249,24 @@ struct CRMAIContactImportView: View {
 
     @State private var showFileImporter = false
 
+    private var pageCount: Int {
+        max(1, Int(ceil(Double(allPreviewRows.count) / Double(pageSize))))
+    }
+
+    private var pageRows: [PreviewRow] {
+        let start = page * pageSize
+        if start >= allPreviewRows.count { return [] }
+        let end = min(allPreviewRows.count, start + pageSize)
+        return Array(allPreviewRows[start..<end])
+    }
+
     private func handlePickedFile(_ url: URL) async {
         errorMessage = nil
         summaryText = nil
-        previewRows = []
+        allPreviewRows = []
+        selectedRowIndices = []
+        page = 0
+        lastAppliedUpsertedCount = nil
 
         do {
             let ok = url.startAccessingSecurityScopedResource()
@@ -215,11 +296,17 @@ struct CRMAIContactImportView: View {
         do {
             let res = try await service.analyze(fileName: pickedFileName, data: pickedFileData)
             summaryText = "共 \(res.summary.total) 行；将写入/更新 \(res.summary.toUpsert ?? 0) 行；跳过 \(res.summary.skipped) 行"
-            previewRows = res.results.map { r in
+            allPreviewRows = res.results.map { r in
                 let title = r.patch?.fullName?.nilIfBlank ?? r.patch?.email?.nilIfBlank ?? r.patch?.phone?.nilIfBlank ?? "（未命名）"
                 let subtitle = [r.patch?.email?.nilIfBlank, r.patch?.phone?.nilIfBlank].compactMap { $0 }.joined(separator: " · ")
-                return PreviewRow(rowIndex: r.rowIndex, title: title, subtitle: subtitle.isEmpty ? nil : subtitle, action: r.action, reason: r.reason)
+                let notes = r.patch?.notes?.nilIfBlank
+                return PreviewRow(rowIndex: r.rowIndex, title: title, subtitle: subtitle.isEmpty ? nil : subtitle, notes: notes, action: r.action, reason: r.reason)
             }
+
+            // 默认全选可写入的行
+            selectedRowIndices = Set(res.results.filter { $0.action == "upsert" }.map { $0.rowIndex })
+            page = 0
+            lastAppliedUpsertedCount = nil
         } catch {
             errorMessage = "解析失败：\(error.localizedDescription)"
         }
@@ -235,8 +322,14 @@ struct CRMAIContactImportView: View {
         defer { isApplying = false }
 
         do {
-            let res = try await service.apply(fileName: pickedFileName, data: pickedFileData)
-            summaryText = "导入完成：写入/更新 \(res.summary.upserted ?? 0) 行；跳过 \(res.summary.skipped) 行"
+            let res = try await service.apply(
+                fileName: pickedFileName,
+                data: pickedFileData,
+                selectedRowIndices: selectedRowIndices.sorted()
+            )
+            let upserted = res.summary.upserted ?? 0
+            lastAppliedUpsertedCount = upserted
+            summaryText = "导入完成：写入/更新 \(upserted) 行；跳过 \(res.summary.skipped) 行"
         } catch {
             errorMessage = "导入失败：\(error.localizedDescription)"
         }

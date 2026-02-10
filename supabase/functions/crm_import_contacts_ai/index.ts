@@ -316,6 +316,10 @@ Deno.serve(async (req) => {
     const fileName = normalizeString(body.fileName)
     const fileBase64 = normalizeString(body.fileBase64)
 
+    const selectedRowIndices: number[] | null = Array.isArray(body.selectedRowIndices)
+      ? body.selectedRowIndices.map((n: any) => Number(n)).filter((n: any) => Number.isFinite(n) && n > 0)
+      : null
+
     if (!fileName || !fileBase64) return badRequest("缺少 fileName 或 fileBase64")
 
     const buf = Uint8Array.from(atob(fileBase64), (c) => c.charCodeAt(0))
@@ -379,7 +383,14 @@ Deno.serve(async (req) => {
     const upserted: RowResult[] = []
     const skipped: RowResult[] = []
 
+    const selectedSet = selectedRowIndices ? new Set<number>(selectedRowIndices) : null
+
     for (const r of results) {
+      if (selectedSet && !selectedSet.has(r.rowIndex)) {
+        skipped.push({ rowIndex: r.rowIndex, action: "skip", reason: "未选中" })
+        continue
+      }
+
       if (r.action !== "upsert" || !r.patch) {
         skipped.push(r)
         continue
@@ -417,7 +428,7 @@ Deno.serve(async (req) => {
     return json({
       mapping,
       summary: {
-        total: results.length,
+        total: selectedSet ? selectedSet.size : results.length,
         upserted: upserted.length,
         skipped: skipped.length,
       },

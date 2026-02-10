@@ -54,18 +54,21 @@ final class CRMAIContactImportService {
         try await call(mode: "analyze", fileName: fileName, data: data)
     }
 
-    func apply(fileName: String, data: Data) async throws -> ApplyResponse {
-        try await call(mode: "apply", fileName: fileName, data: data)
+    func apply(fileName: String, data: Data, selectedRowIndices: [Int]? = nil) async throws -> ApplyResponse {
+        try await call(mode: "apply", fileName: fileName, data: data, selectedRowIndices: selectedRowIndices)
     }
 
-    private func call<T: Decodable>(mode: String, fileName: String, data: Data) async throws -> T {
+    private func call<T: Decodable>(mode: String, fileName: String, data: Data, selectedRowIndices: [Int]? = nil) async throws -> T {
         let client = SupabaseClientProvider.client
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "mode": mode,
             "fileName": fileName,
             "fileBase64": data.base64EncodedString()
         ]
+        if let selectedRowIndices {
+            payload["selectedRowIndices"] = selectedRowIndices
+        }
 
         do {
             return try await client.functions.invoke(
