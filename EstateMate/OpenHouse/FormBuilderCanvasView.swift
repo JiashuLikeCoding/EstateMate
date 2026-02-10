@@ -306,7 +306,19 @@ struct FormBuilderCanvasView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .onDrop(of: [.text], delegate: FieldDropDelegate(field: f, fields: $state.fields, dragging: $draggingField))
+                            .onDrop(
+                                of: [.text],
+                                delegate: FieldDropDelegate(
+                                    field: f,
+                                    fields: $state.fields,
+                                    dragging: $draggingField,
+                                    errorMessage: Binding(
+                                        get: { state.errorMessage },
+                                        set: { state.errorMessage = $0 }
+                                    ),
+                                    validate: { state.spliceValidationError(in: $0) }
+                                )
+                            )
                         }
                     }
                     .padding(.top, 6)
@@ -585,6 +597,8 @@ struct FormBuilderCanvasView: View {
         let field: FormField
         @Binding var fields: [FormField]
         @Binding var dragging: FormField?
+        @Binding var errorMessage: String?
+        let validate: ([FormField]) -> String?
 
         func dropEntered(info: DropInfo) {
             guard let dragging, dragging.key != field.key,
@@ -592,8 +606,17 @@ struct FormBuilderCanvasView: View {
                   let toIndex = fields.firstIndex(where: { $0.key == field.key })
             else { return }
 
+            var proposed = fields
+            proposed.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+
+            if let msg = validate(proposed) {
+                errorMessage = msg
+                return
+            }
+
+            errorMessage = nil
             withAnimation(.snappy) {
-                fields.move(fromOffsets: IndexSet(integer: fromIndex), toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex)
+                fields = proposed
             }
         }
 

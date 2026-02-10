@@ -238,7 +238,7 @@ final class FormBuilderState: ObservableObject {
         self.editingFieldKey = nil
     }
 
-    private func spliceValidationError(in fields: [FormField]) -> String? {
+    func spliceValidationError(in fields: [FormField]) -> String? {
         // Rule recap:
         // - No leading/trailing splice.
         // - No adjacent splice.
