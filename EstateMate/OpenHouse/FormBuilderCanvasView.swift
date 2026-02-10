@@ -411,7 +411,7 @@ struct FormBuilderCanvasView: View {
 
         // Option B: when fields are connected by `.splice`, show them as a visually unified module.
         let groupTint = isGrouped ? EMTheme.accent.opacity(0.06) : .clear
-        let groupStroke = EMTheme.accent.opacity(0.38)
+        let groupStroke = EMTheme.accent.opacity(0.72)
 
         return HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
@@ -528,11 +528,13 @@ struct FormBuilderCanvasView: View {
         .overlay(
             ZStack {
                 if groupPosition != .none {
-                    GroupOutlineShape(position: groupPosition, cornerRadius: EMTheme.radiusSmall)
+                    GroupOutlineShape(position: groupPosition, cornerRadius: EMTheme.radiusSmall + 2)
                         .stroke(
                             groupStroke,
-                            style: StrokeStyle(lineWidth: 1, dash: [6, 4])
+                            style: StrokeStyle(lineWidth: 1.2, dash: [6, 4])
                         )
+                        // Let the dashed group outline sit a bit outside the card for clearer grouping.
+                        .padding(-4)
                 }
 
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
