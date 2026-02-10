@@ -12,10 +12,20 @@ Deno.serve(async (req) => {
     const userClient = supabaseClientForUser(req);
     const { data: userRes, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userRes?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { "content-type": "application/json" },
-      });
+      // Debug hint (safe): tell whether Authorization header is present.
+      const authHeader = req.headers.get("Authorization") ?? "";
+      return new Response(
+        JSON.stringify({
+          error: "unauthorized",
+          hint: "Edge Function 未识别到有效的 Supabase JWT。",
+          hasAuthHeader: authHeader.length > 0,
+          authHeaderPrefix: authHeader.slice(0, 20),
+        }),
+        {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        },
+      );
     }
 
     const userId = userRes.user.id;
