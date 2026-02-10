@@ -325,6 +325,7 @@ struct EmailTemplateEditView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .safeAreaPadding(.top, 8)
         }
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -568,6 +569,7 @@ private struct EmailTemplatePreviewView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .safeAreaPadding(.top, 8)
         }
         .navigationTitle("预览")
         .navigationBarTitleDisplayMode(.inline)
