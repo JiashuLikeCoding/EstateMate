@@ -14,11 +14,11 @@ final class OpenHouseService {
 
     func claimOpenHouseLock(force: Bool = false) async throws -> OpenHouseLockClaimResult {
         let params: [String: AnyJSON] = [
-            "device_id": .string(DeviceIdentity.deviceId),
-            "device_name": .string(DeviceIdentity.deviceName),
-            "force": .bool(force),
+            "p_device_id": .string(DeviceIdentity.deviceId),
+            "p_device_name": .string(DeviceIdentity.deviceName),
+            "p_force": .bool(force),
             // Keep in sync with SQL default (2 minutes)
-            "stale_seconds": .integer(120)
+            "p_stale_seconds": .integer(120)
         ]
 
         return try await client
