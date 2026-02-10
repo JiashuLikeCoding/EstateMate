@@ -701,6 +701,18 @@ private struct CRMContactCardContent: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
+            if !contact.phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("电话：\(contact.phone)")
+                    .font(.caption2)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
+            if !contact.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("邮箱：\(contact.email)")
+                    .font(.caption2)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
             if let dt = contact.lastContactedAt {
                 Text("最近联系：\(CRMDate.shortDate.string(from: dt))")
                     .font(.caption2)
