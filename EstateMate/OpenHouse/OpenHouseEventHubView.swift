@@ -123,18 +123,21 @@ private struct OpenHouseEventCreateCardView: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(EMTheme.ink2)
 
-                if hostOptions.isEmpty {
-                    EMTextField(title: "", text: $host, prompt: "例如：嘉树")
-                } else {
-                    Picker("主理人", selection: $host) {
-                        Text("（手动输入）").tag("")
-                        ForEach(hostOptions, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.menu)
+                EMTextField(title: "", text: $host, prompt: "例如：嘉树")
 
-                    if host.isEmpty {
-                        EMTextField(title: "", text: $host, prompt: "例如：嘉树")
+                if !hostOptions.isEmpty {
+                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                        ForEach(Array(hostOptions.prefix(8)), id: \.self) { option in
+                            Button {
+                                hideKeyboard()
+                                host = option
+                            } label: {
+                                EMChip(text: option, isOn: host == option)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(.top, 4)
                 }
             }
 
@@ -143,18 +146,21 @@ private struct OpenHouseEventCreateCardView: View {
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(EMTheme.ink2)
 
-                if assistantOptions.isEmpty {
-                    EMTextField(title: "", text: $assistant, prompt: "例如：Jason")
-                } else {
-                    Picker("助手", selection: $assistant) {
-                        Text("（手动输入）").tag("")
-                        ForEach(assistantOptions, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.menu)
+                EMTextField(title: "", text: $assistant, prompt: "例如：Jason")
 
-                    if assistant.isEmpty {
-                        EMTextField(title: "", text: $assistant, prompt: "例如：Jason")
+                if !assistantOptions.isEmpty {
+                    FlowLayout(maxPerRow: 3, spacing: 8) {
+                        ForEach(Array(assistantOptions.prefix(8)), id: \.self) { option in
+                            Button {
+                                hideKeyboard()
+                                assistant = option
+                            } label: {
+                                EMChip(text: option, isOn: assistant == option)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(.top, 4)
                 }
             }
 
