@@ -183,11 +183,9 @@ struct EMEmailField: View {
             }
 
             // Compact: local-part + a domain selector in the same row.
+            // Use EMInlineTextField to keep height/padding consistent with other inputs (name/phone/etc.).
             HStack(spacing: 10) {
-                TextField(prompt ?? "邮箱前缀", text: $localPart)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
+                EMInlineTextField(text: $localPart, prompt: prompt ?? "邮箱前缀", keyboard: .emailAddress)
                     .onChange(of: localPart) { _, _ in
                         syncToBinding()
                     }
@@ -207,11 +205,11 @@ struct EMEmailField: View {
                         .font(.callout)
                         .foregroundStyle(EMTheme.ink)
                         .lineLimit(1)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 12)
                         .background(
                             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                .fill(Color.white)
+                                .fill(EMTheme.paper2)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)

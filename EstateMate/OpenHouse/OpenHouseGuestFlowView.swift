@@ -466,16 +466,13 @@ struct OpenHouseKioskFillView: View {
 
                     HStack(spacing: 12) {
                         if keys.indices.contains(0) {
-                            TextField("名", text: binding(for: keys[0], field: field))
-                                .textFieldStyle(.roundedBorder)
+                            EMInlineTextField(text: binding(for: keys[0], field: field), prompt: "名")
                         }
                         if keys.indices.contains(1) {
-                            TextField(keys.count == 2 ? "姓" : "中间名", text: binding(for: keys[1], field: field))
-                                .textFieldStyle(.roundedBorder)
+                            EMInlineTextField(text: binding(for: keys[1], field: field), prompt: (keys.count == 2 ? "姓" : "中间名"))
                         }
                         if keys.indices.contains(2) {
-                            TextField("姓", text: binding(for: keys[2], field: field))
-                                .textFieldStyle(.roundedBorder)
+                            EMInlineTextField(text: binding(for: keys[2], field: field), prompt: "姓")
                         }
                     }
                 }
