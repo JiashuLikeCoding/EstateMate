@@ -25,6 +25,9 @@ struct CRMBulkEditContactsView: View {
     @State private var addTag: String = ""
     @State private var appendToNotes: String = ""
 
+    @State private var showStagePicker = false
+    @State private var showSourcePicker = false
+
     var body: some View {
         NavigationStack {
             EMScreen {
@@ -38,24 +41,30 @@ struct CRMBulkEditContactsView: View {
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)
 
-                                Picker("阶段", selection: Binding(get: {
-                                    stage ?? CRMContactStage.newLead
-                                }, set: { newValue in
-                                    stage = newValue
-                                })) {
-                                    Text("（不修改）").tag(CRMContactStage.newLead) // placeholder, see below
-                                    ForEach(CRMContactStage.allCases, id: \.self) { s in
-                                        Text(s.displayName).tag(s)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-
                                 Button {
-                                    stage = nil
+                                    showStagePicker = true
                                 } label: {
-                                    Text("清除阶段（不修改）")
+                                    HStack {
+                                        Text(stage?.displayName ?? "（不修改）")
+                                            .foregroundStyle(stage == nil ? EMTheme.ink2 : EMTheme.ink)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .font(.caption.weight(.semibold))
+                                    }
+                                    .contentShape(Rectangle())
                                 }
-                                .buttonStyle(EMSecondaryButtonStyle())
+                                .buttonStyle(.plain)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.black.opacity(0.03))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+                                )
                             }
                         }
 
@@ -65,24 +74,30 @@ struct CRMBulkEditContactsView: View {
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)
 
-                                Picker("来源", selection: Binding(get: {
-                                    source ?? CRMContactSource.manual
-                                }, set: { newValue in
-                                    source = newValue
-                                })) {
-                                    Text("（不修改）").tag(CRMContactSource.manual) // placeholder, see below
-                                    ForEach(CRMContactSource.allCases, id: \.self) { s in
-                                        Text(s.displayName).tag(s)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-
                                 Button {
-                                    source = nil
+                                    showSourcePicker = true
                                 } label: {
-                                    Text("清除来源（不修改）")
+                                    HStack {
+                                        Text(source?.displayName ?? "（不修改）")
+                                            .foregroundStyle(source == nil ? EMTheme.ink2 : EMTheme.ink)
+                                        Spacer()
+                                        Image(systemName: "chevron.up.chevron.down")
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .font(.caption.weight(.semibold))
+                                    }
+                                    .contentShape(Rectangle())
                                 }
-                                .buttonStyle(EMSecondaryButtonStyle())
+                                .buttonStyle(.plain)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.black.opacity(0.03))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.black.opacity(0.06), lineWidth: 1)
+                                )
                             }
                         }
 
@@ -133,7 +148,117 @@ struct CRMBulkEditContactsView: View {
             }
             .navigationTitle("批量修改")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showStagePicker) {
+                CRMBulkStagePickerView(selected: $stage)
+            }
+            .sheet(isPresented: $showSourcePicker) {
+                CRMBulkSourcePickerView(selected: $source)
+            }
         }
         .onTapGesture { hideKeyboard() }
+    }
+}
+
+private struct CRMBulkStagePickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selected: CRMContactStage?
+
+    var body: some View {
+        NavigationStack {
+            EMScreen {
+                List {
+                    Button {
+                        selected = nil
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text("（不修改）")
+                            Spacer()
+                            if selected == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(EMTheme.accent)
+                            }
+                        }
+                    }
+
+                    ForEach(CRMContactStage.allCases, id: \.self) { s in
+                        Button {
+                            selected = s
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(s.displayName)
+                                Spacer()
+                                if selected == s {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(EMTheme.accent)
+                                }
+                            }
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .background(EMTheme.paper)
+            }
+            .navigationTitle("选择阶段")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct CRMBulkSourcePickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selected: CRMContactSource?
+
+    var body: some View {
+        NavigationStack {
+            EMScreen {
+                List {
+                    Button {
+                        selected = nil
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text("（不修改）")
+                            Spacer()
+                            if selected == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(EMTheme.accent)
+                            }
+                        }
+                    }
+
+                    ForEach(CRMContactSource.allCases, id: \.self) { s in
+                        Button {
+                            selected = s
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(s.displayName)
+                                Spacer()
+                                if selected == s {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(EMTheme.accent)
+                                }
+                            }
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .background(EMTheme.paper)
+            }
+            .navigationTitle("选择来源")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+        }
     }
 }
