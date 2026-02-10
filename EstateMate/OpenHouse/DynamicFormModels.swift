@@ -231,6 +231,10 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
     var assistant: String?
 
     var formId: UUID
+
+    /// Optional default email template for this event (e.g. follow-up email).
+    var emailTemplateId: UUID?
+
     var isActive: Bool
     var createdAt: Date?
 
@@ -245,6 +249,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
         case host
         case assistant
         case formId = "form_id"
+        case emailTemplateId = "email_template_id"
         case isActive = "is_active"
         case createdAt = "created_at"
     }
@@ -265,6 +270,7 @@ struct OpenHouseEventInsertV2: Encodable {
     var assistant: String?
 
     var formId: UUID
+    var emailTemplateId: UUID?
     var isActive: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -276,6 +282,7 @@ struct OpenHouseEventInsertV2: Encodable {
         case host
         case assistant
         case formId = "form_id"
+        case emailTemplateId = "email_template_id"
         case isActive = "is_active"
     }
 }
@@ -292,6 +299,9 @@ struct OpenHouseEventUpdateV2: Encodable {
     var assistant: String?
     var formId: UUID
 
+    /// Optional default email template for this event.
+    var emailTemplateId: UUID?
+
     enum CodingKeys: String, CodingKey {
         case title
         case location
@@ -300,6 +310,7 @@ struct OpenHouseEventUpdateV2: Encodable {
         case host
         case assistant
         case formId = "form_id"
+        case emailTemplateId = "email_template_id"
     }
 
     /// PostgREST 的 update：如果 Encodable 里某个 optional 是 nil，默认会「省略 key」，
@@ -316,6 +327,7 @@ struct OpenHouseEventUpdateV2: Encodable {
         if let endsAt { try container.encode(endsAt, forKey: .endsAt) } else { try container.encodeNil(forKey: .endsAt) }
         if let host { try container.encode(host, forKey: .host) } else { try container.encodeNil(forKey: .host) }
         if let assistant { try container.encode(assistant, forKey: .assistant) } else { try container.encodeNil(forKey: .assistant) }
+        if let emailTemplateId { try container.encode(emailTemplateId, forKey: .emailTemplateId) } else { try container.encodeNil(forKey: .emailTemplateId) }
     }
 }
 

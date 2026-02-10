@@ -30,6 +30,10 @@ struct OpenHouseEventEditView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    @State private var templates: [EmailTemplateRecord] = []
+    @State private var selectedEmailTemplateId: UUID?
+    @State private var isEmailTemplateSheetPresented: Bool = false
+
     @State private var showSaved = false
 
     @State private var showEndEarlyConfirm = false
@@ -51,6 +55,7 @@ struct OpenHouseEventEditView: View {
         _host = State(initialValue: event.host ?? "")
         _assistant = State(initialValue: event.assistant ?? "")
         _selectedFormId = State(initialValue: event.formId)
+        _selectedEmailTemplateId = State(initialValue: event.emailTemplateId)
     }
 
     var body: some View {
@@ -143,7 +148,43 @@ struct OpenHouseEventEditView: View {
                             }
                         }
 
-                        Button(isLoading ? "保存中..." : "保存修改") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("绑定邮件模版")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            Button {
+                                isEmailTemplateSheetPresented = true
+                            } label: {
+                                HStack(spacing: 10) {
+                                    if selectedEmailTemplateId == nil {
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundStyle(EMTheme.accent)
+                                        Text("绑定邮件模版")
+                                            .foregroundStyle(EMTheme.ink)
+                                    } else {
+                                        Text(selectedEmailTemplateName)
+                                            .foregroundStyle(EMTheme.ink)
+                                    }
+
+                                    Spacer()
+                                }
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(templates.isEmpty)
+                            .opacity(templates.isEmpty ? 0.4 : 1)
+                            .overlay(alignment: .bottom) {
+                                Divider().overlay(EMTheme.line)
+                            }
+
+                            Text("说明：用于本活动的默认邮件模版（后续可在客户/提交中一键套用）。")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
+                                .padding(.top, -2)
+                        }
+
+                        Button(isLoading ? "保存中..." : "保存修改") { 
                             Task { await save() }
                         }
                         .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSave))
@@ -215,6 +256,9 @@ struct OpenHouseEventEditView: View {
         .sheet(isPresented: $isFormSheetPresented) {
             FormPickerSheetView(forms: forms, selectedFormId: $selectedFormId)
         }
+        .sheet(isPresented: $isEmailTemplateSheetPresented) {
+            EmailTemplatePickerSheetView(templates: templates, selectedTemplateId: $selectedEmailTemplateId)
+        }
         .alert("删除这个活动？", isPresented: $showDeleteConfirm) {
             Button("取消", role: .cancel) {}
             Button("删除", role: .destructive) {
@@ -247,12 +291,19 @@ struct OpenHouseEventEditView: View {
         return forms.first(where: { $0.id == selectedFormId })?.name ?? "请选择..."
     }
 
+    private var selectedEmailTemplateName: String {
+        guard let selectedEmailTemplateId else { return "请选择..." }
+        let t = templates.first(where: { $0.id == selectedEmailTemplateId })
+        let name = (t?.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "（未命名模版）" : name
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
         do {
             forms = try await service.listForms()
-            // 不默认选择表单，让用户明确绑定/修改
+            templates = try await EmailTemplateService().listTemplates(workspace: nil)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -286,7 +337,8 @@ struct OpenHouseEventEditView: View {
                 endsAt: hasTimeRange ? (endsAt < startsAt ? startsAt : endsAt) : nil,
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                formId: formId
+                formId: formId,
+                emailTemplateId: selectedEmailTemplateId
             )
             // Keep manual state (isActive / endedAt) in sync too.
             event = updated
@@ -314,7 +366,8 @@ struct OpenHouseEventEditView: View {
                 endsAt: end,
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
-                formId: formId
+                formId: formId,
+                emailTemplateId: selectedEmailTemplateId
             )
 
             // 2) Mark manually ended

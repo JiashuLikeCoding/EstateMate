@@ -98,6 +98,7 @@ final class DynamicFormService {
         host: String?,
         assistant: String?,
         formId: UUID,
+        emailTemplateId: UUID? = nil,
         isActive: Bool
     ) async throws -> OpenHouseEventV2 {
         let payload = OpenHouseEventInsertV2(
@@ -108,6 +109,7 @@ final class DynamicFormService {
             host: host,
             assistant: assistant,
             formId: formId,
+            emailTemplateId: emailTemplateId,
             isActive: isActive
         )
         return try await client
@@ -127,7 +129,8 @@ final class DynamicFormService {
         endsAt: Date?,
         host: String?,
         assistant: String?,
-        formId: UUID
+        formId: UUID,
+        emailTemplateId: UUID?
     ) async throws -> OpenHouseEventV2 {
         // We don't overwrite is_active here; use setActive for that.
         let payload = OpenHouseEventUpdateV2(
@@ -137,7 +140,8 @@ final class DynamicFormService {
             endsAt: endsAt,
             host: host,
             assistant: assistant,
-            formId: formId
+            formId: formId,
+            emailTemplateId: emailTemplateId
         )
         return try await client
             .from("openhouse_events")
