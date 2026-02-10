@@ -31,19 +31,16 @@ struct CRMContactEditView: View {
     @State private var phone = ""
     @State private var email = ""
     @State private var notes = ""
-    @State private var address = "" // 感兴趣的地址
-    @State private var createdLocation = "" // 新增地点（自动）
-    @State private var tagsText = "" // comma-separated
 
-    @State private var isFillingLocation = false
-    @State private var showLocationError = false
-    @State private var locationErrorMessage: String?
+    // Interested addresses (chips)
+    @State private var addressInput = ""
+    @State private var interestedAddresses: [String] = []
+
+    @State private var tagsText = "" // comma-separated
     @State private var stage: CRMContactStage = .newLead
     @State private var source: CRMContactSource = .manual
 
     private let service = CRMService()
-    private let locationService = LocationAddressService()
-
     var body: some View {
         EMScreen {
             ScrollView {
@@ -63,22 +60,47 @@ struct CRMContactEditView: View {
                         EMTextField(title: "手机号", text: $phone, prompt: "例如：13800000000", keyboard: .phonePad)
                         EMTextField(title: "邮箱", text: $email, prompt: "例如：name@email.com", keyboard: .emailAddress)
 
-                        EMTextField(title: "感兴趣的地址", text: $address, prompt: "例如：Finch 地铁站附近 / 123 Main St")
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("感兴趣的地址")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
 
-                        EMLocationField(
-                            title: "新增地点（自动）",
-                            text: $createdLocation,
-                            prompt: "点击右侧图标获取",
-                            isLoading: isFillingLocation,
-                            onFillFromCurrentLocation: {
-                                hideKeyboard()
-                                Task { await fillCreatedLocation() }
+                            if !interestedAddresses.isEmpty {
+                                FlowLayout(maxPerRow: 3, spacing: 8) {
+                                    ForEach(interestedAddresses, id: \.self) { a in
+                                        InterestedAddressChip(text: a) {
+                                            removeInterestedAddress(a)
+                                        }
+                                    }
+                                }
                             }
-                        )
-                        .alert("无法获取当前位置", isPresented: $showLocationError) {
-                            Button("好的", role: .cancel) {}
-                        } message: {
-                            Text(locationErrorMessage ?? "请稍后重试")
+
+                            HStack(spacing: 10) {
+                                TextField("例如：Finch 地铁站附近 / 123 Main St", text: $addressInput)
+                                    .textInputAutocapitalization(.sentences)
+                                    .autocorrectionDisabled(false)
+
+                                Button {
+                                    addInterestedAddressFromInput()
+                                } label: {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.callout.weight(.semibold))
+                                }
+                                .buttonStyle(.plain)
+                                .foregroundStyle(EMTheme.accent)
+                                .disabled(addressInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .accessibilityLabel("添加感兴趣地址")
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .fill(EMTheme.paper2)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                    .stroke(EMTheme.line, lineWidth: 1)
+                            )
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -153,8 +175,7 @@ struct CRMContactEditView: View {
             phone = c.phone
             email = c.email
             notes = c.notes
-            address = c.address
-            createdLocation = extractCreatedLocation(from: c.notes)
+            interestedAddresses = splitInterestedAddresses(c.address)
             tagsText = (c.tags ?? []).joined(separator: ", ")
             stage = c.stage
             source = c.source
@@ -183,7 +204,7 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                        address: address.trimmingCharacters(in: .whitespacesAndNewlines),
+                        address: joinInterestedAddresses(interestedAddresses),
                         tags: tags.isEmpty ? nil : tags,
                         stage: stage,
                         source: source,
@@ -200,7 +221,7 @@ struct CRMContactEditView: View {
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
                         email: email.trimmingCharacters(in: .whitespacesAndNewlines),
                         notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                        address: address.trimmingCharacters(in: .whitespacesAndNewlines),
+                        address: joinInterestedAddresses(interestedAddresses),
                         tags: tags.isEmpty ? [] : tags,
                         stage: stage,
                         source: source,
@@ -214,122 +235,73 @@ struct CRMContactEditView: View {
         }
     }
 
-    private func fillCreatedLocation() async {
-        isFillingLocation = true
-        defer { isFillingLocation = false }
-        do {
-            let line = try await locationService.fillCurrentAddress()
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty { return }
+    private func addInterestedAddressFromInput() {
+        let trimmed = addressInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
 
-            createdLocation = trimmed
-            notes = upsertCreatedLocationNote(into: notes, locationLine: trimmed)
-        } catch {
-            locationErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            showLocationError = true
-        }
-    }
-
-    private func upsertCreatedLocationNote(into notes: String, locationLine: String) -> String {
-        let prefix = "新增地点："
-        let stamp = createdAtStamp()
-        let newLine = "\(prefix)\(locationLine)（\(stamp)）"
-
-        var lines = notes
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-
-        lines.removeAll(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(prefix) })
-
-        if lines.isEmpty {
-            return newLine
-        }
-
-        // Put it on top for visibility.
-        if lines.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true {
-            lines[0] = newLine
-        } else {
-            lines.insert(newLine, at: 0)
-        }
-
-        return lines.joined(separator: "\n")
-    }
-
-    private func extractCreatedLocation(from notes: String) -> String {
-        let prefix = "新增地点："
-        for raw in notes.split(separator: "\n") {
-            let line = String(raw).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard line.hasPrefix(prefix) else { continue }
-            var rest = String(line.dropFirst(prefix.count))
-            // Strip trailing full-width parentheses stamp if present.
-            if let range = rest.range(of: "（", options: .backwards) {
-                rest = String(rest[..<range.lowerBound])
+        // Support quick paste with separators.
+        let parts = splitInterestedAddresses(trimmed)
+        for p in parts {
+            if !interestedAddresses.contains(p) {
+                interestedAddresses.append(p)
             }
-            return rest.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return ""
+
+        addressInput = ""
     }
 
-    private func createdAtStamp() -> String {
-        let f = DateFormatter()
-        f.locale = .current
-        f.timeZone = .current
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        return f.string(from: Date())
+    private func removeInterestedAddress(_ a: String) {
+        interestedAddresses.removeAll(where: { $0 == a })
     }
-}
 
-private struct EMLocationField: View {
-    let title: String
-    @Binding var text: String
-    var prompt: String
+    private func splitInterestedAddresses(_ raw: String) -> [String] {
+        let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.isEmpty { return [] }
 
-    var isLoading: Bool
-    var onFillFromCurrentLocation: () -> Void
+        let replaced = s
+            .replacingOccurrences(of: "\n", with: ",")
+            .replacingOccurrences(of: "，", with: ",")
+            .replacingOccurrences(of: "|", with: ",")
+            .replacingOccurrences(of: "/", with: ",")
+            .replacingOccurrences(of: "、", with: ",")
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(EMTheme.ink2)
+        return replaced
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
 
-            HStack(spacing: 10) {
-                TextField(prompt, text: $text)
-                    .textInputAutocapitalization(.sentences)
-                    .autocorrectionDisabled(false)
-
-                Button {
-                    onFillFromCurrentLocation()
-                } label: {
-                    if isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                    } else {
-                        Image(systemName: "location.fill")
-                            .font(.callout.weight(.semibold))
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(EMTheme.accent)
-                .disabled(isLoading)
-                .accessibilityLabel("使用当前位置")
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                    .fill(EMTheme.paper2)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                    .stroke(EMTheme.line, lineWidth: 1)
-            )
-        }
+    private func joinInterestedAddresses(_ items: [String]) -> String {
+        items
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
     }
 }
 
 #Preview {
     NavigationStack {
         CRMContactEditView(mode: .create)
+    }
+}
+
+private struct InterestedAddressChip: View {
+    let text: String
+    var onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            EMChip(text: text, isOn: true)
+
+            Button {
+                onRemove()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(EMTheme.ink2)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("移除")
+        }
     }
 }
