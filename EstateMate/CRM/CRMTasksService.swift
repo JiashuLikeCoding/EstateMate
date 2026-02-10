@@ -28,6 +28,16 @@ final class CRMTasksService {
             .value
     }
 
+    func getTask(id: UUID) async throws -> CRMTask {
+        try await client
+            .from("crm_tasks")
+            .select()
+            .eq("id", value: id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
+
     func listTasks(contactId: UUID, includeDone: Bool = true) async throws -> [CRMTask] {
         var q = client
             .from("crm_tasks")

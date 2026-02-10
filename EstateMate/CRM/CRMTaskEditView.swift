@@ -97,8 +97,6 @@ struct CRMTaskEditView: View {
     }
 
     private func loadIfNeeded() async {
-        // MVP: no getTask endpoint; we can just list & find later.
-        // For now: best-effort load by selecting from listTasks(includeDone:true) and matching id.
         guard case let .edit(taskId) = mode else { return }
 
         isLoading = true
@@ -106,16 +104,14 @@ struct CRMTaskEditView: View {
         defer { isLoading = false }
 
         do {
-            let all = try await service.listTasks(includeDone: true)
-            if let t = all.first(where: { $0.id == taskId }) {
-                title = t.title
-                notes = t.notes
-                if let due = t.dueAt {
-                    hasDue = true
-                    dueAt = due
-                } else {
-                    hasDue = false
-                }
+            let t = try await service.getTask(id: taskId)
+            title = t.title
+            notes = t.notes
+            if let due = t.dueAt {
+                hasDue = true
+                dueAt = due
+            } else {
+                hasDue = false
             }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
