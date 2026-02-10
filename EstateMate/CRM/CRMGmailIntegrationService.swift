@@ -33,7 +33,7 @@ final class CRMGmailIntegrationService {
 
         return try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask {
-                let res: T = try await self.client.functions.invoke(name, options: .init(body: body, headers: headers))
+                let res: T = try await self.client.functions.invoke(name, options: .init(headers: headers, body: body))
                 return res
             }
             group.addTask {
