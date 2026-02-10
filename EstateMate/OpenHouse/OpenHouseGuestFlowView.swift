@@ -326,7 +326,7 @@ struct OpenHouseKioskFillView: View {
                     Color.black.opacity(0.18)
                         .ignoresSafeArea()
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         Text("已提交")
                             .font(.headline.weight(.semibold))
                             .foregroundStyle(EMTheme.ink)
@@ -334,6 +334,13 @@ struct OpenHouseKioskFillView: View {
                         Text(thankYouMessage)
                             .font(.callout)
                             .foregroundStyle(EMTheme.ink2)
+
+                        Button("确认") {
+                            withAnimation(.easeInOut(duration: 0.18)) {
+                                showThankYou = false
+                            }
+                        }
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
                     }
                     .padding(.vertical, 18)
                     .padding(.horizontal, 18)
@@ -555,12 +562,6 @@ struct OpenHouseKioskFillView: View {
 
             withAnimation(.easeOut(duration: 0.18)) {
                 showThankYou = true
-            }
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_400_000_000) // 1.4s
-                withAnimation(.easeIn(duration: 0.18)) {
-                    showThankYou = false
-                }
             }
         } catch {
             errorMessage = error.localizedDescription
