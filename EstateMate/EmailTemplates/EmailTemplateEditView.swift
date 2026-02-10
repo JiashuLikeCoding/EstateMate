@@ -48,6 +48,7 @@ struct EmailTemplateEditView: View {
     @State private var variables: [EmailTemplateVariable] = []
 
     @State private var newVarKey: String = ""
+    @State private var newVarKeyError: String?
     @State private var newVarLabel: String = ""
     @State private var newVarExample: String = ""
 
@@ -168,11 +169,22 @@ struct EmailTemplateEditView: View {
                                 .foregroundStyle(EMTheme.ink)
 
                             EMTextField(title: "key", text: $newVarKey, prompt: "例如：client_name")
+                                .onChange(of: newVarKey) { _, _ in
+                                    newVarKeyError = nil
+                                }
+
+                            if let newVarKeyError {
+                                Text(newVarKeyError)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                    .padding(.top, -4)
+                            }
 
                             Text("格式要求：仅支持 a-z / 0-9 / _，会自动转小写并移除其它字符")
                                 .font(.footnote)
                                 .foregroundStyle(EMTheme.ink2)
-                                .padding(.top, -4)
+                                .padding(.top, newVarKeyError == nil ? -4 : 0)
+
                             EMTextField(title: "显示名", text: $newVarLabel, prompt: "例如：客户姓名")
                             EMTextField(title: "示例值", text: $newVarExample, prompt: "例如：张三")
 
@@ -279,12 +291,12 @@ struct EmailTemplateEditView: View {
     private func addVariable() {
         let key = EmailTemplateRenderer.normalizeKey(newVarKey)
         guard !key.isEmpty else {
-            errorMessage = "变量 key 不能为空（仅支持 a-z / 0-9 / _）"
+            newVarKeyError = "变量 key 不能为空（仅支持 a-z / 0-9 / _）"
             return
         }
 
         if variables.contains(where: { $0.key == key }) {
-            errorMessage = "变量 key 重复：\(key)"
+            newVarKeyError = "变量 key 重复：\(key)"
             return
         }
 
@@ -293,6 +305,7 @@ struct EmailTemplateEditView: View {
 
         variables.append(.init(key: key, label: label, example: example))
         newVarKey = ""
+        newVarKeyError = nil
         newVarLabel = ""
         newVarExample = ""
         errorMessage = nil
