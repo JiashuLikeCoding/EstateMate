@@ -150,7 +150,7 @@ struct CRMContactEditView: View {
         do {
             switch mode {
             case .create:
-                _ = try await service.createContact(
+                _ = try await service.createOrMergeContact(
                     CRMContactInsert(
                         fullName: fullName.trimmingCharacters(in: .whitespacesAndNewlines),
                         phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
