@@ -63,13 +63,31 @@ function buildRfc822Message(params: {
   return `${headers.join("\r\n")}\r\n\r\n${params.text}`;
 }
 
+function envOptional(name: string): string | null {
+  const v = Deno.env.get(name);
+  return v && v.trim().length > 0 ? v.trim() : null;
+}
+
+function envRequired(name: string): string {
+  const v = envOptional(name);
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
+}
+
+function googleClientConfig() {
+  // Prefer new generic names; fall back to legacy WEB_* secrets.
+  const clientId = envOptional("GOOGLE_OAUTH_CLIENT_ID") ?? envRequired("GOOGLE_OAUTH_WEB_CLIENT_ID");
+  const clientSecret = envOptional("GOOGLE_OAUTH_CLIENT_SECRET") ?? envOptional("GOOGLE_OAUTH_WEB_CLIENT_SECRET");
+  return { clientId, clientSecret };
+}
+
 async function googleRefreshAccessToken(refreshToken: string) {
-  const clientId = Deno.env.get("GOOGLE_OAUTH_WEB_CLIENT_ID")!;
-  const clientSecret = Deno.env.get("GOOGLE_OAUTH_WEB_CLIENT_SECRET")!;
+  const { clientId, clientSecret } = googleClientConfig();
 
   const params = new URLSearchParams();
   params.set("client_id", clientId);
-  params.set("client_secret", clientSecret);
+  // For iOS/installed-app OAuth clients, client_secret should NOT be sent.
+  if (clientSecret) params.set("client_secret", clientSecret);
   params.set("grant_type", "refresh_token");
   params.set("refresh_token", refreshToken);
 
