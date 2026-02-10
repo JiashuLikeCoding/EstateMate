@@ -105,9 +105,9 @@ private struct CRMTaskPickByEventView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var events: [OpenHouseEvent] = []
+    @State private var events: [OpenHouseEventV2] = []
 
-    private let openHouse = OpenHouseService()
+    private let openHouse = DynamicFormService()
 
     var body: some View {
         List {
@@ -141,9 +141,24 @@ private struct CRMTaskPickByEventView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(e.title)
                             .foregroundStyle(EMTheme.ink)
-                        Text("进入该活动的客户列表")
-                            .font(.caption)
-                            .foregroundStyle(EMTheme.ink2)
+
+                        if let subtitle = eventSubtitle(e), !subtitle.isEmpty {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(EMTheme.ink2)
+                                .lineLimit(2)
+                        } else {
+                            Text("进入该活动的客户列表")
+                                .font(.caption)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+
+                        if let hostLine = eventHostLine(e), !hostLine.isEmpty {
+                            Text(hostLine)
+                                .font(.caption2)
+                                .foregroundStyle(EMTheme.ink2)
+                                .lineLimit(1)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -175,10 +190,37 @@ private struct CRMTaskPickByEventView: View {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
     }
+
+    private func eventSubtitle(_ e: OpenHouseEventV2) -> String? {
+        var parts: [String] = []
+        if let starts = e.startsAt {
+            parts.append(starts.formatted(date: .abbreviated, time: .shortened))
+        }
+        if let ends = e.endsAt {
+            parts.append("~")
+            parts.append(ends.formatted(date: .omitted, time: .shortened))
+        }
+        if let location = e.location?.trimmingCharacters(in: .whitespacesAndNewlines), !location.isEmpty {
+            if !parts.isEmpty { parts.append("·") }
+            parts.append(location)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    private func eventHostLine(_ e: OpenHouseEventV2) -> String? {
+        var parts: [String] = []
+        if let host = e.host?.trimmingCharacters(in: .whitespacesAndNewlines), !host.isEmpty {
+            parts.append("主理人：\(host)")
+        }
+        if let assistant = e.assistant?.trimmingCharacters(in: .whitespacesAndNewlines), !assistant.isEmpty {
+            parts.append("助手：\(assistant)")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: "  ")
+    }
 }
 
 private struct CRMTaskPickContactFromEventSubmissionsView: View {
-    let event: OpenHouseEvent
+    let event: OpenHouseEventV2
     let selectedContactId: UUID?
     let onPick: (CRMTaskContactPickerView.PickerResult) -> Void
 
@@ -216,19 +258,23 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
                     onPick(.contact(c.id))
                     dismiss()
                 } label: {
-                    HStack {
+                    HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(contactLabel(c))
+                            Text(crmContactTitle(c))
                                 .foregroundStyle(EMTheme.ink)
 
-                            if !c.email.isEmpty {
-                                Text(c.email)
+                            if let subtitle = crmContactSubtitle(c), !subtitle.isEmpty {
+                                Text(subtitle)
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)
-                            } else if !c.phone.isEmpty {
-                                Text(c.phone)
-                                    .font(.caption)
+                                    .lineLimit(2)
+                            }
+
+                            if let meta = crmContactMetaLine(c), !meta.isEmpty {
+                                Text(meta)
+                                    .font(.caption2)
                                     .foregroundStyle(EMTheme.ink2)
+                                    .lineLimit(1)
                             }
                         }
 
@@ -310,14 +356,6 @@ private struct CRMTaskPickContactFromEventSubmissionsView: View {
         }
         return unique
     }
-
-    private func contactLabel(_ c: CRMContact) -> String {
-        let n = c.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !n.isEmpty { return n }
-        if !c.email.isEmpty { return c.email }
-        if !c.phone.isEmpty { return c.phone }
-        return "未命名客户"
-    }
 }
 
 private struct CRMTaskPickFromAllContactsView: View {
@@ -348,19 +386,23 @@ private struct CRMTaskPickFromAllContactsView: View {
                     onPick(.contact(c.id))
                     dismiss()
                 } label: {
-                    HStack {
+                    HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(contactLabel(c))
+                            Text(crmContactTitle(c))
                                 .foregroundStyle(EMTheme.ink)
 
-                            if !c.email.isEmpty {
-                                Text(c.email)
+                            if let subtitle = crmContactSubtitle(c), !subtitle.isEmpty {
+                                Text(subtitle)
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)
-                            } else if !c.phone.isEmpty {
-                                Text(c.phone)
-                                    .font(.caption)
+                                    .lineLimit(2)
+                            }
+
+                            if let meta = crmContactMetaLine(c), !meta.isEmpty {
+                                Text(meta)
+                                    .font(.caption2)
                                     .foregroundStyle(EMTheme.ink2)
+                                    .lineLimit(1)
                             }
                         }
 
@@ -382,11 +424,4 @@ private struct CRMTaskPickFromAllContactsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func contactLabel(_ c: CRMContact) -> String {
-        let n = c.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !n.isEmpty { return n }
-        if !c.email.isEmpty { return c.email }
-        if !c.phone.isEmpty { return c.phone }
-        return "未命名客户"
-    }
 }
