@@ -133,9 +133,6 @@ struct FormBuilderCanvasView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: state.selectedFieldKey == f.key ? "checkmark.circle.fill" : "chevron.right")
-                .foregroundStyle(state.selectedFieldKey == f.key ? EMTheme.accent : EMTheme.ink2)
-
             Image(systemName: "line.3.horizontal")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(EMTheme.ink2)
@@ -156,7 +153,7 @@ struct FormBuilderCanvasView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                .stroke(EMTheme.line, lineWidth: 1)
+                .stroke(state.selectedFieldKey == f.key ? EMTheme.accent.opacity(0.55) : EMTheme.line, lineWidth: 1)
         )
         .contentShape(Rectangle())
     }
