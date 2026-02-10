@@ -488,6 +488,20 @@ struct FormBuilderPropertiesView: View {
                 Divider().overlay(EMTheme.line).opacity(0)
             }
 
+            if binding.wrappedValue.type == .checkbox {
+                Divider().overlay(EMTheme.line)
+
+                EMTextField(
+                    title: "小标题（可选）",
+                    text: Binding(
+                        get: { binding.wrappedValue.subtitle ?? "" },
+                        set: { binding.wrappedValue.subtitle = $0.nilIfBlank }
+                    ),
+                    prompt: "例如：点一下切换"
+                )
+
+            }
+
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
 

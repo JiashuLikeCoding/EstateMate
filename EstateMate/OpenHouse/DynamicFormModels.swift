@@ -137,6 +137,9 @@ struct FormField: Codable, Identifiable, Hashable {
     var phoneFormat: PhoneFormat?
     var phoneKeys: [String]?
 
+    /// Optional helper text shown below the field (currently used by `.checkbox`).
+    var subtitle: String?
+
     // MARK: - Decoration / layout options
 
     /// For `.sectionTitle` / `.sectionSubtitle`: font size (points).

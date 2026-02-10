@@ -806,9 +806,17 @@ private struct SubmissionEditView: View {
                         .font(.title3)
                         .foregroundStyle(boolValues[field.key, default: false] ? EMTheme.accent : EMTheme.ink2)
 
-                    Text(field.label)
-                        .font(.callout)
-                        .foregroundStyle(EMTheme.ink)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(field.label)
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink)
+
+                        if let sub = field.subtitle?.trimmingCharacters(in: .whitespacesAndNewlines), sub.isEmpty == false {
+                            Text(sub)
+                                .font(.caption)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+                    }
 
                     Spacer()
 
