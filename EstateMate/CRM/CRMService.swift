@@ -295,6 +295,28 @@ final class CRMService {
             .execute()
     }
 
+    func listCustomFields(contactId: UUID, limit: Int = 200) async throws -> [CRMContactCustomField] {
+        try await client
+            .from("crm_contact_custom_fields")
+            .select()
+            .eq("contact_id", value: contactId.uuidString)
+            .order("submitted_at", ascending: false)
+            .order("created_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+    }
+
+    func upsertCustomFields(_ items: [CRMContactCustomFieldUpsert]) async throws {
+        guard !items.isEmpty else { return }
+
+        _ = try await client
+            .from("crm_contact_custom_fields")
+            // The unique index is (contact_id, submission_id, field_key)
+            .upsert(items, onConflict: "contact_id,submission_id,field_key")
+            .execute()
+    }
+
     /// Returns contact ids that participated in a given OpenHouse event.
     /// Uses openhouse_submissions.contact_id where event_id matches.
     func listContactIdsParticipated(eventId: UUID) async throws -> Set<UUID> {

@@ -13,6 +13,7 @@ struct CRMContactDetailView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var contact: CRMContact?
+    @State private var customFields: [CRMContactCustomField] = []
 
     struct ContactNavTarget: Identifiable, Equatable, Hashable {
         let id: UUID
@@ -110,6 +111,47 @@ struct CRMContactDetailView: View {
                             }
                         }
 
+                        if !customFields.isEmpty {
+                            EMCard {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("表单信息")
+                                        .font(.headline)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    let sections = groupedCustomFieldSections()
+                                    ForEach(Array(sections.enumerated()), id: \.element.id) { idx, section in
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text(section.title)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(EMTheme.ink)
+
+                                            if !section.subtitle.isEmpty {
+                                                Text(section.subtitle)
+                                                    .font(.footnote)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                            }
+
+                                            ForEach(section.items, id: \.id) { item in
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text(item.fieldLabel.isEmpty ? item.fieldKey : item.fieldLabel)
+                                                        .font(.footnote.weight(.medium))
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                    Text(item.valueText.isEmpty ? "—" : item.valueText)
+                                                        .font(.body)
+                                                        .foregroundStyle(EMTheme.ink)
+                                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                                }
+                                            }
+
+                                            if idx != sections.count - 1 {
+                                                Divider().overlay(EMTheme.line)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         EMCard {
                             VStack(alignment: .leading, spacing: 0) {
                                 NavigationLink {
@@ -175,6 +217,7 @@ struct CRMContactDetailView: View {
 
         do {
             contact = try await service.getContact(id: contactId)
+            customFields = (try? await service.listCustomFields(contactId: contactId)) ?? []
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
@@ -217,6 +260,59 @@ struct CRMContactDetailView: View {
         }
         .padding(.vertical, 14)
         .contentShape(Rectangle())
+    }
+
+    private struct CustomFieldSection: Identifiable {
+        let id: String
+        let title: String
+        let subtitle: String
+        let items: [CRMContactCustomField]
+    }
+
+    private func groupedCustomFieldSections() -> [CustomFieldSection] {
+        // Group by submission (best key), else fall back to created_at day.
+        let grouped = Dictionary(grouping: customFields) { f in
+            (f.submissionId?.uuidString) ?? "day:\(Calendar.current.startOfDay(for: f.createdAt).timeIntervalSince1970)"
+        }
+
+        func formatDateTime(_ d: Date?) -> String {
+            guard let d else { return "" }
+            let df = DateFormatter()
+            df.locale = .current
+            df.timeZone = .current
+            df.dateFormat = "yyyy-MM-dd HH:mm"
+            return df.string(from: d)
+        }
+
+        let sections: [CustomFieldSection] = grouped.values.map { items in
+            let first = items.first!
+            let title = first.eventTitle.isEmpty ? "开放日" : first.eventTitle
+
+            var subtitleParts: [String] = []
+            let whenText = formatDateTime(first.submittedAt)
+            if !whenText.isEmpty { subtitleParts.append(whenText) }
+            if !first.eventLocation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                subtitleParts.append(first.eventLocation)
+            }
+
+            let sorted = items.sorted { a, b in
+                (a.createdAt, a.fieldKey) > (b.createdAt, b.fieldKey)
+            }
+
+            return CustomFieldSection(
+                id: first.submissionId?.uuidString ?? "day:\(Calendar.current.startOfDay(for: first.createdAt).timeIntervalSince1970)",
+                title: title,
+                subtitle: subtitleParts.joined(separator: " · "),
+                items: sorted
+            )
+        }
+
+        // Sort sections by submitted_at/created_at desc.
+        return sections.sorted { a, b in
+            let aDate = a.items.first?.submittedAt ?? a.items.first?.createdAt ?? .distantPast
+            let bDate = b.items.first?.submittedAt ?? b.items.first?.createdAt ?? .distantPast
+            return aDate > bDate
+        }
     }
 
     private func splitInterestedAddresses(_ raw: String) -> [String] {

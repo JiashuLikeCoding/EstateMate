@@ -246,6 +246,7 @@ final class DynamicFormService {
             await self?.bestEffortUpsertCRMContact(
                 eventId: eventId,
                 submissionId: created.id,
+                submissionCreatedAt: created.createdAt,
                 eventTitle: eventTitle,
                 eventLocation: eventLocation,
                 form: form,
@@ -269,6 +270,101 @@ final class DynamicFormService {
             .single()
             .execute()
             .value
+    }
+
+    private func buildCustomFieldUpserts(
+        contactId: UUID,
+        eventId: UUID,
+        submissionId: UUID,
+        eventTitle: String,
+        eventLocation: String,
+        submittedAt: Date?,
+        form: FormRecord?,
+        data: [String: AnyJSON]
+    ) -> [CRMContactCustomFieldUpsert] {
+        guard let fields = form?.schema.fields else {
+            // No schema: store simple string values only.
+            return data.compactMap { (k, v) in
+                let value = (v.stringValue ?? "").trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                if value.isEmpty { return nil }
+                return CRMContactCustomFieldUpsert(
+                    contactId: contactId,
+                    eventId: eventId,
+                    submissionId: submissionId,
+                    eventTitle: eventTitle,
+                    eventLocation: eventLocation,
+                    submittedAt: submittedAt,
+                    fieldKey: k,
+                    fieldLabel: k,
+                    valueText: value
+                )
+            }
+        }
+
+        func valueString(for f: FormField) -> String {
+            switch f.type {
+            case .sectionTitle, .sectionSubtitle, .divider, .splice:
+                return ""
+            case .checkbox:
+                let b = data[f.key]?.boolValue ?? false
+                return b ? "是" : "否"
+            case .multiSelect:
+                let arr = (data[f.key]?.arrayValue ?? []).compactMap { $0.stringValue?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                return arr.joined(separator: "、")
+            case .name:
+                let keys = f.nameKeys ?? [f.key]
+                let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                return parts.joined(separator: " ")
+            case .phone:
+                var keys: [String] = []
+                if let phoneKeys = f.phoneKeys { keys.append(contentsOf: phoneKeys) }
+                keys.append(f.key)
+                let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                return parts.joined(separator: " ")
+            case .date:
+                // Stored as yyyy-MM-dd string
+                return (data[f.key]?.stringValue ?? "").trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            case .time:
+                // Stored as HH:mm string
+                return (data[f.key]?.stringValue ?? "").trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+            default:
+                if let s = data[f.key]?.stringValue {
+                    return s.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+                }
+                // Fallback: best-effort stringify
+                if let b = data[f.key]?.boolValue {
+                    return b ? "是" : "否"
+                }
+                if let arr = data[f.key]?.arrayValue {
+                    let joined = arr.compactMap { $0.stringValue }.filter { !$0.isEmpty }.joined(separator: ", ")
+                    return joined
+                }
+                return ""
+            }
+        }
+
+        var out: [CRMContactCustomFieldUpsert] = []
+        out.reserveCapacity(fields.count)
+
+        for f in fields {
+            let value = valueString(for: f)
+            if value.isEmpty { continue }
+            out.append(
+                CRMContactCustomFieldUpsert(
+                    contactId: contactId,
+                    eventId: eventId,
+                    submissionId: submissionId,
+                    eventTitle: eventTitle,
+                    eventLocation: eventLocation,
+                    submittedAt: submittedAt,
+                    fieldKey: f.key,
+                    fieldLabel: f.label,
+                    valueText: value
+                )
+            )
+        }
+
+        return out
     }
 
     private func buildSubmissionNoteBlock(
@@ -337,6 +433,7 @@ final class DynamicFormService {
     private func bestEffortUpsertCRMContact(
         eventId: UUID,
         submissionId: UUID,
+        submissionCreatedAt: Date?,
         eventTitle: String?,
         eventLocation: String?,
         form: FormRecord?,
@@ -384,6 +481,19 @@ final class DynamicFormService {
                     lastContactedAt: nil
                 )
             )
+
+            // Persist all non-decoration form fields into CRM structured storage (best effort).
+            let custom = buildCustomFieldUpserts(
+                contactId: contact.id,
+                eventId: eventId,
+                submissionId: submissionId,
+                eventTitle: title ?? "",
+                eventLocation: location ?? "",
+                submittedAt: submissionCreatedAt,
+                form: form,
+                data: data
+            )
+            _ = try? await service.upsertCustomFields(custom)
 
             struct SubmissionContactPatch: Encodable {
                 let contactId: UUID
