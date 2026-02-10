@@ -65,12 +65,12 @@ struct FormPreviewView: View {
                                     ForEach(fieldRows(fields), id: \.self) { row in
                                         if row.count <= 1 || hSizeClass != .regular {
                                             if let f = row.first {
-                                                fieldRow(f)
+                                                fieldRow(f, reserveTitleSpace: false)
                                             }
                                         } else {
                                             HStack(alignment: .top, spacing: 12) {
                                                 ForEach(row) { f in
-                                                    fieldRow(f)
+                                                    fieldRow(f, reserveTitleSpace: true)
                                                         .frame(maxWidth: .infinity, alignment: .topLeading)
                                                 }
                                             }
@@ -161,7 +161,7 @@ struct FormPreviewView: View {
     }
 
     @ViewBuilder
-    private func fieldRow(_ field: FormField) -> some View {
+    private func fieldRow(_ field: FormField, reserveTitleSpace: Bool) -> some View {
         switch field.type {
         case .name:
             let keys = field.nameKeys ?? ["full_name"]
@@ -245,36 +245,44 @@ struct FormPreviewView: View {
             )
 
         case .checkbox:
-            Button {
-                boolValues[field.key, default: false].toggle()
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: boolValues[field.key, default: false] ? "checkmark.square.fill" : "square")
-                        .font(.title3)
-                        .foregroundStyle(boolValues[field.key, default: false] ? EMTheme.accent : EMTheme.ink2)
-
-                    Text(field.label)
-                        .font(.callout)
-                        .foregroundStyle(EMTheme.ink)
-
-                    Spacer()
-
-                    Text(field.required ? "必填" : "选填")
-                        .font(.caption)
-                        .foregroundStyle(EMTheme.ink2)
+            VStack(alignment: .leading, spacing: 8) {
+                if reserveTitleSpace {
+                    Text(" ")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.clear)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                        .fill(EMTheme.paper2)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                        .stroke(EMTheme.line, lineWidth: 1)
-                )
+
+                Button {
+                    boolValues[field.key, default: false].toggle()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: boolValues[field.key, default: false] ? "checkmark.square.fill" : "square")
+                            .font(.title3)
+                            .foregroundStyle(boolValues[field.key, default: false] ? EMTheme.accent : EMTheme.ink2)
+
+                        Text(field.label)
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink)
+
+                        Spacer()
+
+                        Text(field.required ? "必填" : "选填")
+                            .font(.caption)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                            .fill(EMTheme.paper2)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                            .stroke(EMTheme.line, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
         case .sectionTitle:
             let size = CGFloat(field.fontSize ?? 22)
