@@ -111,6 +111,19 @@ on public.openhouse_submissions for insert
 to authenticated
 with check (owner_id = auth.uid());
 
+drop policy if exists subs_update_own_v2 on public.openhouse_submissions;
+create policy subs_update_own_v2
+on public.openhouse_submissions for update
+to authenticated
+using (owner_id = auth.uid())
+with check (owner_id = auth.uid());
+
+drop policy if exists subs_delete_own_v2 on public.openhouse_submissions;
+create policy subs_delete_own_v2
+on public.openhouse_submissions for delete
+to authenticated
+using (owner_id = auth.uid());
+
 -- Optional: keep owner_id in sync with event.owner_id
 create or replace function public.set_submission_owner_id()
 returns trigger

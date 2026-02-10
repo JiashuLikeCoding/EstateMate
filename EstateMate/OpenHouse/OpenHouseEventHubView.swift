@@ -127,7 +127,7 @@ private struct OpenHouseEventCreateCardView: View {
 
                 if !hostOptions.isEmpty {
                     FlowLayout(maxPerRow: 3, spacing: 8) {
-                        ForEach(Array(hostOptions.prefix(8)), id: \.self) { option in
+                        ForEach(Array(hostOptions.prefix(3)), id: \.self) { option in
                             Button {
                                 hideKeyboard()
                                 host = option
@@ -150,7 +150,7 @@ private struct OpenHouseEventCreateCardView: View {
 
                 if !assistantOptions.isEmpty {
                     FlowLayout(maxPerRow: 3, spacing: 8) {
-                        ForEach(Array(assistantOptions.prefix(8)), id: \.self) { option in
+                        ForEach(Array(assistantOptions.prefix(3)), id: \.self) { option in
                             Button {
                                 hideKeyboard()
                                 assistant = option
