@@ -328,12 +328,20 @@ struct OpenHouseKioskFillView: View {
                             .foregroundStyle(.red)
                     }
 
+                    let missing = missingRequiredLabels(form: form)
+
+                    if isLoading == false, missing.isEmpty == false {
+                        Text("未完成必填：" + missing.joined(separator: "、"))
+                            .font(.footnote)
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+
                     Button(isLoading ? "提交中..." : "提交") {
                         hideKeyboard()
                         Task { await submit(eventId: event.id, form: form) }
                     }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSubmit(form: form)))
-                    .disabled(isLoading || !canSubmit(form: form))
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !missing.isEmpty))
+                    .disabled(isLoading || !missing.isEmpty)
 
                     Spacer(minLength: 20)
                 }
@@ -722,37 +730,52 @@ struct OpenHouseKioskFillView: View {
     }
 
     private func canSubmit(form: FormRecord) -> Bool {
+        missingRequiredLabels(form: form).isEmpty
+    }
+
+    private func missingRequiredLabels(form: FormRecord) -> [String] {
+        var out: [String] = []
+
         for f in form.schema.fields where f.required {
-            // Decoration fields are never required.
-            if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider {
+            // Decoration / layout fields are never required.
+            switch f.type {
+            case .sectionTitle, .sectionSubtitle, .divider, .splice:
+                continue
+            default:
+                break
+            }
+
+            if f.type == .name {
+                let keys = f.nameKeys ?? []
+                let ok = keys.allSatisfy { k in
+                    values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                }
+                if ok == false { out.append(f.label.isEmpty ? "姓名" : f.label) }
                 continue
             }
-            if f.type == .name {
-                for k in f.nameKeys ?? [] {
-                    let v = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-                    if v.isEmpty { return false }
+
+            if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
+                let keys = f.phoneKeys ?? []
+                let ok = keys.allSatisfy { k in
+                    values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                 }
-            } else if f.type == .phone, (f.phoneFormat ?? .plain) == .withCountryCode {
-                for k in f.phoneKeys ?? [] {
-                    let v = values[k, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-                    if v.isEmpty { return false }
-                }
-            } else {
-                switch f.type {
-                case .checkbox:
-                    if boolValues[f.key, default: false] == false { return false }
-                case .multiSelect:
-                    if multiValues[f.key, default: []].isEmpty { return false }
-                case .splice, .sectionTitle, .sectionSubtitle, .divider:
-                    // Never required.
-                    break
-                default:
-                    let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-                    if v.isEmpty { return false }
-                }
+                if ok == false { out.append(f.label.isEmpty ? "手机号" : f.label) }
+                continue
+            }
+
+            switch f.type {
+            case .checkbox:
+                if boolValues[f.key, default: false] == false { out.append(f.label) }
+            case .multiSelect:
+                if multiValues[f.key, default: []].isEmpty { out.append(f.label) }
+            default:
+                let v = values[f.key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+                if v.isEmpty { out.append(f.label) }
             }
         }
-        return true
+
+        // De-dup & keep readable.
+        return Array(NSOrderedSet(array: out)).compactMap { $0 as? String }.filter { !$0.isEmpty }
     }
 
     private func submit(eventId: UUID, form: FormRecord) async {
