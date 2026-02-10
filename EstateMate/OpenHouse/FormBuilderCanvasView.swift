@@ -541,13 +541,15 @@ struct FormBuilderCanvasView: View {
         )
         .overlay(alignment: .leading) {
             // Insertion anchor marker (overlay so it doesn't shift layout on selection)
+            // Keep it close to the edge so it never overlaps the row text.
             RoundedRectangle(cornerRadius: 999, style: .continuous)
                 .fill(isSelected ? EMTheme.accent : .clear)
                 .frame(width: 4)
                 .padding(.vertical, 8)
-                .padding(.leading, 10)
+                .padding(.leading, 4)
         }
-        .overlay(alignment: .topLeading) {
+        .overlay(alignment: .topTrailing) {
+            // "Double-tap to edit" hint should not cover the field title.
             if isSelected {
                 Text("双击编辑")
                     .font(.caption2.weight(.semibold))
@@ -558,7 +560,8 @@ struct FormBuilderCanvasView: View {
                         RoundedRectangle(cornerRadius: 999, style: .continuous)
                             .fill(EMTheme.accent.opacity(0.10))
                     )
-                    .padding(.leading, 18)
+                    // Keep away from the drag handle area.
+                    .padding(.trailing, 44)
                     .padding(.top, 8)
             }
         }
