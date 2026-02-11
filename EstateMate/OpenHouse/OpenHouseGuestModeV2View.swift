@@ -135,12 +135,24 @@ struct OpenHouseGuestModeV2View: View {
                         .pickerStyle(.menu)
                         .frame(width: 110, alignment: .leading)
 
-                        TextField("手机号", text: binding(for: keys[1], field: field))
+                        let digitsOnly = Binding<String>(
+                            get: { binding(for: keys[1], field: field).wrappedValue },
+                            set: { newValue in
+                                binding(for: keys[1], field: field).wrappedValue = newValue.filter { $0.isNumber }
+                            }
+                        )
+                        TextField("手机号", text: digitsOnly)
                             .keyboardType(.phonePad)
                     }
                 }
             } else {
-                TextField(field.label, text: binding(for: field.key, field: field))
+                let digitsOnly = Binding<String>(
+                    get: { binding(for: field.key, field: field).wrappedValue },
+                    set: { newValue in
+                        binding(for: field.key, field: field).wrappedValue = newValue.filter { $0.isNumber }
+                    }
+                )
+                TextField(field.label, text: digitsOnly)
                     .keyboardType(.phonePad)
             }
 

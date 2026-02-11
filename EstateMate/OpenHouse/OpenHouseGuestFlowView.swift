@@ -571,7 +571,13 @@ struct OpenHouseKioskFillView: View {
                     prompt: "手机号"
                 )
             } else {
-                EMTextField(title: field.label, text: binding(for: field.key, field: field), keyboard: .phonePad)
+                let digitsOnly = Binding<String>(
+                    get: { binding(for: field.key, field: field).wrappedValue },
+                    set: { newValue in
+                        binding(for: field.key, field: field).wrappedValue = newValue.filter { $0.isNumber }
+                    }
+                )
+                EMTextField(title: field.label, text: digitsOnly, keyboard: .phonePad)
             }
 
         case .email:

@@ -239,7 +239,13 @@ struct FormPreviewView: View {
                     prompt: "手机号"
                 )
             } else {
-                EMTextField(title: field.label, text: binding(for: field.key, field: field), prompt: "请输入...", keyboard: .phonePad)
+                let digitsOnly = Binding<String>(
+                    get: { binding(for: field.key, field: field).wrappedValue },
+                    set: { newValue in
+                        binding(for: field.key, field: field).wrappedValue = newValue.filter { $0.isNumber }
+                    }
+                )
+                EMTextField(title: field.label, text: digitsOnly, prompt: "请输入...", keyboard: .phonePad)
             }
 
         case .email:

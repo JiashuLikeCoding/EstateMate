@@ -554,7 +554,14 @@ struct EMPhoneWithCountryCodeField: View {
                     }
                 }
 
-                EMInlineTextField(text: number, prompt: prompt, keyboard: .phonePad)
+                let digitsOnlyNumber = Binding<String>(
+                    get: { number.wrappedValue },
+                    set: { newValue in
+                        number.wrappedValue = newValue.filter { $0.isNumber }
+                    }
+                )
+
+                EMInlineTextField(text: digitsOnlyNumber, prompt: prompt, keyboard: .phonePad)
             }
 
             if isExpanded {
