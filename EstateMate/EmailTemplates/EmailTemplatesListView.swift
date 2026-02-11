@@ -45,7 +45,7 @@ struct EmailTemplatesListView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("邮件模版", subtitle: "开放日 & 客户管理共用 · 支持变量：{{key}}")
+                    EMSectionHeader("邮件模版", subtitle: "开放日 & 客户管理共用")
 
                     EMCard {
                         EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
