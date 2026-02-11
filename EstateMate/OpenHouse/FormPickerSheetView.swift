@@ -83,6 +83,27 @@ struct FormPickerSheetView: View {
                         }
                     }
                 } else {
+                    Section {
+                        Button {
+                            selectedFormId = nil
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text("不绑定")
+                                    .font(.headline)
+                                    .foregroundStyle(EMTheme.ink)
+                                Spacer()
+                                if selectedFormId == nil {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(EMTheme.accent)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     ForEach(filteredForms) { f in
                         Button {
                             selectedFormId = f.id
