@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+/// Picker sheet used when binding an email template to an OpenHouse event.
+///
+/// NOTE: UI intentionally matches `EmailTemplatesListView` (search + list + empty state),
+/// but tap-to-select will dismiss and return the chosen template id.
 struct EmailTemplatePickerSheetView: View {
     let templates: [EmailTemplateRecord]
     @Binding var selectedTemplateId: UUID?
@@ -16,7 +20,10 @@ struct EmailTemplatePickerSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var localTemplates: [EmailTemplateRecord]
+    @State private var query: String = ""
+
     @State private var isRefreshing: Bool = false
+    @State private var errorMessage: String?
 
     init(
         templates: [EmailTemplateRecord],
@@ -29,11 +36,26 @@ struct EmailTemplatePickerSheetView: View {
         self._localTemplates = State(initialValue: templates)
     }
 
+    private var filtered: [EmailTemplateRecord] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return localTemplates }
+
+        return localTemplates.filter {
+            $0.name.localizedCaseInsensitiveContains(q) ||
+                $0.subject.localizedCaseInsensitiveContains(q) ||
+                $0.body.localizedCaseInsensitiveContains(q)
+        }
+    }
+
     var body: some View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("选择邮件模版", subtitle: "选择后会绑定到活动（可选）")
+                    EMSectionHeader("邮件模版", subtitle: "选择后会绑定到活动（可选）")
+
+                    EMCard {
+                        EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
+                    }
 
                     EMCard {
                         Button {
@@ -42,6 +64,7 @@ struct EmailTemplatePickerSheetView: View {
                         } label: {
                             HStack {
                                 Text("不绑定")
+                                    .font(.headline)
                                     .foregroundStyle(EMTheme.ink)
                                 Spacer()
                                 if selectedTemplateId == nil {
@@ -49,67 +72,87 @@ struct EmailTemplatePickerSheetView: View {
                                         .foregroundStyle(EMTheme.accent)
                                 }
                             }
+                            .contentShape(Rectangle())
                             .padding(.vertical, 10)
                         }
                         .buttonStyle(.plain)
                     }
 
-                    if localTemplates.isEmpty {
+                    if let errorMessage {
                         EMCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text("暂无邮件模版")
+                            Text(errorMessage)
+                                .font(.subheadline)
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    if filtered.isEmpty {
+                        EMCard {
+                            VStack(alignment: .center, spacing: 12) {
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 28, weight: .semibold))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Text("还没有任何邮件模版")
                                     .font(.headline)
                                     .foregroundStyle(EMTheme.ink)
 
-                                Text("你可以先新增邮件模版，然后回到这里刷新列表再选择绑定。")
-                                    .font(.subheadline)
+                                Text("先创建一份模版，然后回来这里下拉刷新再选择绑定。")
+                                    .font(.footnote)
                                     .foregroundStyle(EMTheme.ink2)
+                                    .multilineTextAlignment(.center)
 
                                 NavigationLink {
                                     EmailTemplateEditView(mode: .create(workspace: defaultWorkspace))
                                 } label: {
-                                    Text("新增邮件模版")
+                                    Text("新建第一个模版")
+                                        .frame(maxWidth: .infinity)
                                 }
                                 .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                                .padding(.top, 4)
 
-                                Button(isRefreshing ? "刷新中..." : "我已创建，刷新列表") {
+                                Button(isRefreshing ? "刷新中…" : "我已创建，刷新列表") {
                                     Task { await refreshTemplates() }
                                 }
                                 .buttonStyle(EMSecondaryButtonStyle())
                                 .disabled(isRefreshing)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
                         }
                     }
 
-                    ForEach(localTemplates) { t in
+                    ForEach(filtered) { t in
                         Button {
                             selectedTemplateId = t.id
                             dismiss()
                         } label: {
                             EMCard {
-                                HStack(alignment: .top, spacing: 10) {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(t.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名模版）" : t.name)
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-                                            .lineLimit(1)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(alignment: .top) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(t.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名模版）" : t.name)
+                                                .font(.headline)
+                                                .foregroundStyle(EMTheme.ink)
+                                                .lineLimit(1)
 
-                                        Text(t.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : t.subject)
-                                            .font(.subheadline)
-                                            .foregroundStyle(EMTheme.ink2)
-                                            .lineLimit(2)
+                                            Text(t.workspace.title)
+                                                .font(.caption)
+                                                .foregroundStyle(EMTheme.ink2)
+                                        }
 
-                                        Text(t.workspace.title)
-                                            .font(.caption)
-                                            .foregroundStyle(EMTheme.ink2)
+                                        Spacer()
+
+                                        if selectedTemplateId == t.id {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(EMTheme.accent)
+                                        }
                                     }
 
-                                    Spacer()
-
-                                    if selectedTemplateId == t.id {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(EMTheme.accent)
-                                    }
+                                    Text(t.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : t.subject)
+                                        .font(.subheadline)
+                                        .foregroundStyle(EMTheme.ink2)
+                                        .lineLimit(2)
                                 }
                             }
                         }
@@ -130,16 +173,31 @@ struct EmailTemplatePickerSheetView: View {
         }
         .navigationTitle("邮件模版")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    EmailTemplateEditView(mode: .create(workspace: defaultWorkspace))
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .onAppear {
+            // When opening the sheet, ensure the initial list is fresh enough.
+            localTemplates = templates
+        }
         .onTapGesture { hideKeyboard() }
     }
 
     private func refreshTemplates() async {
         isRefreshing = true
+        errorMessage = nil
         defer { isRefreshing = false }
+
         do {
             localTemplates = try await EmailTemplateService().listTemplates(workspace: nil)
         } catch {
-            // keep silent; empty state already guides user
+            errorMessage = "刷新失败：\(error.localizedDescription)"
         }
     }
 }
