@@ -425,8 +425,31 @@ private struct OpenHouseEventListCardView: View {
             }
 
             if events.isEmpty {
-                Text("暂无活动")
-                    .foregroundStyle(EMTheme.ink2)
+                VStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundStyle(EMTheme.ink2)
+
+                    Text("还没有任何活动")
+                        .font(.headline)
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("先新建一个活动并绑定表单，之后就可以开始现场填写与自动发信。")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                        .multilineTextAlignment(.center)
+
+                    NavigationLink {
+                        OpenHouseEventHubView(initialTab: .create)
+                    } label: {
+                        Text("去新建活动")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                    .padding(.top, 4)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     if ongoingEvents.isEmpty == false {
@@ -442,8 +465,16 @@ private struct OpenHouseEventListCardView: View {
                     }
 
                     if ongoingEvents.isEmpty && endedEvents.isEmpty {
-                        Text("暂无活动")
-                            .foregroundStyle(EMTheme.ink2)
+                        VStack(alignment: .center, spacing: 12) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(EMTheme.ink2)
+                            Text("暂无活动")
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                     }
                 }
             }
