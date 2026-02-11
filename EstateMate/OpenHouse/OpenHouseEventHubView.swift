@@ -91,7 +91,44 @@ private struct OpenHouseEventCreateCardView: View {
                     .foregroundStyle(.red)
             }
 
-            EMTextField(title: "活动标题", text: $newTitle, prompt: "例如：123 Main St - 2月10日")
+            VStack(alignment: .leading, spacing: 8) {
+                Text("活动标题")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(EMTheme.ink2)
+
+                HStack(spacing: 10) {
+                    TextField("例如：123 Main St - 2月10日", text: $newTitle)
+                        .textInputAutocapitalization(.sentences)
+                        .autocorrectionDisabled(false)
+
+                    Button {
+                        hideKeyboard()
+                        Task { await fillTitleFromCurrentLocation() }
+                    } label: {
+                        if isFillingLocation {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "location.fill")
+                                .font(.callout.weight(.semibold))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(EMTheme.accent)
+                    .disabled(isFillingLocation)
+                    .accessibilityLabel("使用当前位置生成标题")
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                        .fill(EMTheme.paper2)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                        .stroke(EMTheme.line, lineWidth: 1)
+                )
+            }
 
             EMLocationField(
                 title: "活动地点",
@@ -312,6 +349,30 @@ private struct OpenHouseEventCreateCardView: View {
             locationErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             showLocationError = true
         }
+    }
+
+    private func fillTitleFromCurrentLocation() async {
+        isFillingLocation = true
+        defer { isFillingLocation = false }
+        do {
+            let addr = try await locationService.fillCurrentAddress()
+            let trimmed = addr.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            newTitle = suggestedTitle(from: trimmed, date: startsAt)
+        } catch {
+            locationErrorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            showLocationError = true
+        }
+    }
+
+    private func suggestedTitle(from address: String, date: Date) -> String {
+        let street = address.split(separator: ",", maxSplits: 1, omittingEmptySubsequences: true).first.map(String.init) ?? address
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "zh_CN")
+        df.dateFormat = "M月d日"
+        let dateText = df.string(from: date)
+        let s = street.trimmingCharacters(in: .whitespacesAndNewlines)
+        return s.isEmpty ? dateText : "\(s) - \(dateText)"
     }
 
     private func createEvent() async {
