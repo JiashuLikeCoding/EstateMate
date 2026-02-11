@@ -57,6 +57,8 @@ struct EmailTemplateEditView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    @State private var isSavePreviewPresented: Bool = false
+
     @State private var workspace: EstateMateWorkspaceKind
 
     @State private var name: String = ""
@@ -323,12 +325,18 @@ struct EmailTemplateEditView: View {
                     }
 
                     Button {
-                        Task { await save() }
+                        hideKeyboard()
+                        isSavePreviewPresented = true
                     } label: {
-                        Text(isLoading ? "保存中…" : "保存")
+                        Text("保存")
                     }
                     .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
                     .disabled(isLoading)
+                    .sheet(isPresented: $isSavePreviewPresented) {
+                        NavigationStack {
+                            savePreviewSheet
+                        }
+                    }
 
                     if mode.templateId != nil {
                         Button(role: .destructive) {
@@ -649,6 +657,105 @@ struct EmailTemplateEditView: View {
         isAIPreviewPresented = false
         await save()
     }
+
+    private var savePreviewSheet: some View {
+        EMScreen {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    EMSectionHeader("保存前预览", subtitle: "这是最终发送效果预览，确认后才会保存")
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("名称")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Text(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名）" : name)
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            Divider().overlay(EMTheme.line)
+
+                            Text("主题")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Text(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            Divider().overlay(EMTheme.line)
+
+                            Text("正文（最终效果）")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            HTMLWebView(html: buildFinalPreviewHTML())
+                                .frame(minHeight: 280)
+                        }
+                    }
+
+                    Button {
+                        Task {
+                            await save()
+                            isSavePreviewPresented = false
+                        }
+                    } label: {
+                        Text(isLoading ? "保存中…" : "确认保存")
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
+                    .disabled(isLoading)
+
+                    Button {
+                        isSavePreviewPresented = false
+                    } label: {
+                        Text("取消")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isLoading)
+
+                    Spacer(minLength: 20)
+                }
+                .padding(EMTheme.padding)
+            }
+            .safeAreaPadding(.top, 8)
+        }
+        .navigationTitle("预览")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func looksLikeHTML(_ s: String) -> Bool {
+        // Very lightweight heuristic.
+        return s.contains("<") && s.contains(">")
+    }
+
+    private func escapeHTML(_ s: String) -> String {
+        s
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#039;")
+    }
+
+    private func plainTextToHTML(_ s: String) -> String {
+        let escaped = escapeHTML(s)
+        let withBreaks = escaped
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\n", with: "<br>")
+        return "<p>\(withBreaks)</p>"
+    }
+
+    private func wrapEmailHTML(_ inner: String) -> String {
+        return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}</style></head><body>\(inner)</body></html>"
+    }
+
+    private func buildFinalPreviewHTML() -> String {
+        let raw = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
+        let inner = looksLikeHTML(raw) ? raw : plainTextToHTML(raw)
+        return wrapEmailHTML(inner)
+    }
+
 
     private func save() async {
         hideKeyboard()
