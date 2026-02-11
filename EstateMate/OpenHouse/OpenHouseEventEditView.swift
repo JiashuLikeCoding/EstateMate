@@ -308,7 +308,7 @@ struct OpenHouseEventEditView: View {
         }
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
             NavigationStack {
-                EmailTemplateSelectView(workspace: .openhouse, selectedTemplateId: $selectedEmailTemplateId)
+                EmailTemplatesListView(workspace: .openhouse, selection: $selectedEmailTemplateId)
             }
         }
         .alert("删除这个活动？", isPresented: $showDeleteConfirm) {

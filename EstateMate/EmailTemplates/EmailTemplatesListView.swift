@@ -10,6 +10,12 @@ import SwiftUI
 struct EmailTemplatesListView: View {
     let workspace: EstateMateWorkspaceKind
 
+    /// Optional selection mode (used when binding a template to an OpenHouse event).
+    /// When provided, rows become tap-to-select and dismiss.
+    var selection: Binding<UUID?>? = nil
+
+    @Environment(\.dismiss) private var dismiss
+
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -94,54 +100,114 @@ struct EmailTemplatesListView: View {
                         }
                     }
 
-                    ForEach(filtered) { t in
-                        NavigationLink {
-                            EmailTemplateEditView(mode: .edit(templateId: t.id, workspace: workspace))
-                        } label: {
-                            EMCard {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(t.name.isEmpty ? "（未命名模版）" : t.name)
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                                .lineLimit(1)
-
-                                            Text(t.workspace.title)
-                                                .font(.caption)
-                                                .foregroundStyle(EMTheme.ink2)
-                                        }
-
-                                        Spacer()
-
-                                        HStack(spacing: 8) {
-                                            Text("变量：\(t.variables.count)")
-                                                .font(.footnote)
-                                                .foregroundStyle(EMTheme.ink2)
-
-                                            Button {
-                                                selectedTemplateForVariables = t
-                                                isVariablesPresented = true
-                                            } label: {
-                                                Image(systemName: "slider.horizontal.3")
-                                                    .font(.footnote.weight(.semibold))
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                    .frame(width: 28, height: 28)
-                                                    .background(Circle().fill(Color.white.opacity(0.7)))
-                                                    .overlay(Circle().stroke(EMTheme.line, lineWidth: 1))
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
+                    if let selection {
+                        EMCard {
+                            Button {
+                                selection.wrappedValue = nil
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Text("不绑定")
+                                        .font(.headline)
+                                        .foregroundStyle(EMTheme.ink)
+                                    Spacer()
+                                    if selection.wrappedValue == nil {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(EMTheme.accent)
                                     }
+                                }
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
 
-                                    Text(t.subject.isEmpty ? "（无主题）" : t.subject)
-                                        .font(.subheadline)
-                                        .foregroundStyle(EMTheme.ink2)
-                                        .lineLimit(2)
+                    ForEach(filtered) { t in
+                        if let selection {
+                            Button {
+                                selection.wrappedValue = t.id
+                                dismiss()
+                            } label: {
+                                EMCard {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack(alignment: .top) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(t.name.isEmpty ? "（未命名模版）" : t.name)
+                                                    .font(.headline)
+                                                    .foregroundStyle(EMTheme.ink)
+                                                    .lineLimit(1)
+
+                                                Text(t.workspace.title)
+                                                    .font(.caption)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                            }
+
+                                            Spacer()
+
+                                            if selection.wrappedValue == t.id {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundStyle(EMTheme.accent)
+                                            }
+                                        }
+
+                                        Text(t.subject.isEmpty ? "（无主题）" : t.subject)
+                                            .font(.subheadline)
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .lineLimit(2)
+                                    }
                                 }
                             }
+                            .buttonStyle(.plain)
+                        } else {
+                            NavigationLink {
+                                EmailTemplateEditView(mode: .edit(templateId: t.id, workspace: workspace))
+                            } label: {
+                                EMCard {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(t.name.isEmpty ? "（未命名模版）" : t.name)
+                                                    .font(.headline)
+                                                    .foregroundStyle(EMTheme.ink)
+                                                    .lineLimit(1)
+
+                                                Text(t.workspace.title)
+                                                    .font(.caption)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                            }
+
+                                            Spacer()
+
+                                            HStack(spacing: 8) {
+                                                Text("变量：\(t.variables.count)")
+                                                    .font(.footnote)
+                                                    .foregroundStyle(EMTheme.ink2)
+
+                                                Button {
+                                                    selectedTemplateForVariables = t
+                                                    isVariablesPresented = true
+                                                } label: {
+                                                    Image(systemName: "slider.horizontal.3")
+                                                        .font(.footnote.weight(.semibold))
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                        .frame(width: 28, height: 28)
+                                                        .background(Circle().fill(Color.white.opacity(0.7)))
+                                                        .overlay(Circle().stroke(EMTheme.line, lineWidth: 1))
+                                                }
+                                                .buttonStyle(.plain)
+                                            }
+                                        }
+
+                                        Text(t.subject.isEmpty ? "（无主题）" : t.subject)
+                                            .font(.subheadline)
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .lineLimit(2)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     Spacer(minLength: 20)
@@ -152,6 +218,13 @@ struct EmailTemplatesListView: View {
         .navigationTitle("邮件模版")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if selection != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("返回") { dismiss() }
+                        .foregroundStyle(EMTheme.ink2)
+                }
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink {
                     EmailTemplateEditView(mode: .create(workspace: workspace))
