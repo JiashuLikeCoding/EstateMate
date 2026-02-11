@@ -154,14 +154,6 @@ struct EmailTemplatesListView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    if workspace == .openhouse {
-                        NavigationLink {
-                            EmailTemplateFooterEditView(workspace: .openhouse)
-                        } label: {
-                            Label("统一邮件结尾", systemImage: "text.append")
-                        }
-                    }
-
                     NavigationLink {
                         EmailTemplateEditView(mode: .create(workspace: workspace))
                     } label: {
