@@ -49,6 +49,14 @@ final class DynamicFormService {
             .value
     }
 
+    func deleteForm(id: UUID) async throws {
+        _ = try await client
+            .from("forms")
+            .delete()
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+
     // MARK: - Form Backgrounds (Storage)
 
     /// Upload a custom background image for a form. Returns the storage path.

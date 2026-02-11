@@ -12,6 +12,10 @@ struct OpenHouseFormsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
+    @State private var actionForm: FormRecord?
+    @State private var showActions = false
+    @State private var isWorking = false
+
     var body: some View {
         NavigationStack {
             EMScreen("表单管理") {
@@ -54,39 +58,54 @@ struct OpenHouseFormsView: View {
                             } else {
                                 VStack(spacing: 0) {
                                     ForEach(Array(forms.enumerated()), id: \.element.id) { idx, f in
-                                        NavigationLink {
-                                            FormBuilderAdaptiveView(form: f)
-                                        } label: {
-                                            HStack(alignment: .top) {
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    Text(f.name)
-                                                        .font(.headline)
-                                                        .foregroundStyle(EMTheme.ink)
+                                        ZStack(alignment: .topTrailing) {
+                                            NavigationLink {
+                                                FormBuilderAdaptiveView(form: f)
+                                            } label: {
+                                                HStack(alignment: .top, spacing: 12) {
+                                                    VStack(alignment: .leading, spacing: 8) {
+                                                        Text(f.name)
+                                                            .font(.headline)
+                                                            .foregroundStyle(EMTheme.ink)
 
-                                                    if f.schema.fields.isEmpty {
-                                                        Text("暂无字段")
-                                                            .font(.caption)
-                                                            .foregroundStyle(EMTheme.ink2)
-                                                    } else {
-                                                        VStack(alignment: .leading, spacing: 6) {
-                                                            ForEach(chunks(of: fieldChips(for: f), size: 3), id: \.self) { row in
-                                                                HStack(spacing: 8) {
-                                                                    ForEach(row, id: \.self) { t in
-                                                                        EMChip(text: t, isOn: false)
+                                                        if f.schema.fields.isEmpty {
+                                                            Text("暂无字段")
+                                                                .font(.caption)
+                                                                .foregroundStyle(EMTheme.ink2)
+                                                        } else {
+                                                            VStack(alignment: .leading, spacing: 6) {
+                                                                ForEach(chunks(of: fieldChips(for: f), size: 3), id: \.self) { row in
+                                                                    HStack(spacing: 8) {
+                                                                        ForEach(row, id: \.self) { t in
+                                                                            EMChip(text: t, isOn: false)
+                                                                        }
+                                                                        Spacer(minLength: 0)
                                                                     }
-                                                                    Spacer(minLength: 0)
                                                                 }
                                                             }
+                                                            .padding(.vertical, 2)
                                                         }
-                                                        .padding(.vertical, 2)
                                                     }
+                                                    Spacer(minLength: 0)
                                                 }
-                                                Spacer(minLength: 0)
+                                                .contentShape(Rectangle())
+                                                .padding(.vertical, 10)
+                                                .padding(.trailing, 34) // reserve for the action button
                                             }
-                                            .contentShape(Rectangle())
-                                            .padding(.vertical, 10)
+                                            .buttonStyle(.plain)
+
+                                            Button {
+                                                actionForm = f
+                                                showActions = true
+                                            } label: {
+                                                Image(systemName: "ellipsis.circle")
+                                                    .font(.title3)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                                    .padding(.top, 10)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .padding(.trailing, 2)
                                         }
-                                        .buttonStyle(.plain)
 
                                         if idx != forms.count - 1 {
                                             Divider().overlay(EMTheme.line)
@@ -103,6 +122,24 @@ struct OpenHouseFormsView: View {
             }
             .task { await load() }
             .refreshable { await load() }
+            .confirmationDialog(
+                "表单操作",
+                isPresented: $showActions,
+                titleVisibility: .visible,
+                presenting: actionForm
+            ) { f in
+                Button("复制") {
+                    Task { await copyForm(f) }
+                }
+
+                Button("删除", role: .destructive) {
+                    Task { await deleteForm(f) }
+                }
+
+                Button("取消", role: .cancel) {}
+            } message: { f in
+                Text("\(f.name)")
+            }
         }
     }
 
@@ -112,6 +149,32 @@ struct OpenHouseFormsView: View {
         do {
             forms = try await service.listForms()
             errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func copyForm(_ form: FormRecord) async {
+        guard isWorking == false else { return }
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            _ = try await service.createForm(name: "\(form.name) 副本", schema: form.schema)
+            await load()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func deleteForm(_ form: FormRecord) async {
+        guard isWorking == false else { return }
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            try await service.deleteForm(id: form.id)
+            await load()
         } catch {
             errorMessage = error.localizedDescription
         }
