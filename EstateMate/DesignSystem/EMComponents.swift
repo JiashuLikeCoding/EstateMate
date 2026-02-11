@@ -316,6 +316,23 @@ struct EMEmailField: View {
             hydrateFromBindingIfNeeded()
             syncToBinding()
         }
+        .onChange(of: text.wrappedValue) { _, newValue in
+            // If the binding was reset externally (e.g. after form submission), reflect it in local UI state.
+            let raw = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if raw.isEmpty {
+                localPart = ""
+                useCustomDomain = false
+                customDomain = ""
+                selectedDomain = domains.contains(defaultDomain) ? defaultDomain : (domains.first ?? "gmail.com")
+                isExpanded = false
+                return
+            }
+
+            // If the external value differs from what UI would produce, re-hydrate.
+            if raw != previewEmail {
+                hydrateFromBindingIfNeeded()
+            }
+        }
     }
 
     private func hydrateFromBindingIfNeeded() {
