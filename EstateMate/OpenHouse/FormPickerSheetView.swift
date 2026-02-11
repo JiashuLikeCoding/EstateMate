@@ -45,15 +45,19 @@ struct FormPickerSheetView: View {
                 }
 
                 if filteredForms.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
+                    Section {
                         Text(query.isEmpty ? "暂无表单" : "没有匹配的表单")
                             .foregroundStyle(EMTheme.ink2)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
 
-                        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Section {
                             NavigationLink {
                                 OpenHouseFormsView()
                             } label: {
-                                HStack {
+                                HStack(spacing: 10) {
                                     Image(systemName: "square.and.pencil")
                                         .foregroundStyle(EMTheme.accent)
                                     Text("去表单管理创建")
@@ -62,12 +66,11 @@ struct FormPickerSheetView: View {
                                 }
                                 .padding(.vertical, 6)
                             }
-                            .buttonStyle(.plain)
 
                             Button {
                                 showCreateForm = true
                             } label: {
-                                HStack {
+                                HStack(spacing: 10) {
                                     Image(systemName: "plus.circle.fill")
                                         .foregroundStyle(EMTheme.accent)
                                     Text("直接新建表单")
@@ -79,8 +82,7 @@ struct FormPickerSheetView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 6)
-                } else { 
+                } else {
                     ForEach(filteredForms) { f in
                         Button {
                             selectedFormId = f.id
