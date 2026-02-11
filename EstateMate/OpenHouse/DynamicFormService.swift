@@ -17,13 +17,33 @@ final class DynamicFormService {
 
     // MARK: - Forms
 
-    func listForms() async throws -> [FormRecord] {
-        try await client
-            .from("forms")
-            .select()
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+    func listForms(includeArchived: Bool = false) async throws -> [FormRecord] {
+        do {
+            var q = client
+                .from("forms")
+                .select()
+
+            if includeArchived == false {
+                q = q.eq("is_archived", value: false)
+            }
+
+            return try await q
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            // Backward compatibility if the column isn't migrated yet.
+            let msg = (error as NSError).localizedDescription.lowercased()
+            if msg.contains("is_archived") && msg.contains("does not exist") {
+                return try await client
+                    .from("forms")
+                    .select()
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+            }
+            throw error
+        }
     }
 
     func createForm(name: String, schema: FormSchema) async throws -> FormRecord {
@@ -49,10 +69,12 @@ final class DynamicFormService {
             .value
     }
 
-    func deleteForm(id: UUID) async throws {
+    func archiveForm(id: UUID, isArchived: Bool) async throws {
+        // Requires forms.is_archived column (see migration).
+        let payload: [String: Bool] = ["is_archived": isArchived]
         _ = try await client
             .from("forms")
-            .delete()
+            .update(payload)
             .eq("id", value: id.uuidString)
             .execute()
     }

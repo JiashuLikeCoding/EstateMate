@@ -259,6 +259,7 @@ struct FormRecord: Codable, Identifiable, Hashable {
     let ownerId: UUID?
     var name: String
     var schema: FormSchema
+    var isArchived: Bool?
     var createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -266,6 +267,7 @@ struct FormRecord: Codable, Identifiable, Hashable {
         case ownerId = "owner_id"
         case name
         case schema
+        case isArchived = "is_archived"
         case createdAt = "created_at"
     }
 }

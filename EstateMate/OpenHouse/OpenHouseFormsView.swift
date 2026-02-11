@@ -12,8 +12,7 @@ struct OpenHouseFormsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    @State private var actionForm: FormRecord?
-    @State private var showActions = false
+    @State private var includeArchived = false
     @State private var isWorking = false
 
     var body: some View {
@@ -30,20 +29,29 @@ struct OpenHouseFormsView: View {
                         }
 
                         EMCard {
-                            NavigationLink {
-                                FormBuilderAdaptiveView()
-                            } label: {
-                                HStack {
-                                    Text("新建表单")
-                                        .font(.headline)
-                                    Spacer(minLength: 0)
-                                    Image(systemName: "plus")
-                                        .foregroundStyle(EMTheme.accent)
+                            VStack(spacing: 0) {
+                                NavigationLink {
+                                    FormBuilderAdaptiveView()
+                                } label: {
+                                    HStack {
+                                        Text("新建表单")
+                                            .font(.headline)
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "plus")
+                                            .foregroundStyle(EMTheme.accent)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 6)
                                 }
-                                .contentShape(Rectangle())
-                                .padding(.vertical, 6)
+                                .buttonStyle(.plain)
+
+                                Divider().overlay(EMTheme.line)
+
+                                Toggle("显示已归档", isOn: $includeArchived)
+                                    .font(.callout)
+                                    .tint(EMTheme.accent)
+                                    .padding(.vertical, 10)
                             }
-                            .buttonStyle(.plain)
                         }
 
                         if isLoading {
@@ -64,9 +72,15 @@ struct OpenHouseFormsView: View {
                                             } label: {
                                                 HStack(alignment: .top, spacing: 12) {
                                                     VStack(alignment: .leading, spacing: 8) {
-                                                        Text(f.name)
-                                                            .font(.headline)
-                                                            .foregroundStyle(EMTheme.ink)
+                                                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                                            Text(f.name)
+                                                                .font(.headline)
+                                                                .foregroundStyle(EMTheme.ink)
+
+                                                            if (f.isArchived ?? false) {
+                                                                EMChip(text: "已归档", isOn: true)
+                                                            }
+                                                        }
 
                                                         if f.schema.fields.isEmpty {
                                                             Text("暂无字段")
@@ -90,21 +104,39 @@ struct OpenHouseFormsView: View {
                                                 }
                                                 .contentShape(Rectangle())
                                                 .padding(.vertical, 10)
-                                                .padding(.trailing, 34) // reserve for the action button
+                                                .padding(.trailing, 34) // reserve for menu
                                             }
                                             .buttonStyle(.plain)
 
-                                            Button {
-                                                actionForm = f
-                                                showActions = true
+                                            Menu {
+                                                Button("复制") {
+                                                    Task { await copyForm(f) }
+                                                }
+
+                                                Button("归档") {
+                                                    Task { await archiveForm(f, isArchived: true) }
+                                                }
+
+                                                if includeArchived {
+                                                    Button("取消归档") {
+                                                        Task { await archiveForm(f, isArchived: false) }
+                                                    }
+                                                }
                                             } label: {
-                                                Image(systemName: "ellipsis.circle")
-                                                    .font(.title3)
+                                                Image(systemName: "ellipsis")
+                                                    .font(.title3.weight(.semibold))
                                                     .foregroundStyle(EMTheme.ink2)
-                                                    .padding(.top, 10)
+                                                    .padding(10)
+                                                    .background(
+                                                        Circle().fill(EMTheme.paper2)
+                                                    )
+                                                    .overlay(
+                                                        Circle().stroke(EMTheme.line, lineWidth: 1)
+                                                    )
                                             }
                                             .buttonStyle(.plain)
-                                            .padding(.trailing, 2)
+                                            .padding(.top, 2)
+                                            .padding(.trailing, 0)
                                         }
 
                                         if idx != forms.count - 1 {
@@ -122,23 +154,8 @@ struct OpenHouseFormsView: View {
             }
             .task { await load() }
             .refreshable { await load() }
-            .confirmationDialog(
-                "表单操作",
-                isPresented: $showActions,
-                titleVisibility: .visible,
-                presenting: actionForm
-            ) { f in
-                Button("复制") {
-                    Task { await copyForm(f) }
-                }
-
-                Button("删除", role: .destructive) {
-                    Task { await deleteForm(f) }
-                }
-
-                Button("取消", role: .cancel) {}
-            } message: { f in
-                Text("\(f.name)")
+            .onChange(of: includeArchived) { _, _ in
+                Task { await load() }
             }
         }
     }
@@ -147,7 +164,7 @@ struct OpenHouseFormsView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            forms = try await service.listForms()
+            forms = try await service.listForms(includeArchived: includeArchived)
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -167,16 +184,22 @@ struct OpenHouseFormsView: View {
         }
     }
 
-    private func deleteForm(_ form: FormRecord) async {
+    private func archiveForm(_ form: FormRecord, isArchived: Bool) async {
         guard isWorking == false else { return }
         isWorking = true
         defer { isWorking = false }
 
         do {
-            try await service.deleteForm(id: form.id)
+            try await service.archiveForm(id: form.id, isArchived: isArchived)
             await load()
         } catch {
-            errorMessage = error.localizedDescription
+            // Friendly hint when the column isn't migrated yet.
+            let msg = error.localizedDescription
+            if msg.lowercased().contains("is_archived") {
+                errorMessage = "需要先执行一次数据库迁移：为 forms 增加 is_archived 字段（用于归档）"
+            } else {
+                errorMessage = msg
+            }
         }
     }
 
