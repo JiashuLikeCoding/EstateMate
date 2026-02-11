@@ -17,11 +17,11 @@ struct EmailTemplateSelectView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    @State private var query: String = ""
+    @State private var templates: [EmailTemplateRecord] = []
+
     @State private var isLoading = false
     @State private var errorMessage: String?
-
-    @State private var templates: [EmailTemplateRecord] = []
-    @State private var query: String = ""
 
     private let service = EmailTemplateService()
 
@@ -37,156 +37,127 @@ struct EmailTemplateSelectView: View {
     }
 
     var body: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("邮件模版", subtitle: "选择后会绑定到活动（可选）")
+        NavigationStack {
+            List {
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.callout)
+                        .foregroundStyle(.red)
+                }
 
-                    EMCard {
-                        EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
+                if isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
                     }
+                }
 
-                    EMCard {
-                        Button {
-                            selectedTemplateId = nil
-                            dismiss()
-                        } label: {
-                            HStack {
-                                Text("不绑定")
-                                    .font(.headline)
-                                    .foregroundStyle(EMTheme.ink)
-
-                                Spacer()
-
-                                if selectedTemplateId == nil {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(EMTheme.accent)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .padding(.vertical, 10)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let errorMessage {
-                        EMCard {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundStyle(.red)
-                        }
-                    }
-
-                    if isLoading {
-                        EMCard {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                Text("正在加载…")
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        }
-                    }
-
-                    if !isLoading, filtered.isEmpty, errorMessage == nil {
-                        EMCard {
-                            VStack(alignment: .center, spacing: 12) {
-                                Image(systemName: "envelope")
-                                    .font(.system(size: 28, weight: .semibold))
-                                    .foregroundStyle(EMTheme.ink2)
-
-                                Text("还没有任何邮件模版")
-                                    .font(.headline)
-                                    .foregroundStyle(EMTheme.ink)
-
-                                Text("创建一份模版后，就可以在开放日自动发信、或在客户管理里快速发送。")
-                                    .font(.footnote)
-                                    .foregroundStyle(EMTheme.ink2)
-                                    .multilineTextAlignment(.center)
-
-                                NavigationLink {
-                                    EmailTemplateEditView(mode: .create(workspace: workspace))
-                                } label: {
-                                    Text("新建第一个模版")
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(EMPrimaryButtonStyle(disabled: false))
-                                .padding(.top, 4)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                        }
-                    }
-
-                    ForEach(filtered) { t in
-                        Button {
-                            selectedTemplateId = t.id
-                            dismiss()
-                        } label: {
-                            EMCard {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(alignment: .top) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(t.name.isEmpty ? "（未命名模版）" : t.name)
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
-                                                .lineLimit(1)
-
-                                            Text(t.workspace.title)
-                                                .font(.caption)
-                                                .foregroundStyle(EMTheme.ink2)
-                                        }
-
-                                        Spacer()
-
-                                        if selectedTemplateId == t.id {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundStyle(EMTheme.accent)
-                                        }
-                                    }
-
-                                    Text(t.subject.isEmpty ? "（无主题）" : t.subject)
-                                        .font(.subheadline)
-                                        .foregroundStyle(EMTheme.ink2)
-                                        .lineLimit(2)
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-
+                Section {
                     Button {
+                        selectedTemplateId = nil
                         dismiss()
                     } label: {
-                        Text("取消")
+                        HStack {
+                            Text("不绑定")
+                                .font(.headline)
+                                .foregroundStyle(EMTheme.ink)
+                            Spacer()
+                            if selectedTemplateId == nil {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(EMTheme.accent)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                        .padding(.vertical, 6)
                     }
-                    .buttonStyle(EMSecondaryButtonStyle())
+                    .buttonStyle(.plain)
+                }
 
-                    Spacer(minLength: 20)
+                if !isLoading, filtered.isEmpty, errorMessage == nil {
+                    Section {
+                        Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "暂无邮件模版" : "没有匹配的邮件模版")
+                            .foregroundStyle(EMTheme.ink2)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                    }
+
+                    if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Section {
+                            NavigationLink {
+                                EmailTemplateEditView(mode: .create(workspace: workspace))
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(EMTheme.accent)
+                                    Text("新建第一个模版")
+                                        .foregroundStyle(EMTheme.ink)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 6)
+                            }
+                        }
+                    }
+                } else {
+                    Section {
+                        ForEach(filtered) { t in
+                            Button {
+                                selectedTemplateId = t.id
+                                dismiss()
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(t.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名模版）" : t.name)
+                                            .font(.headline)
+                                            .foregroundStyle(EMTheme.ink)
+
+                                        Text(t.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : t.subject)
+                                            .font(.subheadline)
+                                            .foregroundStyle(EMTheme.ink2)
+                                            .lineLimit(2)
+
+                                        Text(t.workspace.title)
+                                            .font(.caption)
+                                            .foregroundStyle(EMTheme.ink2)
+                                    }
+
+                                    Spacer()
+
+                                    if selectedTemplateId == t.id {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(EMTheme.accent)
+                                    } else {
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(EMTheme.ink2)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
-                .padding(EMTheme.padding)
             }
-        }
-        .navigationTitle("邮件模版")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    EmailTemplateEditView(mode: .create(workspace: workspace))
-                } label: {
-                    Image(systemName: "plus")
+            .navigationTitle("选择邮件模版")
+            .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索邮件模版")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("返回") { dismiss() }
+                        .foregroundStyle(EMTheme.ink2)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        EmailTemplateEditView(mode: .create(workspace: workspace))
+                    } label: {
+                        Image(systemName: "plus")
+                            .foregroundStyle(EMTheme.accent)
+                    }
                 }
             }
-        }
-        .task { await reload() }
-        .refreshable { await reload() }
-        .onAppear {
-            Task { await reload() }
-        }
-        .onTapGesture {
-            hideKeyboard()
+            .task { await reload() }
+            .refreshable { await reload() }
         }
     }
 

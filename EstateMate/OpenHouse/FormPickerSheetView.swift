@@ -135,7 +135,7 @@ struct FormPickerSheetView: View {
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "搜索表单")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("关闭") { dismiss() }
+                    Button("返回") { dismiss() }
                         .foregroundStyle(EMTheme.ink2)
                 }
 
