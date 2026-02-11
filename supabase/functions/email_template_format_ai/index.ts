@@ -138,6 +138,17 @@ function computeDiffHtml(original: string, formatted: string): string {
   return wrapAsEmailHtml(pre)
 }
 
+function applyTokenCorrections(text: string, corrections: { from: string; to: string }[]): string {
+  var out = text
+  for (const c of corrections) {
+    const from = normalizeString(c.from)
+    const to = normalizeString(c.to)
+    if (!from || !to || from === to) continue
+    out = out.split(from).join(to)
+  }
+  return out
+}
+
 async function callOpenAI(params: {
   subject: string
   body: string
@@ -301,19 +312,23 @@ Deno.serve(async (req) => {
       builtInKeys,
     })
 
+    // Apply token corrections automatically (so preview/save reflects fixes).
+    const correctedSubject = applyTokenCorrections(formatted.subject, formatted.token_corrections)
+    const correctedBodyHTML = applyTokenCorrections(formatted.body_html, formatted.token_corrections)
+
     const tokenIssues = validateTokens({
       workspace,
-      text: formatted.subject + "\n" + formatted.body_html,
+      text: correctedSubject + "\n" + correctedBodyHTML,
       declaredKeys: Array.isArray(body.declared_keys) ? body.declared_keys.filter((x) => typeof x === "string") : [],
     })
 
     // Diff highlight: show AI-changes only.
-    const diff_body_html = computeDiffHtml(rawBody, formatted.body_html)
-    const preview_body_html = wrapAsEmailHtml(formatted.body_html)
+    const diff_body_html = computeDiffHtml(rawBody, correctedBodyHTML)
+    const preview_body_html = wrapAsEmailHtml(correctedBodyHTML)
 
     return json({
-      subject: formatted.subject,
-      body_html: formatted.body_html,
+      subject: correctedSubject,
+      body_html: correctedBodyHTML,
       preview_body_html,
       diff_body_html,
       suggested_variables: formatted.suggested_variables,
