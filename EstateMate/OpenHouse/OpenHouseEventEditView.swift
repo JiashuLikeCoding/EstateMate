@@ -303,7 +303,7 @@ struct OpenHouseEventEditView: View {
             }
         }) {
             NavigationStack {
-                OpenHouseFormsView()
+                OpenHouseFormsView(selection: $selectedFormId)
                     .toolbar {
                         ToolbarItem(placement: .topBarLeading) {
                             Button("取消") { isFormManagementPresented = false }

@@ -8,6 +8,12 @@ import SwiftUI
 struct OpenHouseFormsView: View {
     private let service = DynamicFormService()
 
+    /// Optional selection mode (used when this screen is shown as a “bind form” management sheet).
+    /// When provided, we show a consistent “不绑定” row (same style as EmailTemplatesListView selection mode).
+    var selection: Binding<UUID?>? = nil
+
+    @Environment(\.dismiss) private var dismiss
+
     @State private var forms: [FormRecord] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -38,6 +44,29 @@ struct OpenHouseFormsView: View {
                         if isLoading {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
+                        }
+
+                        if let selection {
+                            EMCard {
+                                Button {
+                                    selection.wrappedValue = nil
+                                    dismiss()
+                                } label: {
+                                    HStack {
+                                        Text("不绑定")
+                                            .font(.headline)
+                                            .foregroundStyle(EMTheme.ink)
+                                        Spacer()
+                                        if selection.wrappedValue == nil {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .foregroundStyle(EMTheme.accent)
+                                        }
+                                    }
+                                    .contentShape(Rectangle())
+                                    .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
 
                         EMCard {
