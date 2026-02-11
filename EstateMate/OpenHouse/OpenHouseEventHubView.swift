@@ -324,6 +324,12 @@ private struct OpenHouseEventCreateCardView: View {
         }) {
             NavigationStack {
                 OpenHouseFormsView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("取消") { isFormManagementPresented = false }
+                                .foregroundStyle(EMTheme.ink2)
+                        }
+                    }
             }
         }
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
