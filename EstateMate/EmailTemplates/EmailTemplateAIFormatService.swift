@@ -26,6 +26,7 @@ final class EmailTemplateAIFormatService {
     }
 
     struct Response: Decodable {
+        let name: String
         let subject: String
         let body_html: String
         let preview_body_html: String
@@ -36,11 +37,12 @@ final class EmailTemplateAIFormatService {
         let notes: String?
     }
 
-    func format(workspace: EstateMateWorkspaceKind, subject: String, body: String, declaredKeys: [String]) async throws -> Response {
+    func format(workspace: EstateMateWorkspaceKind, name: String, subject: String, body: String, declaredKeys: [String]) async throws -> Response {
         let client = SupabaseClientProvider.client
 
         let payload: [String: Any] = [
             "workspace": workspace.rawValue,
+            "name": name,
             "subject": subject,
             "body": body,
             "declared_keys": declaredKeys,

@@ -14,6 +14,7 @@ type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
 type ReqBody = {
   workspace?: string
+  name?: string
   subject: string
   body: string
   declared_keys?: string[]
@@ -209,6 +210,7 @@ function applyTokenCorrections(text: string, corrections: { from: string; to: st
 }
 
 async function callOpenAI(params: {
+  name: string
   subject: string
   body: string
   isHtml: boolean
@@ -217,6 +219,7 @@ async function callOpenAI(params: {
   language: string
   builtInKeys: string[]
 }): Promise<{
+  name: string
   subject: string
   body_html: string
   suggested_variables: SuggestedVariable[]
@@ -225,13 +228,14 @@ async function callOpenAI(params: {
 }> {
   const apiKey = getEnv("OPENAI_API_KEY")
 
-  const existingTokens = extractTokenKeys(params.subject + "\n" + params.body)
+  const existingTokens = extractTokenKeys(params.name + "\n" + params.subject + "\n" + params.body)
   const tags = params.isHtml ? extractExistingTags(params.body) : []
 
-  const system = `你是一个严格的“邮件模版智能排版器/校对器”。\n\n目标：\n1) 把输入的主题/正文排版为适合邮件发送的 HTML（body_html）。\n2) 识别文本中未来可能要做成变量的内容（suggested_variables）。\n3) 检查变量 token 是否拼错/用错，并给出 token_corrections（只做建议，不要直接改 token 字符串）。\n\n必须遵守：\n- 只返回 JSON（不要 markdown）。\n- 不要杜撰新信息，不要删除关键信息。\n- 已存在的 token（{{key}}）必须原样保留在 body_html/subject 里（不要改大小写/不要加空格）。\n- 如果输入包含 HTML 标签，尽量保持已有标签语义；可以补 <p>/<br>/<ul> 结构。\n- 不要添加 footer（统一结尾由系统另外拼接）。\n- suggested_variables 的 key 必须只含 a-z/0-9/_，小写。\n\nworkspace：${params.workspace}\n语言：${params.language}\n内置变量（如果适用）：${params.builtInKeys.join(",")}\n`
+  const system = `你是一个严格的“邮件模版智能排版器/校对器”。\n\n目标：\n1) 对“名称/主题/正文”做轻量排版与纠错：名称与主题更简洁专业；正文输出为适合邮件发送的 HTML（body_html）。\n2) 识别文本中未来可能要做成变量的内容（suggested_variables）。\n3) 检查变量 token 是否拼错/用错，并给出 token_corrections（只做建议，不要直接改 token 字符串）。\n\n必须遵守：\n- 只返回 JSON（不要 markdown）。\n- 不要杜撰新信息，不要删除关键信息。\n- 已存在的 token（{{key}}）必须原样保留在 name/subject/body_html 里（不要改大小写/不要加空格）。\n- 如果输入包含 HTML 标签，尽量保持已有标签语义；可以补 <p>/<br>/<ul> 结构。\n- 不要添加 footer（统一结尾由系统另外拼接）。\n- suggested_variables 的 key 必须只含 a-z/0-9/_，小写。\n\nworkspace：${params.workspace}\n语言：${params.language}\n内置变量（如果适用）：${params.builtInKeys.join(",")}\n`
 
   const user: Json = {
     input: {
+      name: params.name,
       subject: params.subject,
       body: params.body,
       is_html: params.isHtml,
@@ -240,6 +244,7 @@ async function callOpenAI(params: {
     built_in_keys: params.builtInKeys,
     existing_html_tags: tags,
     output_format: {
+      name: "string",
       subject: "string",
       body_html: "string",
       suggested_variables: [
@@ -284,6 +289,7 @@ async function callOpenAI(params: {
   if (!content) throw new Error("OpenAI returned empty content")
 
   const parsed = JSON.parse(content)
+  const name = typeof parsed.name === "string" ? parsed.name : params.name
   const subject = typeof parsed.subject === "string" ? parsed.subject : ""
   const body_html = typeof parsed.body_html === "string" ? parsed.body_html : ""
   const notes = typeof parsed.notes === "string" ? parsed.notes : undefined
@@ -309,9 +315,9 @@ async function callOpenAI(params: {
         }))
     : []
 
-  if (!subject && !body_html) throw new Error("OpenAI returned empty formatted result")
+  if (!name && !subject && !body_html) throw new Error("OpenAI returned empty formatted result")
 
-  return { subject, body_html, suggested_variables, token_corrections, notes }
+  return { name, subject, body_html, suggested_variables, token_corrections, notes }
 }
 
 function validateTokens(params: {
@@ -351,6 +357,7 @@ Deno.serve(async (req) => {
   }
 
   const workspace = normalizeString(body.workspace) || "openhouse"
+  const rawName = normalizeString(body.name)
   const subject = normalizeString(body.subject)
   const rawBody = normalizeString(body.body)
   if (!subject && !rawBody) return badRequest("subject/body cannot both be empty")
@@ -362,6 +369,7 @@ Deno.serve(async (req) => {
 
   try {
     const formatted = await callOpenAI({
+      name: rawName,
       subject,
       body: rawBody,
       isHtml,
@@ -372,12 +380,13 @@ Deno.serve(async (req) => {
     })
 
     // Apply token corrections automatically (so preview/save reflects fixes).
+    const correctedName = applyTokenCorrections(formatted.name ?? rawName, formatted.token_corrections)
     const correctedSubject = applyTokenCorrections(formatted.subject, formatted.token_corrections)
     const correctedBodyHTML = applyTokenCorrections(formatted.body_html, formatted.token_corrections)
 
     const tokenIssues = validateTokens({
       workspace,
-      text: correctedSubject + "\n" + correctedBodyHTML,
+      text: correctedName + "\n" + correctedSubject + "\n" + correctedBodyHTML,
       declaredKeys: Array.isArray(body.declared_keys) ? body.declared_keys.filter((x) => typeof x === "string") : [],
     })
 
@@ -386,6 +395,7 @@ Deno.serve(async (req) => {
     const preview_body_html = wrapAsEmailHtml(correctedBodyHTML, { highlightTokens: true })
 
     return json({
+      name: correctedName,
       subject: correctedSubject,
       body_html: correctedBodyHTML,
       preview_body_html,

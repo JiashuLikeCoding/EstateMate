@@ -101,7 +101,16 @@ struct EmailTemplateEditView: View {
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("主题")
+                            Text("名称")
+                                        .font(.footnote.weight(.medium))
+                                        .foregroundStyle(EMTheme.ink2)
+                                    Text(aiResult?.name ?? "")
+                                        .font(.subheadline)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    Divider().overlay(EMTheme.line)
+
+                                    Text("主题")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
@@ -624,7 +633,7 @@ struct EmailTemplateEditView: View {
         defer { isAIFormatting = false }
 
         do {
-            let res = try await aiFormatService.format(workspace: workspace, subject: subject, body: bodyText, declaredKeys: variables.map(\.key))
+            let res = try await aiFormatService.format(workspace: workspace, name: name, subject: subject, body: bodyText, declaredKeys: variables.map(\.key))
             aiResult = res
             aiPreviewTab = .preview
             isAIPreviewPresented = true
@@ -634,6 +643,7 @@ struct EmailTemplateEditView: View {
     }
 
     private func applyAIAndSave() async {
+        name = aiResult?.name ?? name
         subject = aiResult?.subject ?? subject
         bodyText = aiResult?.body_html ?? bodyText
         isAIPreviewPresented = false
