@@ -22,6 +22,8 @@ struct EmailTemplatesListView: View {
     @State private var templates: [EmailTemplateRecord] = []
     @State private var query: String = ""
 
+    @State private var includeArchived: Bool = false
+    @State private var isWorking: Bool = false
 
     @State private var isVariablesPresented = false
     @State private var selectedTemplateForVariables: EmailTemplateRecord?
@@ -47,6 +49,13 @@ struct EmailTemplatesListView: View {
 
                     EMCard {
                         EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
+                    }
+
+                    EMCard {
+                        Toggle("显示已归档", isOn: $includeArchived)
+                            .font(.callout)
+                            .tint(EMTheme.accent)
+                            .padding(.vertical, 10)
                     }
 
                     if let errorMessage {
@@ -165,12 +174,18 @@ struct EmailTemplatesListView: View {
                             } label: {
                                 EMCard {
                                     VStack(alignment: .leading, spacing: 8) {
-                                        HStack {
+                                        HStack(alignment: .top) {
                                             VStack(alignment: .leading, spacing: 4) {
-                                                Text(t.name.isEmpty ? "（未命名模版）" : t.name)
-                                                    .font(.headline)
-                                                    .foregroundStyle(EMTheme.ink)
-                                                    .lineLimit(1)
+                                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                                    Text(t.name.isEmpty ? "（未命名模版）" : t.name)
+                                                        .font(.headline)
+                                                        .foregroundStyle(EMTheme.ink)
+                                                        .lineLimit(1)
+
+                                                    if t.isArchived {
+                                                        EMChip(text: "已归档", isOn: true)
+                                                    }
+                                                }
 
                                                 Text(t.workspace.title)
                                                     .font(.caption)
@@ -184,11 +199,23 @@ struct EmailTemplatesListView: View {
                                                     .font(.footnote)
                                                     .foregroundStyle(EMTheme.ink2)
 
-                                                Button {
-                                                    selectedTemplateForVariables = t
-                                                    isVariablesPresented = true
+                                                Menu {
+                                                    Button(t.isArchived ? "取消归档" : "归档") {
+                                                        Task {
+                                                            await archiveTemplate(t, isArchived: !t.isArchived)
+                                                        }
+                                                    }
+
+                                                    Divider()
+
+                                                    Button {
+                                                        selectedTemplateForVariables = t
+                                                        isVariablesPresented = true
+                                                    } label: {
+                                                        Text("管理变量")
+                                                    }
                                                 } label: {
-                                                    Image(systemName: "slider.horizontal.3")
+                                                    Image(systemName: "ellipsis")
                                                         .font(.footnote.weight(.semibold))
                                                         .foregroundStyle(EMTheme.ink2)
                                                         .frame(width: 28, height: 28)
@@ -266,6 +293,9 @@ struct EmailTemplatesListView: View {
         .onTapGesture {
             hideKeyboard()
         }
+        .onChange(of: includeArchived) { _, _ in
+            Task { await reload() }
+        }
     }
 
     private func reload() async {
@@ -275,9 +305,22 @@ struct EmailTemplatesListView: View {
 
         do {
             // Shared templates across OpenHouse + CRM.
-            templates = try await service.listTemplates(workspace: nil)
+            templates = try await service.listTemplates(workspace: nil, includeArchived: includeArchived)
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func archiveTemplate(_ template: EmailTemplateRecord, isArchived: Bool) async {
+        guard isWorking == false else { return }
+        isWorking = true
+        defer { isWorking = false }
+
+        do {
+            _ = try await service.archiveTemplate(id: template.id, isArchived: isArchived)
+            await reload()
+        } catch {
+            errorMessage = "操作失败：\(error.localizedDescription)"
         }
     }
 }
