@@ -45,9 +45,42 @@ struct FormPickerSheetView: View {
                 }
 
                 if filteredForms.isEmpty {
-                    Text(query.isEmpty ? "暂无表单" : "没有匹配的表单")
-                        .foregroundStyle(EMTheme.ink2)
-                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(query.isEmpty ? "暂无表单" : "没有匹配的表单")
+                            .foregroundStyle(EMTheme.ink2)
+
+                        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            NavigationLink {
+                                OpenHouseFormsView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "square.and.pencil")
+                                        .foregroundStyle(EMTheme.accent)
+                                    Text("去表单管理创建")
+                                        .foregroundStyle(EMTheme.ink)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                showCreateForm = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(EMTheme.accent)
+                                    Text("直接新建表单")
+                                        .foregroundStyle(EMTheme.ink)
+                                    Spacer()
+                                }
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 6)
+                } else { 
                     ForEach(filteredForms) { f in
                         Button {
                             selectedFormId = f.id
