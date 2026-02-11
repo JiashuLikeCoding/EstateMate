@@ -16,7 +16,6 @@ struct EmailTemplatesListView: View {
     @State private var templates: [EmailTemplateRecord] = []
     @State private var query: String = ""
 
-    @State private var isCreatePresented = false
 
     @State private var isVariablesPresented = false
     @State private var selectedTemplateForVariables: EmailTemplateRecord?
@@ -81,8 +80,8 @@ struct EmailTemplatesListView: View {
                                     .foregroundStyle(EMTheme.ink2)
                                     .multilineTextAlignment(.center)
 
-                                Button {
-                                    isCreatePresented = true
+                                NavigationLink {
+                                    EmailTemplateEditView(mode: .create(workspace: workspace))
                                 } label: {
                                     Text("新建第一个模版")
                                         .frame(maxWidth: .infinity)
@@ -163,18 +162,17 @@ struct EmailTemplatesListView: View {
                         }
                     }
 
-                    Button("新增") { isCreatePresented = true }
+                    NavigationLink {
+                        EmailTemplateEditView(mode: .create(workspace: workspace))
+                    } label: {
+                        Label("新增", systemImage: "plus")
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
             }
         }
-        .sheet(isPresented: $isCreatePresented, onDismiss: {
-            Task { await reload() }
-        }) {
-            NavigationStack {
-                EmailTemplateEditView(mode: .create(workspace: workspace))
-            }
+        
         .sheet(isPresented: $isVariablesPresented, onDismiss: {
             selectedTemplateForVariables = nil
         }) {
@@ -194,7 +192,6 @@ struct EmailTemplatesListView: View {
             }
         }
 
-        }
         .task {
             await reload()
         }
