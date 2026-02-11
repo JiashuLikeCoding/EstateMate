@@ -46,11 +46,15 @@ struct OpenHouseEventHubView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    tab = .create
-                } label: {
-                    Image(systemName: "plus")
+            // Only show the global "+" when viewing the list tab.
+            // On the create tab, it's redundant (already on the create flow).
+            if tab == .list {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        tab = .create
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
         }
