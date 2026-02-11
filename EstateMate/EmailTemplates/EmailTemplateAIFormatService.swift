@@ -2,19 +2,48 @@ import Foundation
 import Supabase
 
 final class EmailTemplateAIFormatService {
+    struct SuggestedVariable: Decodable, Identifiable {
+        var id: String { key }
+        let key: String
+        let label: String
+        let reason: String?
+        let original_snippet: String?
+    }
+
+    struct TokenCorrection: Decodable, Identifiable {
+        var id: String { from + "->" + to }
+        let from: String
+        let to: String
+        let reason: String?
+    }
+
+    struct TokenIssue: Decodable, Identifiable {
+        var id: String { type + ":" + token }
+        let type: String
+        let token: String
+        let suggestion: String?
+        let message: String?
+    }
+
     struct Response: Decodable {
         let subject: String
         let body_html: String
+        let preview_body_html: String
+        let diff_body_html: String
+        let suggested_variables: [SuggestedVariable]
+        let token_corrections: [TokenCorrection]
+        let token_issues: [TokenIssue]
         let notes: String?
     }
 
-    func format(workspace: EstateMateWorkspaceKind, subject: String, body: String) async throws -> Response {
+    func format(workspace: EstateMateWorkspaceKind, subject: String, body: String, declaredKeys: [String]) async throws -> Response {
         let client = SupabaseClientProvider.client
 
         let payload: [String: Any] = [
             "workspace": workspace.rawValue,
             "subject": subject,
             "body": body,
+            "declared_keys": declaredKeys,
             "language": "zh",
             "tone": "japanese_minimal"
         ]
@@ -25,7 +54,6 @@ final class EmailTemplateAIFormatService {
                 options: FunctionInvokeOptions(body: try JSONSerialization.data(withJSONObject: payload))
             )
         } catch {
-            // Best-effort surface server message.
             if let e = error as? FunctionsError {
                 switch e {
                 case let .httpError(_, data):
