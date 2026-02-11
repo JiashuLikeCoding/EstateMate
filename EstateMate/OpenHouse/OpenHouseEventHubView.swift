@@ -70,6 +70,7 @@ private struct OpenHouseEventCreateCardView: View {
 
     @State private var selectedFormId: UUID?
     @State private var isFormSheetPresented: Bool = false
+    @State private var isFormManagementPresented: Bool = false
 
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -174,7 +175,11 @@ private struct OpenHouseEventCreateCardView: View {
                     .foregroundStyle(EMTheme.ink2)
 
                 Button {
-                    isFormSheetPresented = true
+                    if forms.isEmpty {
+                        isFormManagementPresented = true
+                    } else {
+                        isFormSheetPresented = true
+                    }
                 } label: {
                     HStack(spacing: 10) {
                         if selectedFormId == nil {
@@ -245,6 +250,18 @@ private struct OpenHouseEventCreateCardView: View {
         .task { await load() }
         .sheet(isPresented: $isFormSheetPresented) {
             FormPickerSheetView(forms: forms, selectedFormId: $selectedFormId)
+        }
+        .sheet(isPresented: $isFormManagementPresented, onDismiss: {
+            Task {
+                await load()
+                if selectedFormId == nil && forms.isEmpty == false {
+                    isFormSheetPresented = true
+                }
+            }
+        }) {
+            NavigationStack {
+                OpenHouseFormsView()
+            }
         }
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
             NavigationStack {
