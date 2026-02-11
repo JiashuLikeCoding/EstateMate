@@ -76,8 +76,66 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;")
 }
 
-function wrapAsEmailHtml(inner: string): string {
+function wrapAsEmailHtml(inner: string, opts: { highlightTokens?: boolean } = {}): string {
+  const highlightTokens = opts.highlightTokens === true
+
   // Minimal email-safe wrapper for preview/diff.
+  // NOTE: Token highlighting is for preview ONLY. It does not modify the email HTML saved/sent.
+  const tokenCSS = highlightTokens
+    ? `
+  .em-token { color: #15803d; font-weight: 600; background: rgba(34, 197, 94, 0.10); padding: 0 2px; border-radius: 4px; }
+`
+    : ""
+
+  const tokenJS = highlightTokens
+    ? `
+<script>
+(function(){
+  function walk(node){
+    if(!node) return;
+    if(node.nodeType === Node.TEXT_NODE){
+      const text = node.nodeValue;
+      if(!text || text.indexOf('{{') === -1) return;
+      const re = /\{\{\s*[a-zA-Z0-9_]+\s*\}\}/g;
+      let m; let last = 0;
+      const parts = [];
+      while((m = re.exec(text))){
+        const start = m.index;
+        const end = start + m[0].length;
+        parts.push(text.slice(last, start));
+        parts.push({token: m[0]});
+        last = end;
+      }
+      if(parts.length === 0) return;
+      parts.push(text.slice(last));
+      const frag = document.createDocumentFragment();
+      for(const p of parts){
+        if(typeof p === 'string') frag.appendChild(document.createTextNode(p));
+        else {
+          const span = document.createElement('span');
+          span.className = 'em-token';
+          span.textContent = p.token;
+          frag.appendChild(span);
+        }
+      }
+      node.parentNode && node.parentNode.replaceChild(frag, node);
+      return;
+    }
+    if(node.nodeType === Node.ELEMENT_NODE){
+      const tag = (node.tagName || '').toLowerCase();
+      if(tag === 'script' || tag === 'style' || tag === 'textarea' || tag === 'code' || tag === 'pre') return;
+      const kids = Array.from(node.childNodes);
+      for(const k of kids) walk(k);
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    walk(document.body);
+  });
+})();
+</script>
+`
+    : ""
+
   return `<!doctype html><html><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
@@ -87,7 +145,8 @@ function wrapAsEmailHtml(inner: string): string {
   .diff del { color: #b42318; text-decoration: line-through; background: rgba(244, 63, 94, 0.08); }
   .diff ins { color: #b42318; text-decoration: none; background: rgba(244, 63, 94, 0.14); }
   .diff ins, .diff del { padding: 0 2px; border-radius: 4px; }
-</style></head><body>${inner}</body></html>`
+${tokenCSS}
+</style>${tokenJS}</head><body>${inner}</body></html>`
 }
 
 function extractTokenKeys(text: string): string[] {
@@ -324,7 +383,7 @@ Deno.serve(async (req) => {
 
     // Diff highlight: show AI-changes only.
     const diff_body_html = computeDiffHtml(rawBody, correctedBodyHTML)
-    const preview_body_html = wrapAsEmailHtml(correctedBodyHTML)
+    const preview_body_html = wrapAsEmailHtml(correctedBodyHTML, { highlightTokens: true })
 
     return json({
       subject: correctedSubject,
