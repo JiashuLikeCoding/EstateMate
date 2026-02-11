@@ -89,7 +89,7 @@ struct OpenHouseEventsV2View: View {
         .refreshable { await load() }
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
             NavigationStack {
-                EmailTemplatePickerSheetView(templates: templates, selectedTemplateId: $selectedEmailTemplateId)
+                EmailTemplateSelectView(workspace: .openhouse, selectedTemplateId: $selectedEmailTemplateId)
             }
         }
     }

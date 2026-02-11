@@ -328,7 +328,7 @@ private struct OpenHouseEventCreateCardView: View {
         }
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
             NavigationStack {
-                EmailTemplatePickerSheetView(templates: templates, selectedTemplateId: $selectedEmailTemplateId)
+                EmailTemplateSelectView(workspace: .openhouse, selectedTemplateId: $selectedEmailTemplateId)
             }
         }
     }
