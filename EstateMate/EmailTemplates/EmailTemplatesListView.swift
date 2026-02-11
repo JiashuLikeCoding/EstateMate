@@ -153,14 +153,10 @@ struct EmailTemplatesListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    NavigationLink {
-                        EmailTemplateEditView(mode: .create(workspace: workspace))
-                    } label: {
-                        Label("新增", systemImage: "plus")
-                    }
+                NavigationLink {
+                    EmailTemplateEditView(mode: .create(workspace: workspace))
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "plus")
                 }
             }
         }
