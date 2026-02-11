@@ -81,7 +81,7 @@ struct OpenHouseFormsView: View {
                                         Text("新建第一个表单")
                                             .frame(maxWidth: .infinity)
                                     }
-                                    .buttonStyle(EMPrimaryButtonStyle())
+                                    .buttonStyle(EMPrimaryButtonStyle(disabled: false))
                                     .padding(.top, 4)
                                 }
                                 .frame(maxWidth: .infinity)
