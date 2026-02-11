@@ -67,14 +67,31 @@ struct EmailTemplatesListView: View {
 
                     if !isLoading, filtered.isEmpty, errorMessage == nil {
                         EMCard {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("暂无模版")
+                            VStack(alignment: .center, spacing: 12) {
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 28, weight: .semibold))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Text("还没有任何邮件模版")
                                     .font(.headline)
                                     .foregroundStyle(EMTheme.ink)
-                                Text("点右上角“新增”创建第一份邮件模版")
-                                    .font(.subheadline)
+
+                                Text("创建一份模版后，就可以在开放日自动发信、或在客户管理里快速发送。")
+                                    .font(.footnote)
                                     .foregroundStyle(EMTheme.ink2)
+                                    .multilineTextAlignment(.center)
+
+                                Button {
+                                    isCreatePresented = true
+                                } label: {
+                                    Text("新建第一个模版")
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                                .padding(.top, 4)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
                         }
                     }
 
