@@ -61,8 +61,31 @@ struct OpenHouseFormsView: View {
 
                         EMCard {
                             if forms.isEmpty {
-                                Text("暂无表单")
-                                    .foregroundStyle(EMTheme.ink2)
+                                VStack(alignment: .center, spacing: 12) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 28, weight: .semibold))
+                                        .foregroundStyle(EMTheme.ink2)
+
+                                    Text("还没有任何表单")
+                                        .font(.headline)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    Text("先创建一个表单，之后就可以在活动里直接绑定使用。")
+                                        .font(.footnote)
+                                        .foregroundStyle(EMTheme.ink2)
+                                        .multilineTextAlignment(.center)
+
+                                    NavigationLink {
+                                        FormBuilderAdaptiveView()
+                                    } label: {
+                                        Text("新建第一个表单")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .buttonStyle(EMPrimaryButtonStyle())
+                                    .padding(.top, 4)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
                             } else {
                                 VStack(spacing: 0) {
                                     ForEach(Array(forms.enumerated()), id: \.element.id) { idx, f in
