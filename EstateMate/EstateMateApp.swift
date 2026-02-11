@@ -15,6 +15,7 @@ struct EstateMateApp: App {
         WindowGroup {
             RootView()
                 .environmentObject(sessionStore)
+                .preferredColorScheme(.light)
                 .task { await sessionStore.loadSession() }
         }
     }

@@ -16,8 +16,9 @@
 			</array>
 		</dict>
 	</array>
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>用于一键获取当前位置并填写开放日活动地址。</string>
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 </dict>
 </plist>
