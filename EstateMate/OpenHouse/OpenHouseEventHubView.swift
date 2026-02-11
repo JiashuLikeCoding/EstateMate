@@ -157,12 +157,29 @@ private struct OpenHouseEventCreateCardView: View {
 
             DatePicker("开始时间", selection: $startsAt)
                 .datePickerStyle(.compact)
+                .onChange(of: startsAt) { _, newValue in
+                    // Keep end >= start when time range is enabled.
+                    if hasTimeRange, endsAt < newValue {
+                        endsAt = newValue
+                    }
+                }
 
             Toggle("设置时间段", isOn: $hasTimeRange)
+                .onChange(of: hasTimeRange) { _, newValue in
+                    guard newValue else { return }
+                    // When enabling time range, ensure end is not earlier than start.
+                    if endsAt < startsAt {
+                        endsAt = startsAt
+                    }
+                }
 
             if hasTimeRange {
-                DatePicker("结束时间", selection: $endsAt)
-                    .datePickerStyle(.compact)
+                DatePicker(
+                    "结束时间",
+                    selection: $endsAt,
+                    in: startsAt...
+                )
+                .datePickerStyle(.compact)
             }
 
             // 从历史活动里提取“主理人/助手”候选，方便快速选择
