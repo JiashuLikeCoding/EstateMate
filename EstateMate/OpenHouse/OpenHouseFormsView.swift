@@ -29,29 +29,10 @@ struct OpenHouseFormsView: View {
                         }
 
                         EMCard {
-                            VStack(spacing: 0) {
-                                NavigationLink {
-                                    FormBuilderAdaptiveView()
-                                } label: {
-                                    HStack {
-                                        Text("新建表单")
-                                            .font(.headline)
-                                        Spacer(minLength: 0)
-                                        Image(systemName: "plus")
-                                            .foregroundStyle(EMTheme.accent)
-                                    }
-                                    .contentShape(Rectangle())
-                                    .padding(.vertical, 6)
-                                }
-                                .buttonStyle(.plain)
-
-                                Divider().overlay(EMTheme.line)
-
-                                Toggle("显示已归档", isOn: $includeArchived)
-                                    .font(.callout)
-                                    .tint(EMTheme.accent)
-                                    .padding(.vertical, 10)
-                            }
+                            Toggle("显示已归档", isOn: $includeArchived)
+                                .font(.callout)
+                                .tint(EMTheme.accent)
+                                .padding(.vertical, 10)
                         }
 
                         if isLoading {
@@ -173,6 +154,15 @@ struct OpenHouseFormsView: View {
                         Spacer(minLength: 20)
                     }
                     .padding(EMTheme.padding)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        FormBuilderAdaptiveView()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
                 }
             }
             .task { await load() }

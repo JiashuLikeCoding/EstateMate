@@ -45,6 +45,15 @@ struct OpenHouseEventHubView: View {
                 .padding(EMTheme.padding)
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    tab = .create
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
     }
 }
 
