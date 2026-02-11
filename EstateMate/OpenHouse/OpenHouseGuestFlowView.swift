@@ -529,15 +529,27 @@ struct OpenHouseKioskFillView: View {
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(EMTheme.ink2)
 
+                    let ph = field.placeholders ?? []
+
                     HStack(spacing: 12) {
                         if keys.indices.contains(0) {
-                            EMInlineTextField(text: binding(for: keys[0], field: field), prompt: "名")
+                            EMInlineTextField(
+                                text: binding(for: keys[0], field: field),
+                                prompt: ph.indices.contains(0) ? ph[0] : "名"
+                            )
                         }
                         if keys.indices.contains(1) {
-                            EMInlineTextField(text: binding(for: keys[1], field: field), prompt: (keys.count == 2 ? "姓" : "中间名"))
+                            let fallback = (keys.count == 2 ? "姓" : "中间名")
+                            EMInlineTextField(
+                                text: binding(for: keys[1], field: field),
+                                prompt: ph.indices.contains(1) ? ph[1] : fallback
+                            )
                         }
                         if keys.indices.contains(2) {
-                            EMInlineTextField(text: binding(for: keys[2], field: field), prompt: "姓")
+                            EMInlineTextField(
+                                text: binding(for: keys[2], field: field),
+                                prompt: ph.indices.contains(2) ? ph[2] : "姓"
+                            )
                         }
                     }
                 }

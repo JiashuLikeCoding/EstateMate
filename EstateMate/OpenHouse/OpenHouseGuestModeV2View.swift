@@ -89,15 +89,18 @@ struct OpenHouseGuestModeV2View: View {
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(EMTheme.ink2)
 
+                    let ph = field.placeholders ?? []
+
                     HStack(spacing: 12) {
                         if keys.indices.contains(0) {
-                            TextField("名", text: binding(for: keys[0], field: field))
+                            TextField(ph.indices.contains(0) ? ph[0] : "名", text: binding(for: keys[0], field: field))
                         }
                         if keys.indices.contains(1) {
-                            TextField(keys.count == 2 ? "姓" : "中间名", text: binding(for: keys[1], field: field))
+                            let fallback = (keys.count == 2 ? "姓" : "中间名")
+                            TextField(ph.indices.contains(1) ? ph[1] : fallback, text: binding(for: keys[1], field: field))
                         }
                         if keys.indices.contains(2) {
-                            TextField("姓", text: binding(for: keys[2], field: field))
+                            TextField(ph.indices.contains(2) ? ph[2] : "姓", text: binding(for: keys[2], field: field))
                         }
                     }
                 }
