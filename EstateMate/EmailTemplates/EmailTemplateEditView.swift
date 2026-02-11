@@ -673,13 +673,20 @@ struct EmailTemplateEditView: View {
                         isArchived: nil
                     )
                 )
+
+                // Keep the user on the edit page; just refresh content locally.
+                name = n
+                subject = s
+                bodyText = b
+                errorMessage = "已保存"
             } else {
                 _ = try await service.createTemplate(
                     EmailTemplateInsert(workspace: workspace, name: n, subject: s, body: b, variables: variables)
                 )
-            }
 
-            dismiss()
+                // Creating a new template: dismiss back to list.
+                dismiss()
+            }
         } catch {
             errorMessage = "保存失败：\(error.localizedDescription)"
         }
