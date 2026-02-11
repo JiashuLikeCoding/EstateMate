@@ -46,7 +46,7 @@ final class EmailTemplateAIFormatService {
             "subject": subject,
             "body": body,
             "declared_keys": declaredKeys,
-            "language": "zh",
+            "language": "en",
             "tone": "japanese_minimal"
         ]
 

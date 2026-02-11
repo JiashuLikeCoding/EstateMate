@@ -410,7 +410,7 @@ Deno.serve(async (req) => {
 
   const isHtml = typeof body.is_html === "boolean" ? body.is_html : looksLikeHtml(rawBody)
   const tone = body.tone ?? "japanese_minimal"
-  const language = body.language ?? "zh"
+  const language = body.language ?? "en"
   const builtInKeys = builtInKeysForWorkspace(workspace)
 
   try {
