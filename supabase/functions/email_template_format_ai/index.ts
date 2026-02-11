@@ -77,6 +77,48 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#039;")
 }
 
+function languageProfile(text: string): { cjk: number; latin: number; total: number; cjkRatio: number } {
+  let cjk = 0
+  let latin = 0
+  let total = 0
+  for (const ch of text) {
+    const code = ch.codePointAt(0) ?? 0
+    if (code <= 32) continue
+    total += 1
+    if (
+      (code >= 0x4E00 && code <= 0x9FFF) ||
+      (code >= 0x3400 && code <= 0x4DBF) ||
+      (code >= 0xF900 && code <= 0xFAFF) ||
+      (code >= 0x3000 && code <= 0x303F) ||
+      (code >= 0xFF00 && code <= 0xFFEF)
+    ) {
+      cjk += 1
+      continue
+    }
+    if ((code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)) {
+      latin += 1
+      continue
+    }
+  }
+  const denom = total > 0 ? total : 1
+  return { cjk, latin, total, cjkRatio: cjk / denom }
+}
+
+function violatesNoTranslation(input: string, output: string): boolean {
+  const a = languageProfile(input)
+  const b = languageProfile(output)
+
+  if (a.cjkRatio < 0.10) {
+    return b.cjkRatio > 0.20
+  }
+
+  if (a.cjkRatio > 0.60) {
+    return b.cjkRatio < 0.45
+  }
+
+  return false
+}
+
 function wrapAsEmailHtml(inner: string, opts: { highlightTokens?: boolean } = {}): string {
   const highlightTokens = opts.highlightTokens === true
 
@@ -210,6 +252,8 @@ function applyTokenCorrections(text: string, corrections: { from: string; to: st
 }
 
 async function callOpenAI(params: {
+  strictNoTranslate?: boolean
+
   name: string
   subject: string
   body: string
@@ -231,7 +275,8 @@ async function callOpenAI(params: {
   const existingTokens = extractTokenKeys(params.name + "\n" + params.subject + "\n" + params.body)
   const tags = params.isHtml ? extractExistingTags(params.body) : []
 
-  const system = `你是一个严格的“邮件模版智能排版器/校对器”。\n\n目标：\n1) 对“名称/主题/正文”做轻量排版与纠错：名称与主题更简洁专业；正文输出为适合邮件发送的 HTML（body_html）。\n2) 识别文本中未来可能要做成变量的内容（suggested_variables）。\n3) 检查变量 token 是否拼错/用错，并给出 token_corrections（只做建议，不要直接改 token 字符串）。\n\n必须遵守：\n- 不要翻译语言：保持输入的语言不变（中文保持中文，英文保持英文；混合则保持混合）。\n- 只返回 JSON（不要 markdown）。\n- 不要杜撰新信息，不要删除关键信息。\n- 已存在的 token（{{key}}）必须原样保留在 name/subject/body_html 里（不要改大小写/不要加空格）。\n- 如果输入包含 HTML 标签，尽量保持已有标签语义；可以补 <p>/<br>/<ul> 结构。\n- 不要添加 footer（统一结尾由系统另外拼接）。\n- suggested_variables 的 key 必须只含 a-z/0-9/_，小写。\n\nworkspace：${params.workspace}\n语言：${params.language}\n内置变量（如果适用）：${params.builtInKeys.join(",")}\n`
+  const system = `你是一个严格的“邮件模版智能排版器/校对器”。\n\n目标：\n1) 对“名称/主题/正文”做轻量排版与纠错：名称与主题更简洁专业；正文输出为适合邮件发送的 HTML（body_html）。\n2) 识别文本中未来可能要做成变量的内容（suggested_variables）。\n3) 检查变量 token 是否拼错/用错，并给出 token_corrections（只做建议，不要直接改 token 字符串）。\n\n必须遵守：\n- 严禁翻译：只能在同一种语言内做排版/纠错/润色，不允许把中文翻成英文或把英文翻成中文；混合语言则保持每段语言不变。\n- 只返回 JSON（不要 markdown）。\n- 不要杜撰新信息，不要删除关键信息。\n- 已存在的 token（{{key}}）必须原样保留在 name/subject/body_html 里（不要改大小写/不要加空格）。\n- 如果输入包含 HTML 标签，尽量保持已有标签语义；可以补 <p>/<br>/<ul> 结构。\n- 不要添加 footer（统一结尾由系统另外拼接）。\n- suggested_variables 的 key 必须只含 a-z/0-9/_，小写。\n\nworkspace：${params.workspace}\n语言：${params.language}\n内置变量（如果适用）：${params.builtInKeys.join(",")}\n
+${params.strictNoTranslate ? "\n\n【强制规则】严禁翻译：如果输出出现翻译，视为失败。只做排版，不做语言转换。" : ""}`
 
   const user: Json = {
     input: {
@@ -256,7 +301,7 @@ async function callOpenAI(params: {
       notes: "string?",
     },
     guidelines: [
-      "不要翻译语言：保持输入的语言不变（中文保持中文，英文保持英文；混合则保持混合）。",
+      "严禁翻译：只能在同一种语言内做排版/纠错/润色，不允许把中文翻成英文或把英文翻成中文；混合语言则保持每段语言不变。",
       "只建议变量，不要自动把普通文本替换成 {{token}}。",
       "拼写修正优先针对英文单词错误，不要改变专有名词/品牌名/地址。",
       "如果发现 token 可能拼错（如 firstname/lastname），在 token_corrections 里给建议。",
@@ -271,7 +316,7 @@ async function callOpenAI(params: {
     },
     body: JSON.stringify({
       model: "gpt-4o-mini",
-      temperature: 0.2,
+      temperature: params.strictNoTranslate ? 0 : 0.2,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -380,10 +425,33 @@ Deno.serve(async (req) => {
       builtInKeys,
     })
 
+    // No-translation guard: if the model translated, retry once with strict rules.
+    let formattedGuarded = formatted
+    const inputSignature = rawName + "\n" + subject + "\n" + rawBody
+    const outputSignature = formatted.subject + "\n" + formatted.body_html
+    if (violatesNoTranslation(inputSignature, outputSignature)) {
+      formattedGuarded = await callOpenAI({
+        name: rawName,
+        subject,
+        body: rawBody,
+        isHtml,
+        workspace,
+        tone,
+        language,
+        builtInKeys,
+        strictNoTranslate: true,
+      })
+
+      const output2 = formattedGuarded.subject + "\n" + formattedGuarded.body_html
+      if (violatesNoTranslation(inputSignature, output2)) {
+        throw new Error("AI 翻译被禁止：请保持原语言，仅做排版")
+      }
+    }
+
     // Apply token corrections automatically (so preview/save reflects fixes).
-    const correctedName = applyTokenCorrections(formatted.name ?? rawName, formatted.token_corrections)
-    const correctedSubject = applyTokenCorrections(formatted.subject, formatted.token_corrections)
-    const correctedBodyHTML = applyTokenCorrections(formatted.body_html, formatted.token_corrections)
+    const correctedName = applyTokenCorrections(formattedGuarded.name ?? rawName, formattedGuarded.token_corrections)
+    const correctedSubject = applyTokenCorrections(formattedGuarded.subject, formattedGuarded.token_corrections)
+    const correctedBodyHTML = applyTokenCorrections(formattedGuarded.body_html, formattedGuarded.token_corrections)
 
     const tokenIssues = validateTokens({
       workspace,
@@ -401,10 +469,10 @@ Deno.serve(async (req) => {
       body_html: correctedBodyHTML,
       preview_body_html,
       diff_body_html,
-      suggested_variables: formatted.suggested_variables,
-      token_corrections: formatted.token_corrections,
+      suggested_variables: formattedGuarded.suggested_variables,
+      token_corrections: formattedGuarded.token_corrections,
       token_issues: tokenIssues,
-      notes: formatted.notes ?? null,
+      notes: formattedGuarded.notes ?? null,
     })
   } catch (e) {
     return json(
