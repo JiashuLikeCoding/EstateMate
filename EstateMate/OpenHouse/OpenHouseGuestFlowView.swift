@@ -312,9 +312,7 @@ struct OpenHouseKioskFillView: View {
 
                         EMCard {
                             VStack(spacing: 12) {
-                                let visibleFields = form.schema.fields.filter { $0.isVisible(values: values, boolValues: boolValues, multiValues: multiValues) }
-                                let rows = fieldRows(visibleFields)
-                                ForEach(rows, id: \.self) { row in
+                                ForEach(fieldRows(form.schema.fields), id: \.self) { row in
                                     if row.count <= 1 {
                                         if let f = row.first {
                                             fieldRow(f, reserveTitleSpace: false)
