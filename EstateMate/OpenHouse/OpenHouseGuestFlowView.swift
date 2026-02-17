@@ -287,6 +287,10 @@ struct OpenHouseKioskFillView: View {
 
     @State private var showSubmissions = false
 
+    // (QR removed)
+    // @State private var qrURL: String? (QR removed)
+    // @State private var isGeneratingQR = false (QR removed)
+
     private enum PendingAction {
         case back
         case submissions
@@ -308,7 +312,9 @@ struct OpenHouseKioskFillView: View {
 
                         EMCard {
                             VStack(spacing: 12) {
-                                ForEach(fieldRows(form.schema.fields), id: \.self) { row in
+                                let visibleFields = form.schema.fields.filter { $0.isVisible(values: values, boolValues: boolValues, multiValues: multiValues) }
+                                let rows = fieldRows(visibleFields)
+                                ForEach(rows, id: \.self) { row in
                                     if row.count <= 1 {
                                         if let f = row.first {
                                             fieldRow(f, reserveTitleSpace: false)
@@ -386,14 +392,18 @@ struct OpenHouseKioskFillView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    pendingAction = .submissions
-                    showPasswordCheck = true
+                Menu {
+                    Button {
+                        pendingAction = .submissions
+                        showPasswordCheck = true
+                    } label: {
+                        Label("已提交列表", systemImage: "list.bullet.rectangle")
+                    }
                 } label: {
-                    Image(systemName: "list.bullet.rectangle")
+                    Image(systemName: "ellipsis.circle")
                         .foregroundStyle(EMTheme.ink)
                 }
-                .accessibilityLabel("已提交列表")
+                .accessibilityLabel("更多")
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -448,13 +458,15 @@ struct OpenHouseKioskFillView: View {
                 pendingAction = nil
             }
         } message: {
-            Text("返回或查看已提交列表需要输入密码。")
+            Text("此操作需要输入密码。")
         }
+        // (end activity removed)
         .sheet(isPresented: $showSubmissions) {
             NavigationStack {
                 OpenHouseSubmissionsListView(event: event)
             }
         }
+
         .task {
             prefillAutoFieldsIfNeeded()
         }
@@ -508,9 +520,15 @@ struct OpenHouseKioskFillView: View {
         case .back:
             pendingAction = nil
             dismiss()
+
         case .submissions:
             pendingAction = nil
             showSubmissions = true
+
+        // QR removed
+
+        // (end activity removed)
+
         case .none:
             break
         }
@@ -943,6 +961,8 @@ struct OpenHouseKioskFillView: View {
             errorMessage = error.localizedDescription
         }
     }
+
+    // QR removed
 
     private func validateEmailFields(form: FormRecord) -> String? {
         for f in form.schema.fields where f.type == .email {

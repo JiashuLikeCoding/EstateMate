@@ -15,6 +15,8 @@ final class DynamicFormService {
 
     private struct EmptyResponse: Decodable {}
 
+
+    // (conflict resolved)
     // MARK: - Forms
 
     func listForms(includeArchived: Bool = false) async throws -> [FormRecord] {
@@ -271,9 +273,10 @@ final class DynamicFormService {
             .execute()
             .value
 
-        // Auto-add to CRM (best effort; never block submission).
+        // Auto-add to CRM and send email (best effort; never block submission).
         Task { [weak self] in
-            await self?.bestEffortUpsertCRMContact(
+            guard let self else { return }
+            let contact = await self.bestEffortUpsertCRMContact(
                 eventId: eventId,
                 submissionId: created.id,
                 submissionCreatedAt: created.createdAt,
@@ -282,11 +285,14 @@ final class DynamicFormService {
                 form: form,
                 data: data
             )
-        }
-
-        // Auto-send email (best effort; never block submission).
-        Task { [weak self] in
-            await self?.bestEffortSendAutoEmailGmail(eventId: eventId, submissionId: created.id, eventTitle: eventTitle, form: form, data: data)
+            await self.bestEffortSendAutoEmailGmail(
+                eventId: eventId,
+                submissionId: created.id,
+                eventTitle: eventTitle,
+                form: form,
+                data: data,
+                fallbackEmail: contact?.email
+            )
         }
 
         return created
@@ -404,60 +410,9 @@ final class DynamicFormService {
         form: FormRecord?,
         data: [String: AnyJSON]
     ) -> String {
-        let title = (eventTitle?.isEmpty == false) ? eventTitle! : "开放日"
-        var lines: [String] = []
-        lines.append("【开放日】\(title)")
-
-        if let loc = eventLocation, !loc.isEmpty {
-            lines.append("地址：\(loc)")
-        }
-
-        // Keep a tiny id so repeated submissions don't collapse into one.
-        lines.append("记录ID：\(submissionId.uuidString.prefix(8))")
-
-        if let fields = form?.schema.fields {
-            for f in fields {
-                // Decoration fields are display-only.
-                if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider || f.type == .splice {
-                    continue
-                }
-
-                let value: String = {
-                    switch f.type {
-                    case .checkbox:
-                        let b = data[f.key]?.boolValue ?? false
-                        return b ? "是" : "否"
-                    case .multiSelect:
-                        let arr = (data[f.key]?.arrayValue ?? []).compactMap { $0.stringValue }.filter { !$0.isEmpty }
-                        return arr.joined(separator: "、")
-                    case .name:
-                        let keys = f.nameKeys ?? [f.key]
-                        let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-                        return parts.joined(separator: " ")
-                    case .phone:
-                        var keys: [String] = []
-                        if let phoneKeys = f.phoneKeys { keys.append(contentsOf: phoneKeys) }
-                        keys.append(f.key)
-                        let parts = keys.compactMap { data[$0]?.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-                        return parts.joined(separator: " ")
-                    default:
-                        return (data[f.key]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                    }
-                }()
-
-                if value.isEmpty { continue }
-                lines.append("- \(f.label)：\(value)")
-            }
-        } else {
-            // No schema: write a minimal payload.
-            for (k, v) in data {
-                if let s = v.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines), !s.isEmpty {
-                    lines.append("- \(k)：\(s)")
-                }
-            }
-        }
-
-        return lines.joined(separator: "\n")
+        // CRM 备注：不自动写任何开放日/表单相关文字。
+        // 表单内容请从 openhouse_submissions 原始 data 查看（联系人详情页里有入口）。
+        return ""
     }
 
     private func bestEffortUpsertCRMContact(
@@ -468,13 +423,13 @@ final class DynamicFormService {
         eventLocation: String?,
         form: FormRecord?,
         data: [String: AnyJSON]
-    ) async {
+    ) async -> CRMContact? {
         // If CRM is not set up yet, this will fail; we intentionally ignore the error.
         do {
             // Extract basics from schema.
             let extracted = extractCRMFields(form: form, data: data)
             if extracted.fullName.isEmpty && extracted.email.isEmpty && extracted.phone.isEmpty {
-                return
+                return nil
             }
 
             let service = CRMService()
@@ -490,20 +445,13 @@ final class DynamicFormService {
             let title = (eventTitle ?? resolvedEvent?.title)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let location = (eventLocation ?? resolvedEvent?.location)?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let noteBlock = buildSubmissionNoteBlock(
-                submissionId: submissionId,
-                eventTitle: title,
-                eventLocation: location,
-                form: form,
-                data: data
-            )
-
             let contact = try await service.createOrMergeContact(
                 CRMContactInsert(
                     fullName: extracted.fullName,
                     phone: extracted.phone,
                     email: extracted.email,
-                    notes: [noteBlock, extracted.notes].joined(separator: extracted.notes.isEmpty ? "" : "\n"),
+                    // CRM 备注：不自动写任何开放日/表单相关文字。
+                    notes: "",
                     address: location ?? "",
                     tags: extracted.tags,
                     stage: .newLead,
@@ -536,8 +484,11 @@ final class DynamicFormService {
                 .update(SubmissionContactPatch(contactId: contact.id))
                 .eq("id", value: submissionId.uuidString)
                 .execute()
+
+            return contact
         } catch {
             // no-op
+            return nil
         }
     }
 
@@ -560,9 +511,32 @@ final class DynamicFormService {
             return ""
         }
 
+        func firstStringByLabel(_ matcher: (String) -> Bool, allowedTypes: [FormFieldType]) -> String {
+            for f in fields {
+                guard allowedTypes.contains(f.type) else { continue }
+                let label = f.label.trimmingCharacters(in: .whitespacesAndNewlines)
+                if matcher(label) {
+                    let v = (data[f.key]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !v.isEmpty { return v }
+                }
+            }
+            return ""
+        }
+
         // Email
         let emailKey = fields.first(where: { $0.type == .email })?.key
-        let email = (emailKey.map { firstString(forKeys: [$0]) } ?? "").lowercased()
+        var email = (emailKey.map { firstString(forKeys: [$0]) } ?? "").lowercased()
+        if email.isEmpty {
+            // Fallback: common keys / labels when the field type is not set to .email.
+            email = firstString(forKeys: ["email", "e_mail", "mail", "email_address"]).lowercased()
+            if email.isEmpty {
+                let labelMatch: (String) -> Bool = { l in
+                    let lower = l.lowercased()
+                    return lower.contains("email") || lower.contains("e-mail") || l.contains("邮箱") || l.contains("電子郵件")
+                }
+                email = firstStringByLabel(labelMatch, allowedTypes: [.text, .multilineText, .email]).lowercased()
+            }
+        }
 
         // Phone (also consider phoneKeys when withCountryCode)
         var phone = ""
@@ -571,6 +545,17 @@ final class DynamicFormService {
             if let phoneKeys = phoneField.phoneKeys { keys.append(contentsOf: phoneKeys) }
             keys.append(phoneField.key)
             phone = firstString(forKeys: keys)
+        }
+        if phone.isEmpty {
+            phone = firstString(forKeys: ["phone", "mobile", "tel", "telephone", "cell"])
+            if phone.isEmpty {
+                let labelMatch: (String) -> Bool = { l in
+                    let lower = l.lowercased()
+                    return lower.contains("phone") || lower.contains("mobile") || lower.contains("tel")
+                        || l.contains("电话") || l.contains("手機") || l.contains("手机") || l.contains("手机号") || l.contains("電話")
+                }
+                phone = firstStringByLabel(labelMatch, allowedTypes: [.text, .multilineText, .phone])
+            }
         }
 
         // Name
@@ -711,12 +696,27 @@ final class DynamicFormService {
         submissionId: UUID,
         eventTitle: String?,
         form: FormRecord?,
-        data: [String: AnyJSON]
+        data: [String: AnyJSON],
+        fallbackEmail: String? = nil
     ) async {
         do {
             // 1) If the submission doesn't have an email, we can't send.
             let extracted = extractCRMFields(form: form, data: data)
-            let to = extracted.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            var to = extracted.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if to.isEmpty, let fb = fallbackEmail?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !fb.isEmpty {
+                to = fb
+            }
+            if to.isEmpty {
+                // If the contact already exists in CRM (e.g., user filled multiple forms),
+                // fall back to their CRM email using the phone match.
+                let phone = extracted.phone.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !phone.isEmpty, let contact = try? await CRMService().findExistingContact(email: "", phone: phone, excluding: nil) {
+                    let existingEmail = contact.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    if !existingEmail.isEmpty {
+                        to = existingEmail
+                    }
+                }
+            }
             if to.isEmpty { return }
 
             // 2) Load event to see whether it is bound to an email template.
@@ -744,10 +744,24 @@ final class DynamicFormService {
                 .execute()
                 .value
 
-            guard let templateId = event.emailTemplateId else { return }
+            // 2.1) If the event doesn't have a template bound, fall back to the latest OpenHouse template.
+            var resolvedTemplateId = event.emailTemplateId
+            if resolvedTemplateId == nil {
+                resolvedTemplateId = try? await EmailTemplateService().listTemplates(workspace: .openhouse).first?.id
+            }
+            guard let templateId = resolvedTemplateId else { return }
 
-            // 3) Load template.
-            let template = try await EmailTemplateService().getTemplate(id: templateId)
+            // 3) Load template (fallback if the bound id is stale/deleted).
+            let template: EmailTemplateRecord
+            do {
+                template = try await EmailTemplateService().getTemplate(id: templateId)
+            } catch {
+                if let fallback = try? await EmailTemplateService().listTemplates(workspace: .openhouse).first {
+                    template = fallback
+                } else {
+                    throw error
+                }
+            }
 
             // 4) Build variable overrides from submission data + event.
             var overrides: [String: String] = [:]
@@ -814,7 +828,11 @@ final class DynamicFormService {
                 }
             }
 
-            let subject = EmailTemplateRenderer.render(template.subject, variables: template.variables, overrides: overrides)
+            var subject = EmailTemplateRenderer.render(template.subject, variables: template.variables, overrides: overrides)
+            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let fallback = template.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                subject = fallback.isEmpty ? "Open House" : fallback
+            }
 
             // Body can be either plain text or HTML.
             var bodyRaw = EmailTemplateRenderer.render(template.body, variables: template.variables, overrides: overrides)
@@ -849,10 +867,15 @@ final class DynamicFormService {
                 let html: String?
                 let submissionId: String
                 let workspace: String
+                let fromName: String?
             }
 
             let session = try await client.auth.session
-            let headers = ["Authorization": "Bearer \(session.accessToken)"]
+            // For Edge Functions, include both Authorization (user JWT) and apikey (anon key).
+            let headers = [
+                "Authorization": "Bearer \(session.accessToken)",
+                "apikey": SupabaseClientProvider.anonKey
+            ]
 
             _ = try await client.functions.invoke(
                 "gmail_send",
@@ -864,12 +887,14 @@ final class DynamicFormService {
                         text: bodyText,
                         html: bodyHTML,
                         submissionId: submissionId.uuidString,
-                        workspace: "openhouse"
+                        workspace: "openhouse",
+                        fromName: template.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : template.name
                     )
                 )
             ) as EmptyResponse
         } catch {
-            // best-effort: ignore
+            // best-effort: ignore, but keep a trace for debugging.
+            print("[OpenHouseEmail] send failed: \(error)")
         }
     }
 
@@ -892,6 +917,8 @@ final class DynamicFormService {
             .execute()
             .value
     }
+
+    // QR/public-web-form link removed.
 
     func updateSubmission(id: UUID, data: [String: AnyJSON], tags: [String]? = nil) async throws -> SubmissionV2 {
         let payload = SubmissionUpdateV2(data: data, tags: tags)
@@ -946,4 +973,3 @@ final class DynamicFormService {
             .value
     }
 }
-
