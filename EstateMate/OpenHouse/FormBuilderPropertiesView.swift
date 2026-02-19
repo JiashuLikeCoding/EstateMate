@@ -1009,8 +1009,7 @@ private struct FormBuilderOptionsEditor: View {
                 }
 
                 HStack(spacing: 10) {
-                    TextField("新选项", text: $draft)
-                        .textFieldStyle(.roundedBorder)
+                    EMTextField(title: "", text: $draft, prompt: "新选项")
                         .submitLabel(.done)
                         .onSubmit { add() }
 
