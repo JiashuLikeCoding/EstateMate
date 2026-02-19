@@ -376,6 +376,10 @@ struct FormBuilderPropertiesView: View {
 
             } else {
                 EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
+
+                Text("提示：将展示给客户看的问题标题（建议简短清晰）。")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
             }
 
             if isDecoration {
@@ -388,12 +392,22 @@ struct FormBuilderPropertiesView: View {
                         }
                     }
             } else {
-                Toggle("必填", isOn: binding.required)
-                    .tint(EMTheme.accent)
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("必填", isOn: binding.required)
+                        .tint(EMTheme.accent)
+
+                    Text("开启后，客户不填写将无法提交表单。")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                }
 
                 // MARK: - Conditional visibility
 
                 Divider().overlay(EMTheme.line)
+
+                Text("用于实现‘当客户选择了某个选项时，才显示后续字段’的联动。")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
 
                 FormBuilderVisibilityEditor(
                     field: binding,
@@ -820,6 +834,10 @@ struct FormBuilderPropertiesView: View {
                         Text("圆点").tag(SelectStyle.dot)
                     }
                     .pickerStyle(.segmented)
+
+                    Text("提示：‘下拉’更节省空间；‘圆点’更直观，适合选项不多的情况。")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
                 }
 
                 Divider().overlay(EMTheme.line)
@@ -845,6 +863,10 @@ struct FormBuilderPropertiesView: View {
                         Text("下拉").tag(MultiSelectStyle.dropdown)
                     }
                     .pickerStyle(.segmented)
+
+                    Text("提示：‘Chips’适合少量选项；‘列表’适合较多选项；‘下拉’更省空间。")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
                 }
 
                 Divider().overlay(EMTheme.line)
