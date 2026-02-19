@@ -31,8 +31,8 @@ struct RichTextEditorView: UIViewRepresentable {
         tv.font = UIFont.systemFont(ofSize: 16)
         tv.textColor = UIColor.label
 
-        // Make links/phone numbers not auto-detected (keeps editing predictable)
-        tv.dataDetectorTypes = []
+        // Auto-detect links for WYSIWYG
+        tv.dataDetectorTypes = [.link]
 
         // Initial content
         tv.attributedText = attributedText
