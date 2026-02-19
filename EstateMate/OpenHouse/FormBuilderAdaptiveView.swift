@@ -133,7 +133,9 @@ final class FormBuilderState: ObservableObject {
             return makeKey(from: label)
         }()
 
-        let options: [String]? = (type == .select || type == .dropdown || type == .multiSelect) ? ["选项 1", "选项 2"] : nil
+        // For choice fields, do NOT prefill default options.
+        // We want to encourage the user to explicitly add options that match their real scenario.
+        let options: [String]? = (type == .select || type == .dropdown || type == .multiSelect) ? [] : nil
 
         let placeholder: String? = {
             switch type {

@@ -866,6 +866,12 @@ private struct FormBuilderOptionsEditor: View {
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(EMTheme.ink2)
 
+            if options.isEmpty {
+                Text("请先添加至少 1 个选项")
+                    .font(.footnote)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
             VStack(spacing: 8) {
                 ForEach(options.indices, id: \.self) { idx in
                     HStack(spacing: 10) {
