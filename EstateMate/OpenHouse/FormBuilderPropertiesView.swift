@@ -375,11 +375,17 @@ struct FormBuilderPropertiesView: View {
                 EMTextField(title: "小标题文字", text: binding.label, prompt: "例如：请如实填写", textColor: c)
 
             } else {
-                EMTextField(title: "字段标题", text: binding.label, prompt: "例如：姓名")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("字段标题")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
 
-                Text("提示：将展示给客户看的问题标题（建议简短清晰）。")
-                    .font(.caption)
-                    .foregroundStyle(EMTheme.ink2)
+                    Text("提示：将展示给客户看的问题标题（建议简短清晰）。")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
+
+                    EMTextField(title: "", text: binding.label, prompt: "例如：姓名")
+                }
             }
 
             if isDecoration {
