@@ -378,7 +378,7 @@ struct FormBuilderPropertiesView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Color.clear.frame(height: 2)
 
-                    Text("字段标题")
+                    Text("标题")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(EMTheme.ink)
 
