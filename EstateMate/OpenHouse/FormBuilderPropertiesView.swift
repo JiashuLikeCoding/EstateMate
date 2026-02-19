@@ -131,6 +131,26 @@ struct FormBuilderPropertiesView: View {
             set: { state.draftField = $0 }
         )
 
+        let requiresOptions: Bool = {
+            switch binding.wrappedValue.type {
+            case .select, .dropdown, .multiSelect:
+                return true
+            default:
+                return false
+            }
+        }()
+
+        let hasOptions: Bool = {
+            guard requiresOptions else { return true }
+            return (binding.wrappedValue.options ?? []).isEmpty == false
+        }()
+
+        let canCommit: Bool = {
+            // Note: label can be empty for some decoration fields, but those don't use draft commit.
+            if requiresOptions { return hasOptions }
+            return true
+        }()
+
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -168,7 +188,8 @@ struct FormBuilderPropertiesView: View {
                     } label: {
                         Text("更新字段")
                     }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: !canCommit))
+                    .disabled(!canCommit)
 
                     Button {
                         state.deleteSelectedIfPossible()
@@ -223,7 +244,8 @@ struct FormBuilderPropertiesView: View {
                         } label: {
                             Text("添加")
                         }
-                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: !canCommit))
+                        .disabled(!canCommit)
                     }
                 }
 
