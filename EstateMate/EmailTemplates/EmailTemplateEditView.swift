@@ -58,6 +58,7 @@ struct EmailTemplateEditView: View {
     @State private var workspace: EstateMateWorkspaceKind
 
     @State private var name: String = ""
+    @State private var fromName: String = ""
     @State private var subject: String = ""
     @State private var subjectSelection: NSRange = NSRange(location: 0, length: 0)
     @State private var isSubjectFocused: Bool = false
@@ -98,6 +99,8 @@ struct EmailTemplateEditView: View {
 
                     EMCard {
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
+
+                        EMTextField(title: "发件人显示名", text: $fromName, prompt: "例如：鸣哥 / Ming Ren Realty（留空则默认）")
 
                         Text("主题")
                                 .font(.footnote.weight(.medium))
@@ -374,6 +377,7 @@ struct EmailTemplateEditView: View {
         guard let id = mode.templateId else {
             // create defaults
             variables = []
+            fromName = ""
 
             // Give the user a ready-to-edit starter template (no need to know <p> / HTML).
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -405,6 +409,7 @@ struct EmailTemplateEditView: View {
                 subject = t.subject
                 bodyText = t.body
                 variables = t.variables
+                fromName = (t.fromName ?? "")
             }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
@@ -755,6 +760,7 @@ struct EmailTemplateEditView: View {
                 subject: subj.isEmpty ? "(无主题)" : subj,
                 text: text.isEmpty ? "(无正文)" : text,
                 html: html,
+                fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                 workspace: workspace
             )
 
@@ -785,6 +791,7 @@ struct EmailTemplateEditView: View {
                         subject: s,
                         body: b,
                         variables: variables,
+                        fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                         isArchived: nil
                     )
                 )
@@ -796,7 +803,7 @@ struct EmailTemplateEditView: View {
                 errorMessage = "已保存"
             } else {
                 _ = try await service.createTemplate(
-                    EmailTemplateInsert(workspace: workspace, name: n, subject: s, body: b, variables: variables)
+                    EmailTemplateInsert(workspace: workspace, name: n, subject: s, body: b, variables: variables, fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines))
                 )
 
                 // Creating a new template: dismiss back to list.

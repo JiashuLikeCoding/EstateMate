@@ -53,6 +53,9 @@ struct EmailTemplateRecord: Codable, Identifiable, Hashable {
     var body: String
     var variables: [EmailTemplateVariable]
 
+    /// Optional per-template sender display name. When empty, fallback to workspace settings.
+    var fromName: String?
+
     var isArchived: Bool
 
     var createdAt: Date?
@@ -66,6 +69,7 @@ struct EmailTemplateRecord: Codable, Identifiable, Hashable {
         case subject
         case body
         case variables
+        case fromName = "from_name"
         case isArchived = "is_archived"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
@@ -78,6 +82,7 @@ struct EmailTemplateInsert: Encodable {
     var subject: String
     var body: String
     var variables: [EmailTemplateVariable]
+    var fromName: String?
 
     enum CodingKeys: String, CodingKey {
         case workspace
@@ -85,6 +90,7 @@ struct EmailTemplateInsert: Encodable {
         case subject
         case body
         case variables
+        case fromName = "from_name"
     }
 }
 
@@ -94,6 +100,7 @@ struct EmailTemplateUpdate: Encodable {
     var subject: String?
     var body: String?
     var variables: [EmailTemplateVariable]?
+    var fromName: String?
     var isArchived: Bool?
 
     enum CodingKeys: String, CodingKey {
@@ -102,6 +109,7 @@ struct EmailTemplateUpdate: Encodable {
         case subject
         case body
         case variables
+        case fromName = "from_name"
         case isArchived = "is_archived"
     }
 
@@ -112,6 +120,7 @@ struct EmailTemplateUpdate: Encodable {
         if let subject { try c.encode(subject, forKey: .subject) }
         if let body { try c.encode(body, forKey: .body) }
         if let variables { try c.encode(variables, forKey: .variables) }
+        if let fromName { try c.encode(fromName, forKey: .fromName) }
         if let isArchived { try c.encode(isArchived, forKey: .isArchived) }
     }
 }

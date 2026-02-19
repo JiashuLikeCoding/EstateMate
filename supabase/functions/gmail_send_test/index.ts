@@ -5,6 +5,7 @@ type SendBody = {
   subject: string;
   text?: string;
   html?: string;
+  fromName?: string;
   workspace?: string; // crm|openhouse
   threadId?: string;
   inReplyTo?: string;
@@ -172,6 +173,7 @@ Deno.serve(async (req) => {
     const references = (body.references ?? "").trim();
     const text = (body.text ?? "").toString();
     const html = body.html?.toString();
+    const fromName = (body.fromName ?? "").toString().trim();
 
     if (!to || !subject || !text) {
       return new Response(JSON.stringify({ error: "bad_request" }), {
@@ -212,7 +214,10 @@ Deno.serve(async (req) => {
       .eq("workspace", workspace)
       .maybeSingle();
 
-    const displayName = (settings?.from_name as string | undefined)?.trim() || envOptional("GMAIL_FROM_NAME") || "EstateMate";
+    const displayName = fromName
+      || (settings?.from_name as string | undefined)?.trim()
+      || envOptional("GMAIL_FROM_NAME")
+      || "EstateMate";
 
     const fromHeader = conn.email
       ? `${displayName} <${conn.email}>`

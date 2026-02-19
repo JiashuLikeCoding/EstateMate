@@ -244,6 +244,7 @@ final class CRMGmailIntegrationService {
             let subject: String
             let text: String
             let html: String?
+            let fromName: String?
             let submissionId: String
             let threadId: String?
             let inReplyTo: String?
@@ -256,6 +257,7 @@ final class CRMGmailIntegrationService {
                 subject: subject,
                 text: text,
                 html: html,
+                fromName: nil,
                 submissionId: submissionId,
                 threadId: threadId,
                 inReplyTo: inReplyTo,
@@ -269,6 +271,7 @@ final class CRMGmailIntegrationService {
         subject: String,
         text: String,
         html: String?,
+        fromName: String?,
         workspace: EstateMateWorkspaceKind = .openhouse
     ) async throws -> SendResponse {
         struct Body: Encodable {
@@ -276,6 +279,7 @@ final class CRMGmailIntegrationService {
             let subject: String
             let text: String
             let html: String?
+            let fromName: String?
             let workspace: String
         }
 
@@ -286,6 +290,7 @@ final class CRMGmailIntegrationService {
                 subject: subject,
                 text: text,
                 html: html,
+                fromName: fromName,
                 workspace: workspace.rawValue
             )
         )
