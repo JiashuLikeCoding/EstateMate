@@ -100,7 +100,7 @@ struct EmailTemplateEditView: View {
                     EMCard {
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
 
-                        EMTextField(title: "发件人显示名", text: $fromName, prompt: "例如：鸣哥 / Ming Ren Realty（留空则默认）")
+                        EMTextField(title: "发件人显示名", text: $fromName, prompt: "例如：Ming Ren Realty")
 
                         Text("主题")
                                 .font(.footnote.weight(.medium))
