@@ -114,14 +114,17 @@ final class CRMGmailIntegrationService {
         timeoutSeconds: UInt64 = 12
     ) async throws -> T {
         func invokeOnce(accessToken: String) async throws -> T {
+            // IMPORTANT:
+            // - Use the SDK's built-in auth header setter, instead of manually passing Authorization in options.
+            //   We've seen environments where passing Authorization via options doesn't override the client's
+            //   internal header cleanly, leading to 401 Invalid JWT.
+            self.client.functions.setAuth(token: accessToken)
+
             let headers = [
-                "Authorization": "Bearer \(accessToken)",
-                // Some Supabase Edge Function gateways require the API key header in addition to Authorization.
-                // Without it, the gateway may respond with 401 Invalid JWT.
+                // Some Supabase Edge Function gateways require the API key header.
                 "apikey": SupabaseClientProvider.anonKey,
                 // Some proxies/providers use x-api-key instead.
-                "x-api-key": SupabaseClientProvider.anonKey,
-                "content-type": "application/json"
+                "x-api-key": SupabaseClientProvider.anonKey
             ]
 
             return try await withThrowingTaskGroup(of: T.self) { group in
