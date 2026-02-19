@@ -516,10 +516,10 @@ struct OpenHouseEventEditView: View {
             event.isArchived = next
             errorMessage = nil
 
-            // If archiving, go back to list (so it disappears immediately).
-            if next {
-                dismiss()
-            }
+            // After toggling archive state, go back to list.
+            // - Archiving: it disappears immediately from default list
+            // - Unarchiving: user expectation is to return to list as well
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }
