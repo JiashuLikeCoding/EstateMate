@@ -867,7 +867,11 @@ private struct FormBuilderDrawerView: View {
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage)
+            paletteRowBody(
+                title: title,
+                subtitle: fieldDescription(for: type),
+                systemImage: systemImage
+            )
         }
         .buttonStyle(.plain)
     }
@@ -878,19 +882,68 @@ private struct FormBuilderDrawerView: View {
             mode = .properties
             isSheetPresented = true
         } label: {
-            paletteRowBody(title: title, systemImage: systemImage)
+            paletteRowBody(
+                title: title,
+                subtitle: fieldDescription(for: type),
+                systemImage: systemImage
+            )
         }
         .buttonStyle(.plain)
     }
 
-    private func paletteRowBody(title: String, systemImage: String) -> some View {
-        HStack(spacing: 12) {
+    private func fieldDescription(for type: FormFieldType) -> String {
+        switch type {
+        case .name:
+            return "收集客户姓名（可设置展示格式）"
+        case .phone:
+            return "收集手机号（支持带区号）"
+        case .email:
+            return "收集邮箱（用于联系/发邮件）"
+        case .text:
+            return "简短文字输入（如公司/职业等）"
+        case .multilineText:
+            return "长文本输入（如备注/需求）"
+        case .select:
+            return "单选（适合 2-6 个选项）"
+        case .dropdown:
+            return "下拉单选（选项较多更省空间）"
+        case .multiSelect:
+            return "多选（可选多个选项）"
+        case .checkbox:
+            return "勾选确认（是/否、同意条款）"
+        case .date:
+            return "日期选择（默认当前日期，可设可编辑）"
+        case .time:
+            return "时间选择（默认当前时间，可设可编辑）"
+        case .address:
+            return "地址（默认活动地点，可设可编辑）"
+        case .sectionTitle:
+            return "大标题：分组/分段说明"
+        case .sectionSubtitle:
+            return "小标题：补充说明/提示"
+        case .divider:
+            return "分割线：分隔不同模块"
+        case .splice:
+            return "拼接：让相邻字段同一行显示"
+        }
+    }
+
+    private func paletteRowBody(title: String, subtitle: String, systemImage: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
             Image(systemName: systemImage)
                 .frame(width: 28)
                 .foregroundStyle(EMTheme.accent)
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(EMTheme.ink)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(EMTheme.ink)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(EMTheme.ink2)
+            }
+
             Spacer()
 
             Image(systemName: "plus.circle.fill")
