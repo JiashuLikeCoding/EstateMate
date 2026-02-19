@@ -629,7 +629,11 @@ struct FormBuilderPropertiesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("占位提示（placeholder）")
-                        .font(.footnote.weight(.medium))
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("提示：显示在输入框里的浅色文字，用来引导客户怎么填。")
+                        .font(.caption)
                         .foregroundStyle(EMTheme.ink2)
 
                     ForEach(0..<count, id: \.self) { i in
@@ -653,14 +657,24 @@ struct FormBuilderPropertiesView: View {
             if binding.wrappedValue.type == .email {
                 Divider().overlay(EMTheme.line)
 
-                EMTextField(
-                    title: "占位提示（placeholder）",
-                    text: Binding(
-                        get: { binding.wrappedValue.placeholder ?? "" },
-                        set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
-                    ),
-                    prompt: "例如：请输入..."
-                )
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("占位提示（placeholder）")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("提示：显示在输入框里的浅色文字，用来引导客户怎么填。")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
+
+                    EMTextField(
+                        title: "",
+                        text: Binding(
+                            get: { binding.wrappedValue.placeholder ?? "" },
+                            set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                        ),
+                        prompt: "例如：请输入..."
+                    )
+                }
             }
 
             if binding.wrappedValue.type == .phone {
@@ -679,7 +693,11 @@ struct FormBuilderPropertiesView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("占位提示（placeholder）")
-                            .font(.footnote.weight(.medium))
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+
+                        Text("提示：显示在输入框里的浅色文字，用来引导客户怎么填。")
+                            .font(.caption)
                             .foregroundStyle(EMTheme.ink2)
 
                         EMTextField(
@@ -711,28 +729,48 @@ struct FormBuilderPropertiesView: View {
                         )
                     }
                 } else {
-                    EMTextField(
-                        title: "占位提示（placeholder）",
-                        text: Binding(
-                            get: { binding.wrappedValue.placeholder ?? "" },
-                            set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
-                        ),
-                        prompt: "例如：手机号"
-                    )
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("占位提示（placeholder）")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
+
+                        Text("提示：显示在输入框里的浅色文字，用来引导客户怎么填。")
+                            .font(.caption)
+                            .foregroundStyle(EMTheme.ink2)
+
+                        EMTextField(
+                            title: "",
+                            text: Binding(
+                                get: { binding.wrappedValue.placeholder ?? "" },
+                                set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                            ),
+                            prompt: "例如：手机号"
+                        )
+                    }
                 }
             }
 
             if binding.wrappedValue.type == .text || binding.wrappedValue.type == .multilineText || binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect {
                 Divider().overlay(EMTheme.line)
 
-                EMTextField(
-                    title: "占位提示（placeholder）",
-                    text: Binding(
-                        get: { binding.wrappedValue.placeholder ?? "" },
-                        set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
-                    ),
-                    prompt: (binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect) ? "例如：请选择..." : "例如：请输入..."
-                )
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("占位提示（placeholder）")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("提示：显示在输入框里的浅色文字，用来引导客户怎么填。")
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
+
+                    EMTextField(
+                        title: "",
+                        text: Binding(
+                            get: { binding.wrappedValue.placeholder ?? "" },
+                            set: { binding.wrappedValue.placeholder = $0.nilIfEmpty }
+                        ),
+                        prompt: (binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect) ? "例如：请选择..." : "例如：请输入..."
+                    )
+                }
             }
 
             if binding.wrappedValue.type == .date || binding.wrappedValue.type == .time || binding.wrappedValue.type == .address {
@@ -754,7 +792,11 @@ struct FormBuilderPropertiesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("姓名格式")
-                        .font(.footnote.weight(.medium))
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("提示：用于决定客户填写时展示几个输入框。")
+                        .font(.caption)
                         .foregroundStyle(EMTheme.ink2)
 
                     Picker("姓名格式", selection: Binding(
@@ -779,11 +821,10 @@ struct FormBuilderPropertiesView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    Text(nameHint(binding.wrappedValue.nameFormat ?? .firstLast))
+                        .font(.caption)
+                        .foregroundStyle(EMTheme.ink2)
                 }
-
-                Text(nameHint(binding.wrappedValue.nameFormat ?? .firstLast))
-                    .font(.footnote)
-                    .foregroundStyle(EMTheme.ink2)
             }
 
             if binding.wrappedValue.type == .text {
