@@ -23,20 +23,27 @@ struct WorkspacePickerView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("选择系统", subtitle: "选择要进入的模块")
 
-                        hero(icon: "square.grid.2x2", title: "选择系统", subtitle: "快速切换：活动策划 / 客户管理 / 邮箱绑定", accent: accent)
+                        hero(
+                            icon: "square.grid.2x2",
+                            title: "选择系统",
+                            subtitle: "快速切换：活动策划 / 客户管理 / 邮箱绑定",
+                            accent: EMTheme.ink2.opacity(0.65)
+                        )
 
                         EMCard {
                             VStack(spacing: 0) {
                                 ForEach(Array(Workspace.allCases.enumerated()), id: \.element) { idx, w in
+                                    let rowAccent = rowAccentColor(for: w)
+
                                     Button {
                                         sessionStore.selectedWorkspace = w
                                     } label: {
                                         HStack(alignment: .center, spacing: 12) {
                                             Image(systemName: w.iconSystemName)
                                                 .font(.system(size: iconFontSize, weight: .semibold))
-                                                .foregroundStyle(accent)
+                                                .foregroundStyle(rowAccent)
                                                 .frame(width: iconBox, height: iconBox)
-                                                .background(accent.opacity(0.12))
+                                                .background(rowAccent.opacity(0.12))
                                                 .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
                                             VStack(alignment: .leading, spacing: 6) {
@@ -49,7 +56,7 @@ struct WorkspacePickerView: View {
                                             }
                                             Spacer()
                                             Image(systemName: "chevron.right")
-                                                .foregroundStyle(EMTheme.ink2)
+                                                .foregroundStyle(rowAccent.opacity(0.55))
                                         }
                                         .contentShape(Rectangle())
                                         .frame(maxHeight: .infinity)
@@ -63,12 +70,14 @@ struct WorkspacePickerView: View {
                                 NavigationLink {
                                     CRMGmailConnectView()
                                 } label: {
+                                    let rowAccent = EMTheme.ink2.opacity(0.65)
+
                                     HStack(alignment: .center, spacing: 12) {
                                         Image(systemName: "envelope")
                                             .font(.system(size: iconFontSize, weight: .semibold))
-                                            .foregroundStyle(accent)
+                                            .foregroundStyle(rowAccent)
                                             .frame(width: iconBox, height: iconBox)
-                                            .background(accent.opacity(0.12))
+                                            .background(rowAccent.opacity(0.12))
                                             .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
                                         VStack(alignment: .leading, spacing: 6) {
@@ -81,7 +90,7 @@ struct WorkspacePickerView: View {
                                         }
                                         Spacer()
                                         Image(systemName: "chevron.right")
-                                            .foregroundStyle(accent.opacity(0.6))
+                                            .foregroundStyle(rowAccent.opacity(0.55))
                                     }
                                     .contentShape(Rectangle())
                                     .frame(maxHeight: .infinity)
@@ -107,6 +116,14 @@ struct WorkspacePickerView: View {
         }
     }
 
+    private func rowAccentColor(for workspace: Workspace) -> Color {
+        switch workspace {
+        case .openHouse:
+            return EMTheme.accent
+        case .crm:
+            return EMTheme.crmAccent
+        }
+    }
 
     private func hero(icon: String, title: String, subtitle: String, accent: Color) -> some View {
         HStack(spacing: 10) {

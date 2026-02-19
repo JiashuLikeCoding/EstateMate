@@ -36,7 +36,7 @@ struct MainView: View {
                 .emAccentColor(EMTheme.crmAccent)
         case .none:
             WorkspacePickerView()
-                .emAccentColor(EMTheme.systemAccent)
+                .emAccentColor(EMTheme.ink2.opacity(0.75))
         }
     }
 }
