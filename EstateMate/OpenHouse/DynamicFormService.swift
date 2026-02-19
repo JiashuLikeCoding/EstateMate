@@ -29,10 +29,12 @@ final class DynamicFormService {
                 q = q.eq("is_archived", value: false)
             }
 
-            return try await q
+            let forms: [FormRecord] = try await q
                 .order("created_at", ascending: false)
                 .execute()
                 .value
+
+            return forms.map { normalizeDefaultOpenHouseRegistrationFormIfNeeded($0) }
         } catch {
             // Backward compatibility if the column isn't migrated yet (or PostgREST schema cache is stale).
             let msg = (error as NSError).localizedDescription.lowercased()
@@ -115,13 +117,57 @@ final class DynamicFormService {
 
     func createForm(name: String, schema: FormSchema) async throws -> FormRecord {
         let payload = FormInsert(name: name, schema: schema)
-        return try await client
+        let created: FormRecord = try await client
             .from("forms")
             .insert(payload)
             .select()
             .single()
             .execute()
             .value
+        return normalizeDefaultOpenHouseRegistrationFormIfNeeded(created)
+    }
+
+    private func normalizeDefaultOpenHouseRegistrationFormIfNeeded(_ form: FormRecord) -> FormRecord {
+        // Patch legacy/default form schema: ensure conditional visibility is set correctly.
+        // This is a non-destructive client-side fix. Once the user edits & saves the form,
+        // it will persist these rules into the DB schema.
+        let name = form.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.contains("默认登记表") else { return form }
+
+        // Find the controlling field.
+        // Example label: "Are you considering selling your property? (你考虑出售你的房产吗？)"
+        let sellingIndex = form.schema.fields.firstIndex(where: {
+            $0.label.localizedCaseInsensitiveContains("considering selling") ||
+            $0.label.contains("考虑出售")
+        })
+        guard let sellingIndex else { return form }
+        let sellingKey = form.schema.fields[sellingIndex].key
+        guard !sellingKey.isEmpty else { return form }
+
+        func shouldPatch(_ f: FormField) -> Bool {
+            let label = f.label
+            return label.localizedCaseInsensitiveContains("How soon do you want to sell") ||
+                label.contains("多快出售") ||
+                label.localizedCaseInsensitiveContains("considering exchanging") ||
+                label.contains("置换")
+        }
+
+        var patched = form
+        var didChange = false
+
+        for idx in patched.schema.fields.indices {
+            var f = patched.schema.fields[idx]
+            guard shouldPatch(f) else { continue }
+
+            // Only patch if there is no rule yet (avoid overwriting user-configured logic).
+            if f.visibleWhen == nil {
+                f.visibleWhen = .init(dependsOnKey: sellingKey, op: .equals, value: "Yes", clearOnHide: true)
+                patched.schema.fields[idx] = f
+                didChange = true
+            }
+        }
+
+        return didChange ? patched : form
     }
 
     func updateForm(id: UUID, name: String, schema: FormSchema) async throws -> FormRecord {
@@ -437,13 +483,14 @@ final class DynamicFormService {
     }
 
     func getForm(id: UUID) async throws -> FormRecord {
-        try await client
+        let form: FormRecord = try await client
             .from("forms")
             .select()
             .eq("id", value: id.uuidString)
             .single()
             .execute()
             .value
+        return normalizeDefaultOpenHouseRegistrationFormIfNeeded(form)
     }
 
     // MARK: - Submissions
