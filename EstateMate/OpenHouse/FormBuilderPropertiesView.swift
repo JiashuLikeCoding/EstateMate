@@ -395,8 +395,8 @@ struct FormBuilderPropertiesView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("必填")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(EMTheme.ink2)
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(EMTheme.ink)
                         Spacer()
                         Toggle("", isOn: binding.required)
                             .labelsHidden()
@@ -411,10 +411,6 @@ struct FormBuilderPropertiesView: View {
                 // MARK: - Conditional visibility
 
                 Divider().overlay(EMTheme.line)
-
-                Text("用于实现‘当客户选择了某个选项时，才显示后续字段’的联动。")
-                    .font(.caption)
-                    .foregroundStyle(EMTheme.ink2)
 
                 FormBuilderVisibilityEditor(
                     field: binding,
@@ -830,8 +826,8 @@ struct FormBuilderPropertiesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("样式")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(EMTheme.ink2)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
 
                     Picker("样式", selection: Binding(
                         get: { binding.wrappedValue.selectStyle ?? .dropdown },
@@ -858,8 +854,8 @@ struct FormBuilderPropertiesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("样式")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(EMTheme.ink2)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
 
                     Picker("样式", selection: Binding(
                         get: { binding.wrappedValue.multiSelectStyle ?? .chips },
@@ -914,8 +910,8 @@ private struct FormBuilderOptionsEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("选项")
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(EMTheme.ink2)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(EMTheme.ink)
 
             if options.isEmpty {
                 Text("请先添加至少 1 个选项")

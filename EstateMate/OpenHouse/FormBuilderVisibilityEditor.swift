@@ -70,14 +70,20 @@ struct FormBuilderVisibilityEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("显示条件")
-                    .font(.footnote.weight(.medium))
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("显示条件")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+                    Spacer()
+                    Toggle("", isOn: isEnabled)
+                        .labelsHidden()
+                        .tint(EMTheme.accent)
+                }
+
+                Text("用于实现‘当客户选择了某个选项时，才显示后续字段’的联动。")
+                    .font(.caption)
                     .foregroundStyle(EMTheme.ink2)
-                Spacer()
-                Toggle("", isOn: isEnabled)
-                    .labelsHidden()
-                    .tint(EMTheme.accent)
             }
 
             if isEnabled.wrappedValue {
@@ -128,7 +134,7 @@ struct FormBuilderVisibilityEditor: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text("当满足以下条件时显示")
-                            .font(.footnote)
+                            .font(.caption)
                             .foregroundStyle(EMTheme.ink2)
 
                         triggerRow(dependsOnKey: dependsOnKey)
