@@ -140,6 +140,9 @@ struct FormBuilderCanvasView: View {
     @State private var showSavedAlert: Bool = false
     @State private var showPreviewSheet: Bool = false
 
+    @State private var showArchiveConfirm: Bool = false
+    @State private var isArchiving: Bool = false
+
     @State private var showBackgroundMenu: Bool = false
     @State private var showPhotoPicker: Bool = false
     @State private var pickedPhotoItem: PhotosPickerItem? = nil
@@ -348,11 +351,17 @@ struct FormBuilderCanvasView: View {
                 .disabled(state.fields.isEmpty)
                 .opacity(state.fields.isEmpty ? 0.45 : 1)
 
+                if state.isArchived {
+                    Text("该表单已归档：目前为只读状态。")
+                        .font(.footnote)
+                        .foregroundStyle(EMTheme.ink2)
+                }
+
                 Button(state.isSaving ? "保存中..." : "保存表单") {
                     Task { await save() }
                 }
-                .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-                .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(EMPrimaryButtonStyle(disabled: state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || state.isArchived))
+                .disabled(state.isSaving || state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || state.isArchived)
                 .alert("已保存", isPresented: $showSavedAlert) {
                     Button("好的") {
                         if let onSaved {
@@ -364,6 +373,8 @@ struct FormBuilderCanvasView: View {
                 } message: {
                     Text("表单已保存")
                 }
+
+                archiveSection
 
                 Text("提示：点右侧“＋”添加字段；单击字段选中；双击编辑；长按右侧拖动把手调整顺序")
                     .font(.footnote)
@@ -418,6 +429,74 @@ struct FormBuilderCanvasView: View {
             CameraPicker { image in
                 guard let image else { return }
                 Task { await handlePickedUIImage(image) }
+            }
+        }
+    }
+
+    private var archiveSection: some View {
+        Group {
+            if state.formId != nil {
+                Divider().overlay(EMTheme.line)
+
+                Group {
+                    if state.isArchived {
+                        Button {
+                            showArchiveConfirm = true
+                        } label: {
+                            Text(isArchiving ? "处理中..." : "取消归档")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                    } else {
+                        Button {
+                            showArchiveConfirm = true
+                        } label: {
+                            Text(isArchiving ? "处理中..." : "归档表单")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(EMDangerFilledButtonStyle())
+                    }
+                }
+                .disabled(isArchiving)
+                .confirmationDialog(
+                    state.isArchived ? "取消归档表单？" : "归档表单？",
+                    isPresented: $showArchiveConfirm,
+                    titleVisibility: .visible
+                ) {
+                    if state.isArchived {
+                        Button("取消归档") {
+                            Task { await toggleArchive(isArchived: false) }
+                        }
+                    } else {
+                        Button("归档表单", role: .destructive) {
+                            Task { await toggleArchive(isArchived: true) }
+                        }
+                    }
+                    Button("取消", role: .cancel) {}
+                } message: {
+                    Text(state.isArchived ? "取消归档后可以继续编辑。" : "归档后表单将变为只读，并在列表里默认隐藏。")
+                }
+            }
+        }
+    }
+
+    private func toggleArchive(isArchived: Bool) async {
+        guard let id = state.formId else { return }
+        guard isArchiving == false else { return }
+
+        isArchiving = true
+        defer { isArchiving = false }
+
+        do {
+            try await service.archiveForm(id: id, isArchived: isArchived)
+            state.isArchived = isArchived
+            state.errorMessage = nil
+        } catch {
+            let msg = error.localizedDescription
+            if msg.lowercased().contains("is_archived") {
+                state.errorMessage = "需要先执行一次数据库迁移：为 forms 增加 is_archived 字段（用于归档）"
+            } else {
+                state.errorMessage = msg
             }
         }
     }
@@ -760,6 +839,12 @@ struct FormBuilderCanvasView: View {
     private func save() async {
         state.isSaving = true
         defer { state.isSaving = false }
+
+        // Never allow saving changes into an archived form.
+        if state.formId != nil, state.isArchived {
+            state.errorMessage = "该表单已归档，无法修改。请先取消归档，或复制一个新表单再编辑。"
+            return
+        }
 
         do {
             // 1) Options validation

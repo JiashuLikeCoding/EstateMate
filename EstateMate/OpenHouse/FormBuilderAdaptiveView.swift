@@ -59,6 +59,9 @@ final class FormBuilderState: ObservableObject {
 
     @Published var presentation: FormPresentation = .init(background: nil)
 
+    /// If true, the form is archived (read-only until unarchived).
+    @Published var isArchived: Bool = false
+
     /// When adding a new field, we stage it here so user can confirm Add/Cancel.
     /// Also used when updating an existing field type via the palette (confirm Update/Cancel).
     @Published var draftField: FormField? = nil
@@ -72,12 +75,14 @@ final class FormBuilderState: ObservableObject {
     func seedIfNeeded() {
         // Start empty: user decides what to include.
         guard fields.isEmpty else { return }
+        isArchived = false
         fields = []
     }
 
     func load(form: FormRecord) {
         formId = form.id
         formName = form.name
+        isArchived = form.isArchived ?? false
 
         let original = form.schema.fields
         let normalized = normalizeSplices(in: original)
