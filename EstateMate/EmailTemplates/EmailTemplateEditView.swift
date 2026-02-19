@@ -362,6 +362,7 @@ struct EmailTemplateEditView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .scrollIndicators(.hidden)
             .safeAreaPadding(.top, 8)
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -549,6 +550,7 @@ struct EmailTemplateEditView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .scrollIndicators(.hidden)
             .safeAreaPadding(.top, 8)
         }
         .navigationTitle("预览")
@@ -592,6 +594,7 @@ struct EmailTemplateEditView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .scrollIndicators(.hidden)
             .safeAreaPadding(.top, 8)
         }
         .navigationTitle("预览")
@@ -645,6 +648,7 @@ struct EmailTemplateEditView: View {
                 }
                 .padding(EMTheme.padding)
             }
+            .scrollIndicators(.hidden)
             .safeAreaPadding(.top, 8)
         }
         .navigationTitle("测试发送")
