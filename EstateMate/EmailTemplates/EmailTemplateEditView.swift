@@ -759,7 +759,7 @@ struct EmailTemplateEditView: View {
     private func wrapEmailHTML(_ inner: String) -> String {
         // Deep green for template variable tokens + link color.
         let varColor = "#0B5A2A"
-        return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}a{color:\(varColor);text-decoration:underline;word-break:break-word;}span.em-var{color:\(varColor);font-weight:600;}</style></head><body>\(inner)</body></html>"
+        return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;margin:0;padding:0;}p{margin:0 0 10px 0;}a{color:\(varColor);text-decoration:underline;word-break:break-word;}span.em-var{color:\(varColor);font-weight:700;}</style></head><body>\(inner)</body></html>"
     }
 
     private func extractBodyInnerHTML(_ fullHTML: String) -> String {
