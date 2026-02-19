@@ -376,6 +376,8 @@ struct FormBuilderPropertiesView: View {
 
             } else {
                 VStack(alignment: .leading, spacing: 10) {
+                    Color.clear.frame(height: 2)
+
                     Text("字段标题")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(EMTheme.ink)
@@ -610,6 +612,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 let fmt = binding.wrappedValue.nameFormat ?? .firstLast
                 let count: Int = {
@@ -662,6 +665,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .email {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("占位提示（placeholder）")
@@ -685,6 +689,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .phone {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 let fmt = binding.wrappedValue.phoneFormat ?? .plain
                 if fmt == .withCountryCode {
@@ -758,6 +763,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .text || binding.wrappedValue.type == .multilineText || binding.wrappedValue.type == .select || binding.wrappedValue.type == .dropdown || binding.wrappedValue.type == .multiSelect {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("占位提示（placeholder）")
@@ -795,6 +801,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .name {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("姓名格式")
@@ -841,6 +848,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .phone {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("电话格式")
@@ -870,6 +878,7 @@ struct FormBuilderPropertiesView: View {
 
             if binding.wrappedValue.type == .select {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("样式")
@@ -898,6 +907,7 @@ struct FormBuilderPropertiesView: View {
                 ))
             } else if binding.wrappedValue.type == .multiSelect {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("样式")
@@ -927,6 +937,7 @@ struct FormBuilderPropertiesView: View {
                 ))
             } else if binding.wrappedValue.type == .dropdown {
                 Divider().overlay(EMTheme.line)
+                Color.clear.frame(height: 6)
 
                 FormBuilderOptionsEditor(options: Binding(
                     get: { binding.wrappedValue.options ?? [] },
