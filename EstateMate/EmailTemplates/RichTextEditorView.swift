@@ -18,6 +18,9 @@ struct RichTextEditorView: UIViewRepresentable {
 
     var minHeight: CGFloat = 180
 
+    /// Called when the user actually edits the text (not when we programmatically update it).
+    var onUserEdit: (() -> Void)? = nil
+
     /// Highlight template variables like {{first_name}} in the editor.
     /// Note: this is editor-only; we strip this highlight before saving/export.
     var highlightVariables: Bool = true
@@ -48,7 +51,12 @@ struct RichTextEditorView: UIViewRepresentable {
         // Compare against a stripped version because the UITextView may have editor-only highlighting.
         let currentBase = highlightVariables ? stripVariableHighlight(from: uiView.attributedText) : uiView.attributedText
         if currentBase != attributedText {
+            context.coordinator.isProgrammaticChange = true
             uiView.attributedText = highlightVariables ? applyVariableHighlight(to: attributedText) : attributedText
+            // Reset on next runloop so delegate changes triggered by this assignment don't count as user edits.
+            DispatchQueue.main.async {
+                context.coordinator.isProgrammaticChange = false
+            }
         }
 
         if uiView.selectedRange != selection {
@@ -72,12 +80,17 @@ struct RichTextEditorView: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextViewDelegate {
         let parent: RichTextEditorView
+        var isProgrammaticChange: Bool = false
 
         init(parent: RichTextEditorView) {
             self.parent = parent
         }
 
         func textViewDidChange(_ textView: UITextView) {
+            if !isProgrammaticChange {
+                parent.onUserEdit?()
+            }
+
             let raw = textView.attributedText ?? NSAttributedString(string: "")
 
             // Strip editor-only variable styling so we don't persist the green color into the saved HTML.
@@ -89,8 +102,12 @@ struct RichTextEditorView: UIViewRepresentable {
             let selected = textView.selectedRange
             let highlighted = applyVariableHighlight(to: base)
             if textView.attributedText != highlighted {
+                isProgrammaticChange = true
                 textView.attributedText = highlighted
                 textView.selectedRange = selected
+                DispatchQueue.main.async {
+                    self.isProgrammaticChange = false
+                }
             }
         }
 

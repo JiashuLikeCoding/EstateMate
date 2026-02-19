@@ -86,6 +86,7 @@ struct EmailTemplateEditView: View {
     @State private var testToEmail: String = ""
     @State private var isTestSending: Bool = false
     @State private var testSendResult: String?
+    @State private var testVariableOverrides: [String: String] = [:]
 
     private let service = EmailTemplateService()
     private let gmailService = CRMGmailIntegrationService()
@@ -141,7 +142,14 @@ struct EmailTemplateEditView: View {
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
-                            RichTextEditorView(attributedText: $bodyAttributed, selection: $bodySelection, isFocused: $isBodyFocused)
+                            RichTextEditorView(
+                                attributedText: $bodyAttributed,
+                                selection: $bodySelection,
+                                isFocused: $isBodyFocused,
+                                onUserEdit: {
+                                    bodyHTMLSourceIfUnedited = nil
+                                }
+                            )
                                 .frame(minHeight: 180, maxHeight: 260)
                                 .background(
                                     RoundedRectangle(cornerRadius: 14)
@@ -321,6 +329,7 @@ struct EmailTemplateEditView: View {
                     Button {
                         hideKeyboard()
                         testSendResult = nil
+                        prepareTestSendOverrides()
                         isTestSendPresented = true
                     } label: {
                         Text("测试发送")
@@ -375,10 +384,6 @@ struct EmailTemplateEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task(id: mode) {
             await loadIfNeeded()
-        }
-        .onChange(of: bodyAttributed) { _, _ in
-            // Once the user edits anything, we should not rely on the original HTML source.
-            bodyHTMLSourceIfUnedited = nil
         }
         .onTapGesture {
             hideKeyboard()
@@ -630,13 +635,34 @@ struct EmailTemplateEditView: View {
                     EMCard {
                         EMTextField(title: "收件人邮箱", text: $testToEmail, prompt: "例如：test@gmail.com")
 
+                        if !usedVariableKeysForTestSend().isEmpty {
+                            Divider().overlay(EMTheme.line)
+
+                            Text("变量值")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(usedVariableKeysForTestSend(), id: \.self) { key in
+                                    EMTextField(
+                                        title: "{{\(key)}}",
+                                        text: Binding(
+                                            get: { testVariableOverrides[key] ?? "" },
+                                            set: { testVariableOverrides[key] = $0 }
+                                        ),
+                                        prompt: defaultTestValuePrompt(for: key)
+                                    )
+                                }
+                            }
+                        }
+
                         Divider().overlay(EMTheme.line)
 
                         Text("预览")
                             .font(.footnote.weight(.medium))
                             .foregroundStyle(EMTheme.ink2)
 
-                        HTMLWebView(html: buildFinalPreviewHTML())
+                        HTMLWebView(html: buildFinalEmailHTMLForSend(overrides: testVariableOverrides))
                             .frame(minHeight: 260)
                     }
 
@@ -670,6 +696,118 @@ struct EmailTemplateEditView: View {
     private func looksLikeHTML(_ s: String) -> Bool {
         // Very lightweight heuristic.
         return s.contains("<") && s.contains(">")
+    }
+
+    private func extractVariableKeys(from text: String) -> [String] {
+        let pattern = "\\{\\{([^{}]+)\\}\\}" // capture inside {{...}}
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+
+        let ns = text as NSString
+        let full = NSRange(location: 0, length: ns.length)
+
+        var keys: [String] = []
+        for m in regex.matches(in: text, range: full) {
+            guard m.numberOfRanges >= 2 else { continue }
+            let raw = ns.substring(with: m.range(at: 1))
+            let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty else { continue }
+            keys.append(key)
+        }
+
+        // De-dupe while preserving first-seen order
+        var seen = Set<String>()
+        var out: [String] = []
+        for k in keys {
+            if !seen.contains(k) {
+                seen.insert(k)
+                out.append(k)
+            }
+        }
+        return out
+    }
+
+    private func usedVariableKeysForTestSend() -> [String] {
+        let subjectKeys = extractVariableKeys(from: subject)
+
+        let bodySourceForScan: String = {
+            if let src = bodyHTMLSourceIfUnedited, !src.isEmpty {
+                return src
+            }
+            // scan the displayed plain string; tokens are visible to the user in WYSIWYG
+            return bodyAttributed.string
+        }()
+
+        let bodyKeys = extractVariableKeys(from: bodySourceForScan)
+
+        // De-dupe
+        var seen = Set<String>()
+        var all: [String] = []
+        for k in (subjectKeys + bodyKeys) {
+            if !seen.contains(k) {
+                seen.insert(k)
+                all.append(k)
+            }
+        }
+
+        // Sort for stable UX (firstname/lastname at top when present)
+        let preferred = ["firstname", "lastname", "address", "date", "time", "event_title"]
+        return all.sorted { a, b in
+            let ia = preferred.firstIndex(of: a) ?? Int.max
+            let ib = preferred.firstIndex(of: b) ?? Int.max
+            if ia != ib { return ia < ib }
+            return a < b
+        }
+    }
+
+    private func defaultTestValuePrompt(for key: String) -> String {
+        let lower = key.lowercased()
+        switch lower {
+        case "firstname": return "例如：Jason"
+        case "lastname": return "例如：Chen"
+        case "middle_name": return "例如：(可留空)"
+        case "address": return "例如：123 Main St"
+        case "date": return "例如：2026-02-19"
+        case "time": return "例如：2:00 PM"
+        case "event_title": return "例如：Open House"
+        default:
+            if let v = variables.first(where: { $0.key.lowercased() == lower }), !v.example.isEmpty {
+                return "例如：\(v.example)"
+            }
+            return "例如：..."
+        }
+    }
+
+    private func defaultTestValue(for key: String) -> String {
+        let lower = key.lowercased()
+        switch lower {
+        case "firstname": return "Jason"
+        case "lastname": return "Chen"
+        case "middle_name": return ""
+        case "address": return "123 Main St"
+        case "date": return "2026-02-19"
+        case "time": return "2:00 PM"
+        case "event_title": return "Open House"
+        default:
+            if let v = variables.first(where: { $0.key.lowercased() == lower }), !v.example.isEmpty {
+                return v.example
+            }
+            return ""
+        }
+    }
+
+    /// Ensure test-send overrides contains at least default values for any used variables.
+    /// (Jason chose option B: auto-fill common variables with examples.)
+    private func prepareTestSendOverrides() {
+        let used = usedVariableKeysForTestSend()
+        guard !used.isEmpty else { return }
+
+        var next = testVariableOverrides
+        for k in used {
+            if next[k] == nil {
+                next[k] = defaultTestValue(for: k)
+            }
+        }
+        testVariableOverrides = next
     }
 
     private func subjectPreviewText(_ s: String) -> Text {
@@ -813,6 +951,27 @@ struct EmailTemplateEditView: View {
         return wrapEmailHTML(highlightTemplateVariablesInHTML(plainTextToHTML(plain)))
     }
 
+    /// Build the final email HTML for sending, with variables rendered (no preview highlighting).
+    private func buildFinalEmailHTMLForSend(overrides: [String: String]) -> String {
+        let plain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if plain.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
+
+        // Prefer the original HTML source (if unedited) so tags like <b> keep working.
+        if let src = bodyHTMLSourceIfUnedited, !src.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let rendered = EmailTemplateRenderer.render(src, variables: variables, overrides: overrides)
+            return wrapEmailHTML(rendered)
+        }
+
+        if let inner = bodyInnerHTMLFromAttributed() {
+            let rendered = EmailTemplateRenderer.render(inner, variables: variables, overrides: overrides)
+            return wrapEmailHTML(rendered)
+        }
+
+        // Fallback
+        let rendered = EmailTemplateRenderer.render(plainTextToHTML(plain), variables: variables, overrides: overrides)
+        return wrapEmailHTML(rendered)
+    }
+
     private func sendTestEmail() async {
         let to = testToEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         guard to.contains("@") else {
@@ -820,19 +979,26 @@ struct EmailTemplateEditView: View {
             return
         }
 
+        // Make sure we have defaults for any used keys before sending.
+        prepareTestSendOverrides()
+
         isTestSending = true
         testSendResult = nil
         defer { isTestSending = false }
 
         do {
-            let subj = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-            let plain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
-            let html = plain.isEmpty ? nil : buildFinalPreviewHTML()
+            let subjRaw = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+            let subjRendered = EmailTemplateRenderer.render(subjRaw, variables: variables, overrides: testVariableOverrides)
+
+            let plainRaw = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let plainRendered = EmailTemplateRenderer.render(plainRaw, variables: variables, overrides: testVariableOverrides)
+
+            let html = plainRaw.isEmpty ? nil : buildFinalEmailHTMLForSend(overrides: testVariableOverrides)
 
             _ = try await gmailService.sendTestMessage(
                 to: to,
-                subject: subj.isEmpty ? "(无主题)" : subj,
-                text: plain.isEmpty ? "(无正文)" : plain,
+                subject: subjRendered.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "(无主题)" : subjRendered,
+                text: plainRendered.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "(无正文)" : plainRendered,
                 html: html,
                 fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                 workspace: workspace
