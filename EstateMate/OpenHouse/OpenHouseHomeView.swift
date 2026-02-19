@@ -29,7 +29,7 @@ struct OpenHouseHomeView: View {
                     NavigationLink {
                         OpenHouseEventHubView(initialTab: .create)
                     } label: {
-                        row(title: "新建活动", subtitle: "创建活动并绑定表单")
+                        row(icon: "plus.app", title: "新建活动", subtitle: "创建活动并绑定表单")
                     }
 
                     Divider().overlay(EMTheme.line)
@@ -37,7 +37,7 @@ struct OpenHouseHomeView: View {
                     NavigationLink {
                         OpenHouseEventHubView(initialTab: .list)
                     } label: {
-                        row(title: "活动列表", subtitle: "查看并启用活动")
+                        row(icon: "list.bullet.rectangle", title: "活动列表", subtitle: "查看并启用活动")
                     }
 
                     Divider().overlay(EMTheme.line)
@@ -45,7 +45,7 @@ struct OpenHouseHomeView: View {
                     NavigationLink {
                         OpenHouseFormsView()
                     } label: {
-                        row(title: "表单管理", subtitle: "查看与管理已创建的表单")
+                        row(icon: "doc.text", title: "表单管理", subtitle: "查看与管理已创建的表单")
                     }
 
                     Divider().overlay(EMTheme.line)
@@ -53,7 +53,7 @@ struct OpenHouseHomeView: View {
                     NavigationLink {
                         EmailTemplatesListView(workspace: .openhouse)
                     } label: {
-                        row(title: "邮件模版", subtitle: "查看与管理邮件模版（提交后自动发信会用到）")
+                        row(icon: "envelope.open", title: "邮件模版", subtitle: "查看与管理邮件模版（提交后自动发信会用到）")
                     }
 
                     Divider().overlay(EMTheme.line)
@@ -61,7 +61,7 @@ struct OpenHouseHomeView: View {
                     NavigationLink {
                         OpenHouseVisitorListView()
                     } label: {
-                        row(title: "访客列表", subtitle: "按活动查看所有访客登记")
+                        row(icon: "person.3", title: "访客列表", subtitle: "按活动查看所有访客登记")
                     }
                 }
 
@@ -83,8 +83,15 @@ struct OpenHouseHomeView: View {
         }
     }
 
-    private func row(title: String, subtitle: String) -> some View {
+    private func row(icon: String, title: String, subtitle: String) -> some View {
         HStack(alignment: .center, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(EMTheme.accent)
+                .frame(width: 32, height: 32)
+                .background(EMTheme.accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
