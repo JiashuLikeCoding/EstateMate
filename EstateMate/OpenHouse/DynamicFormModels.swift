@@ -103,6 +103,39 @@ enum MultiSelectStyle: String, Codable, CaseIterable {
     }
 }
 
+struct FormVisibilityRule: Codable, Hashable {
+    enum Op: String, Codable, CaseIterable {
+        case equals
+        case notEquals
+
+        var title: String {
+            switch self {
+            case .equals: return "等于"
+            case .notEquals: return "不等于"
+            }
+        }
+    }
+
+    /// Which field controls visibility (key).
+    var dependsOnKey: String
+
+    /// equals / notEquals
+    var op: Op
+
+    /// Target value (stored as a string). For checkbox, use "是" / "否".
+    var value: String
+
+    /// If true, when the field becomes hidden, clear its value from submission.
+    var clearOnHide: Bool?
+
+    init(dependsOnKey: String, op: Op, value: String, clearOnHide: Bool? = true) {
+        self.dependsOnKey = dependsOnKey
+        self.op = op
+        self.value = value
+        self.clearOnHide = clearOnHide
+    }
+}
+
 struct FormField: Codable, Identifiable, Hashable {
     var id: String { key }
 
@@ -126,7 +159,8 @@ struct FormField: Codable, Identifiable, Hashable {
         fontSize: Double? = nil,
         dividerDashed: Bool? = nil,
         dividerThickness: Double? = nil,
-        decorationColorKey: String? = nil
+        decorationColorKey: String? = nil,
+        visibleWhen: FormVisibilityRule? = nil
     ) {
         self.key = key
         self.label = label
@@ -148,6 +182,7 @@ struct FormField: Codable, Identifiable, Hashable {
         self.dividerDashed = dividerDashed
         self.dividerThickness = dividerThickness
         self.decorationColorKey = decorationColorKey
+        self.visibleWhen = visibleWhen
     }
 
     /// For most field types, this is the value key stored in submission JSON.
@@ -217,6 +252,10 @@ struct FormField: Codable, Identifiable, Hashable {
     /// For `.sectionTitle` / `.sectionSubtitle` / `.divider`: color key (theme-mapped).
     /// Nil means renderer uses default per field type.
     var decorationColorKey: String?
+
+    /// Conditional visibility.
+    /// If nil -> always visible.
+    var visibleWhen: FormVisibilityRule?
 }
 
 struct FormSchema: Codable, Hashable {

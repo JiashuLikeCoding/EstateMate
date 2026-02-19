@@ -368,6 +368,15 @@ struct FormBuilderPropertiesView: View {
             } else {
                 Toggle("必填", isOn: binding.required)
                     .tint(EMTheme.accent)
+
+                // MARK: - Conditional visibility
+
+                Divider().overlay(EMTheme.line)
+
+                FormBuilderVisibilityEditor(
+                    field: binding,
+                    allFields: state.fields
+                )
             }
 
             // 类型已在顶部标题显示
