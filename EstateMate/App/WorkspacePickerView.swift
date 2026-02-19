@@ -14,6 +14,10 @@ struct WorkspacePickerView: View {
                 GeometryReader { geo in
                     let rowCount = CGFloat(Workspace.allCases.count + 1)
                     let rowHeight: CGFloat = max(58, (geo.size.height - 220) / rowCount)
+                    let iconBox: CGFloat = min(46, max(32, rowHeight * 0.55))
+                    let iconFontSize: CGFloat = min(22, max(16, iconBox * 0.5))
+                    let titleFontSize: CGFloat = min(20, max(17, rowHeight * 0.30))
+                    let subtitleFontSize: CGFloat = min(14, max(12, rowHeight * 0.20))
 
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("选择系统", subtitle: "选择要进入的模块")
@@ -26,18 +30,19 @@ struct WorkspacePickerView: View {
                                     } label: {
                                         HStack(alignment: .center, spacing: 12) {
                                             Image(systemName: w.iconSystemName)
-                                                .font(.system(size: 16, weight: .semibold))
+                                                .font(.system(size: iconFontSize, weight: .semibold))
                                                 .foregroundStyle(EMTheme.accent)
-                                                .frame(width: 32, height: 32)
+                                                .frame(width: iconBox, height: iconBox)
                                                 .background(EMTheme.accent.opacity(0.12))
-                                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                                .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
-                                            VStack(alignment: .leading, spacing: 4) {
+                                            VStack(alignment: .leading, spacing: 6) {
                                                 Text(w.title)
-                                                    .font(.headline)
+                                                    .font(.system(size: titleFontSize, weight: .semibold))
                                                 Text(w.subtitle)
-                                                    .font(.caption)
+                                                    .font(.system(size: subtitleFontSize))
                                                     .foregroundStyle(EMTheme.ink2)
+                                                    .lineLimit(2)
                                             }
                                             Spacer()
                                             Image(systemName: "chevron.right")
@@ -57,18 +62,19 @@ struct WorkspacePickerView: View {
                                 } label: {
                                     HStack(alignment: .center, spacing: 12) {
                                         Image(systemName: "envelope")
-                                            .font(.system(size: 16, weight: .semibold))
+                                            .font(.system(size: iconFontSize, weight: .semibold))
                                             .foregroundStyle(EMTheme.accent)
-                                            .frame(width: 32, height: 32)
+                                            .frame(width: iconBox, height: iconBox)
                                             .background(EMTheme.accent.opacity(0.12))
-                                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                            .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
-                                        VStack(alignment: .leading, spacing: 4) {
+                                        VStack(alignment: .leading, spacing: 6) {
                                             Text("邮箱绑定")
-                                                .font(.headline)
+                                                .font(.system(size: titleFontSize, weight: .semibold))
                                             Text("连接 Gmail，用于自动发送与同步邮件往来")
-                                                .font(.caption)
+                                                .font(.system(size: subtitleFontSize))
                                                 .foregroundStyle(EMTheme.ink2)
+                                                .lineLimit(2)
                                         }
                                         Spacer()
                                         Image(systemName: "chevron.right")

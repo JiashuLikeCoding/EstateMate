@@ -47,6 +47,10 @@ struct CRMHomeView: View {
                 GeometryReader { geo in
                     let rowCount: CGFloat = 3
                     let rowHeight: CGFloat = max(58, (geo.size.height - 220) / rowCount)
+                    let iconBox: CGFloat = min(46, max(32, rowHeight * 0.55))
+                    let iconFontSize: CGFloat = min(22, max(16, iconBox * 0.5))
+                    let titleFontSize: CGFloat = min(20, max(17, rowHeight * 0.30))
+                    let subtitleFontSize: CGFloat = min(14, max(12, rowHeight * 0.20))
 
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("客户管理", subtitle: "线索、客户、任务（开发中）")
@@ -56,7 +60,7 @@ struct CRMHomeView: View {
                                 NavigationLink {
                                     CRMContactsListView()
                                 } label: {
-                                    row(icon: "person.2", title: "客户列表", subtitle: "查看与搜索客户")
+                                    row(icon: "person.2", title: "客户列表", subtitle: "查看与搜索客户", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                         .frame(height: rowHeight)
                                 }
                                 .buttonStyle(.plain)
@@ -66,7 +70,7 @@ struct CRMHomeView: View {
                                 NavigationLink {
                                     CRMContactEditView(mode: .create)
                                 } label: {
-                                    row(icon: "person.badge.plus", title: "新增客户", subtitle: "快速录入一位客户")
+                                    row(icon: "person.badge.plus", title: "新增客户", subtitle: "快速录入一位客户", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                         .frame(height: rowHeight)
                                 }
                                 .buttonStyle(.plain)
@@ -76,7 +80,7 @@ struct CRMHomeView: View {
                                 NavigationLink {
                                     CRMTasksListView()
                                 } label: {
-                                    row(icon: "checklist", title: "待办任务", subtitle: "跟进提醒与记录")
+                                    row(icon: "checklist", title: "待办任务", subtitle: "跟进提醒与记录", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                         .frame(height: rowHeight)
                                 }
                                 .buttonStyle(.plain)
@@ -99,21 +103,30 @@ struct CRMHomeView: View {
         }
     }
 
-    private func row(icon: String, title: String, subtitle: String) -> some View {
+    private func row(
+        icon: String,
+        title: String,
+        subtitle: String,
+        iconBox: CGFloat,
+        iconFontSize: CGFloat,
+        titleFontSize: CGFloat,
+        subtitleFontSize: CGFloat
+    ) -> some View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: iconFontSize, weight: .semibold))
                 .foregroundStyle(EMTheme.accent)
-                .frame(width: 32, height: 32)
+                .frame(width: iconBox, height: iconBox)
                 .background(EMTheme.accent.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(title)
-                    .font(.headline)
+                    .font(.system(size: titleFontSize, weight: .semibold))
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.system(size: subtitleFontSize))
                     .foregroundStyle(EMTheme.ink2)
+                    .lineLimit(2)
             }
             Spacer()
         }
