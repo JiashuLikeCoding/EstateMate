@@ -21,6 +21,13 @@ struct WorkspacePickerView: View {
                                     sessionStore.selectedWorkspace = w
                                 } label: {
                                     HStack(alignment: .center, spacing: 12) {
+                                        Image(systemName: w.iconSystemName)
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundStyle(EMTheme.accent)
+                                            .frame(width: 32, height: 32)
+                                            .background(EMTheme.accent.opacity(0.12))
+                                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(w.title)
                                                 .font(.headline)
@@ -44,6 +51,13 @@ struct WorkspacePickerView: View {
                                 CRMGmailConnectView()
                             } label: {
                                 HStack(alignment: .center, spacing: 12) {
+                                    Image(systemName: "envelope")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundStyle(EMTheme.accent)
+                                        .frame(width: 32, height: 32)
+                                        .background(EMTheme.accent.opacity(0.12))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("邮箱绑定")
                                             .font(.headline)

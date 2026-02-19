@@ -26,4 +26,11 @@ enum Workspace: String, CaseIterable, Identifiable {
         case .crm: return "内部管理与数据查看"
         }
     }
+
+    var iconSystemName: String {
+        switch self {
+        case .openHouse: return "calendar.badge.clock"
+        case .crm: return "person.2"
+        }
+    }
 }
