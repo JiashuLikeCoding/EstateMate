@@ -637,7 +637,7 @@ struct FormBuilderPropertiesView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("占位提示（placeholder）")
+                    Text("输入提示")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(EMTheme.ink)
 
@@ -668,7 +668,7 @@ struct FormBuilderPropertiesView: View {
                 Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("占位提示（placeholder）")
+                    Text("输入提示")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(EMTheme.ink)
 
@@ -703,7 +703,7 @@ struct FormBuilderPropertiesView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("占位提示（placeholder）")
+                        Text("输入提示")
                             .font(.callout.weight(.semibold))
                             .foregroundStyle(EMTheme.ink)
 
@@ -741,7 +741,7 @@ struct FormBuilderPropertiesView: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("占位提示（placeholder）")
+                        Text("输入提示")
                             .font(.callout.weight(.semibold))
                             .foregroundStyle(EMTheme.ink)
 
@@ -766,7 +766,7 @@ struct FormBuilderPropertiesView: View {
                 Color.clear.frame(height: 6)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("占位提示（placeholder）")
+                    Text("输入提示")
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(EMTheme.ink)
 
