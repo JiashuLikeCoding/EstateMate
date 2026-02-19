@@ -1113,6 +1113,24 @@ struct EMDangerButtonStyle: ButtonStyle {
     }
 }
 
+/// Red filled button (danger primary).
+struct EMDangerFilledButtonStyle: ButtonStyle {
+    var disabled: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .foregroundStyle(.white)
+            .background(
+                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                    .fill(disabled ? Color.gray.opacity(0.35) : Color.red)
+            )
+            .opacity(configuration.isPressed ? 0.92 : 1)
+    }
+}
+
 struct EMGhostButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label

@@ -270,7 +270,8 @@ struct OpenHouseEventEditView: View {
                                 Button("设为已结束") {
                                     Task { await markEndedNow() }
                                 }
-                                .buttonStyle(EMDangerButtonStyle())
+                                .buttonStyle(EMDangerFilledButtonStyle(disabled: isLoading))
+                                .disabled(isLoading)
                             }
 
                             Button(isArchived ? "取消归档" : "归档活动") {
