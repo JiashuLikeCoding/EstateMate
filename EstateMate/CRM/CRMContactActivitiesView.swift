@@ -85,7 +85,9 @@ struct CRMContactActivitiesView: View {
                                         }
                                     }
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.plain)
                     }
