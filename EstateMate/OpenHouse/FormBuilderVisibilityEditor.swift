@@ -29,16 +29,15 @@ struct FormBuilderVisibilityEditor: View {
     }
 
     private var availableTriggerFields: [FormField] {
-        // Trigger fields must be real inputs.
-        // Note: We allow using any non-decoration non-splice field as a trigger,
-        // but the value picker will only support checkbox/select/dropdown in v1.
+        // v1: Only allow trigger fields we can reliably evaluate & pick a value for.
+        // (checkbox/select/dropdown)
         allFields.filter { f in
             if f.key == field.key { return false }
             switch f.type {
-            case .sectionTitle, .sectionSubtitle, .divider, .splice:
-                return false
-            default:
+            case .checkbox, .select, .dropdown:
                 return true
+            default:
+                return false
             }
         }
     }
