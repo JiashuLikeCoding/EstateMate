@@ -474,9 +474,8 @@ struct FormBuilderCanvasView: View {
                     }
                 }
 
-                Text(summary(f))
+                summaryView(f)
                     .font(.caption)
-                    .foregroundStyle(EMTheme.ink2)
 
                 if let desc = visibilityRelationshipLine(for: f) {
                     Text(desc)
@@ -660,8 +659,8 @@ struct FormBuilderCanvasView: View {
         return "影响：\(names.prefix(2).joined(separator: "、")) 等 \(names.count) 项"
     }
 
-    private func summary(_ f: FormField) -> String {
-        let type: String = switch f.type {
+    private func summaryTypeTitle(_ f: FormField) -> String {
+        switch f.type {
         case .name: "姓名"
         case .text: "文本"
         case .multilineText: "多行文本"
@@ -684,11 +683,31 @@ struct FormBuilderCanvasView: View {
         case .divider: "分割线"
         case .splice: "拼接"
         }
+    }
+
+    @ViewBuilder
+    private func summaryView(_ f: FormField) -> some View {
+        let type = summaryTypeTitle(f)
+
         // Decoration fields are display-only.
         if f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider || f.type == .splice {
-            return "类型：\(type)"
+            Text("类型：\(type)")
+                .foregroundStyle(EMTheme.ink2)
+        } else {
+            HStack(spacing: 0) {
+                Text("类型：\(type)  ·  ")
+                    .foregroundStyle(EMTheme.ink2)
+
+                if f.required {
+                    Text("必填")
+                        .foregroundStyle(EMTheme.accent)
+                        .fontWeight(.semibold)
+                } else {
+                    Text("选填")
+                        .foregroundStyle(EMTheme.ink2)
+                }
+            }
         }
-        return "类型：\(type)  ·  \(f.required ? "必填" : "选填")"
     }
 
     private var backgroundSummary: String {
