@@ -37,10 +37,28 @@ struct WorkspacePickerView: View {
                                 }
                                 .buttonStyle(.plain)
 
-                                if w != Workspace.allCases.last {
-                                    Divider().overlay(EMTheme.line)
-                                }
+                                Divider().overlay(EMTheme.line)
                             }
+
+                            NavigationLink {
+                                CRMGmailConnectView()
+                            } label: {
+                                HStack(alignment: .center, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("邮箱绑定")
+                                            .font(.headline)
+                                        Text("连接 Gmail，用于自动发送与同步邮件往来")
+                                            .font(.caption)
+                                            .foregroundStyle(EMTheme.ink2)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+                                .contentShape(Rectangle())
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.plain)
                         }
 
                         Button {
