@@ -64,7 +64,9 @@ struct FormPreviewView: View {
                                     Text("当前表单还没有字段")
                                         .foregroundStyle(EMTheme.ink2)
                                 } else {
-                                    ForEach(fieldRows(fields), id: \.self) { row in
+                                    let visible = visibleFieldsForRender(fields)
+
+                                    ForEach(fieldRows(visible), id: \.self) { row in
                                         if row.count <= 1 {
                                             if let f = row.first {
                                                 fieldRow(f, reserveTitleSpace: false)
@@ -363,6 +365,115 @@ struct FormPreviewView: View {
         }
     }
 
+    private func visibleFieldsForRender(_ fields: [FormField]) -> [FormField] {
+        // Same rules as the real guest fill:
+        // - drop hidden fields based on visibleWhen
+        // - keep splice only when it still joins two visible input fields
+        func isDecoration(_ f: FormField) -> Bool {
+            f.type == .sectionTitle || f.type == .sectionSubtitle || f.type == .divider
+        }
+
+        let byKey: [String: FormField] = Dictionary(uniqueKeysWithValues: fields.map { ($0.key, $0) })
+
+        func valueString(for key: String) -> String {
+            guard let f = byKey[key] else { return "" }
+            switch f.type {
+            case .checkbox:
+                return (boolValues[key, default: false] ? "是" : "否")
+            case .multiSelect:
+                // v1 doesn't support multi-select as a trigger; still provide a stable string.
+                return multiValues[key, default: []].sorted().joined(separator: ",")
+            case .name:
+                let parts = (f.nameKeys ?? []).map { values[$0, default: ""].trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                return parts.joined(separator: " ")
+            case .phone:
+                let keys = (f.phoneKeys ?? [key])
+                let parts = keys.map { values[$0, default: ""].trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+                return parts.joined(separator: " ")
+            default:
+                return values[key, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+
+        func isVisible(_ f: FormField) -> Bool {
+            // Splice visibility is computed later.
+            if f.type == .splice { return true }
+            guard let rule = f.visibleWhen else { return true }
+            let lhs = valueString(for: rule.dependsOnKey)
+            let rhs = rule.value
+            switch rule.op {
+            case .equals:
+                return lhs == rhs
+            case .notEquals:
+                return lhs != rhs
+            }
+        }
+
+        // Pre-compute visibility for non-splice fields.
+        var visibleKey: [String: Bool] = [:]
+        visibleKey.reserveCapacity(fields.count)
+        for f in fields where f.type != .splice {
+            visibleKey[f.key] = isVisible(f)
+        }
+
+        var out: [FormField] = []
+        out.reserveCapacity(fields.count)
+
+        func nearestVisibleNonDecorationKey(leftFrom idx: Int) -> String? {
+            var i = idx - 1
+            while i >= 0 {
+                let f = fields[i]
+                if f.type == .splice { i -= 1; continue }
+                if isDecoration(f) { i -= 1; continue }
+                if visibleKey[f.key] == true { return f.key }
+                i -= 1
+            }
+            return nil
+        }
+
+        func nearestVisibleNonDecorationKey(rightFrom idx: Int) -> String? {
+            var i = idx + 1
+            while i < fields.count {
+                let f = fields[i]
+                if f.type == .splice { i += 1; continue }
+                if isDecoration(f) { i += 1; continue }
+                if visibleKey[f.key] == true { return f.key }
+                i += 1
+            }
+            return nil
+        }
+
+        for (idx, f) in fields.enumerated() {
+            if f.type == .splice {
+                if let leftKey = nearestVisibleNonDecorationKey(leftFrom: idx),
+                   let rightKey = nearestVisibleNonDecorationKey(rightFrom: idx),
+                   visibleKey[leftKey] == true,
+                   visibleKey[rightKey] == true {
+                    out.append(f)
+                }
+                continue
+            }
+
+            if visibleKey[f.key] == true {
+                out.append(f)
+            } else {
+                // Preview should behave like the real form: if clearOnHide is enabled, clear hidden values.
+                if let rule = f.visibleWhen, (rule.clearOnHide ?? true) {
+                    let key = f.key
+                    DispatchQueue.main.async {
+                        values[key] = ""
+                        boolValues[key] = false
+                        multiValues[key] = []
+                        for k in f.nameKeys ?? [] { values[k] = "" }
+                        for k in f.phoneKeys ?? [] { values[k] = "" }
+                    }
+                }
+            }
+        }
+
+        return out
+    }
+
     private func fieldRows(_ fields: [FormField]) -> [[FormField]] {
         var rows: [[FormField]] = []
         var i = 0
@@ -437,7 +548,8 @@ struct FormPreviewView: View {
     }
 
     private func canSubmit() -> Bool {
-        for f in fields where f.required {
+        let visible = visibleFieldsForRender(fields)
+        for f in visible where f.required {
             // Decoration / layout fields should NEVER block submission, even if old schemas accidentally set required=true.
             switch f.type {
             case .sectionTitle, .sectionSubtitle, .divider, .splice:
