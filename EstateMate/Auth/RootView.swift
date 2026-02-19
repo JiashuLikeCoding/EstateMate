@@ -44,35 +44,43 @@ struct CRMHomeView: View {
     var body: some View {
         NavigationStack {
             EMScreen {
-                ScrollView {
+                GeometryReader { geo in
+                    let rowCount: CGFloat = 3
+                    let rowHeight: CGFloat = max(58, (geo.size.height - 220) / rowCount)
+
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("客户管理", subtitle: "线索、客户、任务（开发中）")
 
                         EMCard {
-                            NavigationLink {
-                                CRMContactsListView()
-                            } label: {
-                                row(icon: "person.2", title: "客户列表", subtitle: "查看与搜索客户")
+                            VStack(spacing: 0) {
+                                NavigationLink {
+                                    CRMContactsListView()
+                                } label: {
+                                    row(icon: "person.2", title: "客户列表", subtitle: "查看与搜索客户")
+                                        .frame(height: rowHeight)
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider().overlay(EMTheme.line)
+
+                                NavigationLink {
+                                    CRMContactEditView(mode: .create)
+                                } label: {
+                                    row(icon: "person.badge.plus", title: "新增客户", subtitle: "快速录入一位客户")
+                                        .frame(height: rowHeight)
+                                }
+                                .buttonStyle(.plain)
+
+                                Divider().overlay(EMTheme.line)
+
+                                NavigationLink {
+                                    CRMTasksListView()
+                                } label: {
+                                    row(icon: "checklist", title: "待办任务", subtitle: "跟进提醒与记录")
+                                        .frame(height: rowHeight)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
-
-                            Divider().overlay(EMTheme.line)
-
-                            NavigationLink {
-                                CRMContactEditView(mode: .create)
-                            } label: {
-                                row(icon: "person.badge.plus", title: "新增客户", subtitle: "快速录入一位客户")
-                            }
-                            .buttonStyle(.plain)
-
-                            Divider().overlay(EMTheme.line)
-
-                            NavigationLink {
-                                CRMTasksListView()
-                            } label: {
-                                row(icon: "checklist", title: "待办任务", subtitle: "跟进提醒与记录")
-                            }
-                            .buttonStyle(.plain)
                         }
 
                         Button {
@@ -82,9 +90,10 @@ struct CRMHomeView: View {
                         }
                         .buttonStyle(EMSecondaryButtonStyle())
 
-                        Spacer(minLength: 20)
+                        Spacer(minLength: 0)
                     }
                     .padding(EMTheme.padding)
+                    .frame(minHeight: geo.size.height)
                 }
             }
         }
@@ -109,7 +118,7 @@ struct CRMHomeView: View {
             Spacer()
         }
         .contentShape(Rectangle())
-        .padding(.vertical, 6)
+        .frame(maxHeight: .infinity)
     }
 }
 
