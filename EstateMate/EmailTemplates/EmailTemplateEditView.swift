@@ -98,9 +98,9 @@ struct EmailTemplateEditView: View {
                     }
 
                     EMCard {
-                        EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
+                        EMTextField(title: "名称", text: $name, prompt: "例如：Open House的模版")
 
-                        EMTextField(title: "发件人显示名", text: $fromName, prompt: "例如：Ming Ren Realty")
+                        EMTextField(title: "发件人显示名", text: $fromName, prompt: "你的姓名（用于在对方邮箱显示）")
 
                         Text("主题")
                                 .font(.footnote.weight(.medium))
@@ -110,7 +110,7 @@ struct EmailTemplateEditView: View {
                                 text: $subject,
                                 selection: $subjectSelection,
                                 isFocused: $isSubjectFocused,
-                                placeholder: "例如：很高兴见到您，{{client_name}}"
+                                placeholder: "例如：很高兴见到您，{{firstname}}"
                             )
                             .padding(.horizontal, 12)
                             .padding(.vertical, 12)
