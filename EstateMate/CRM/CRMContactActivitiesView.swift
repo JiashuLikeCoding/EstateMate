@@ -21,7 +21,7 @@ struct CRMContactActivitiesView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("参与的活动", subtitle: "按开放日活动聚合展示")
+                    EMSectionHeader("参与的活动", subtitle: "按活动策划聚合展示")
 
                     if let errorMessage {
                         EMCard {
@@ -50,7 +50,7 @@ struct CRMContactActivitiesView: View {
                                 Text("暂无记录")
                                     .font(.headline)
                                     .foregroundStyle(EMTheme.ink)
-                                Text("这个客户还没有关联到任何开放日提交")
+                                Text("这个客户还没有关联到任何活动策划提交")
                                     .font(.subheadline)
                                     .foregroundStyle(EMTheme.ink2)
                             }

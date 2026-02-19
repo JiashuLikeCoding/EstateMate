@@ -88,9 +88,9 @@ struct CRMContactSubmissionDetailView: View {
 
     private var eventTitle: String {
         if let event {
-            return event.title.isEmpty ? "开放日" : event.title
+            return event.title.isEmpty ? "活动策划" : event.title
         }
-        return "开放日"
+        return "活动策划"
     }
 
     private var headerSubtitle: String {

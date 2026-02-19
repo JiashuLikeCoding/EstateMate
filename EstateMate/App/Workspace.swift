@@ -15,7 +15,7 @@ enum Workspace: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .openHouse: return "开放日"
+        case .openHouse: return "活动策划"
         case .crm: return "客户管理"
         }
     }

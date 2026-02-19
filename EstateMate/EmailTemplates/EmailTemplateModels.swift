@@ -14,7 +14,7 @@ enum EstateMateWorkspaceKind: String, Codable, CaseIterable, Hashable {
     var title: String {
         switch self {
         case .crm: return "客户管理"
-        case .openhouse: return "开放日"
+        case .openhouse: return "活动策划"
         }
     }
 }

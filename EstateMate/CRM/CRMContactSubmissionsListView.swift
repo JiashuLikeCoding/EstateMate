@@ -101,9 +101,9 @@ struct CRMContactSubmissionsListView: View {
 
     private func eventTitle(for submission: SubmissionV2) -> String {
         if let e = eventsById[submission.eventId] {
-            return e.title.isEmpty ? "开放日" : e.title
+            return e.title.isEmpty ? "活动策划" : e.title
         }
-        return "开放日"
+        return "活动策划"
     }
 
     private func load() async {

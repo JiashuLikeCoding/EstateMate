@@ -54,7 +54,7 @@ struct CRMGmailConnectView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(EMTheme.ink2)
                             } else {
-                                Text("连接后：开放日提交可自动发送邮件模版，并在客户详情里同步 Gmail 往来。")
+                                Text("连接后：活动策划提交可自动发送邮件模版，并在客户详情里同步 Gmail 往来。")
                                     .font(.subheadline)
                                     .foregroundStyle(EMTheme.ink2)
                             }

@@ -45,7 +45,7 @@ struct EmailTemplatesListView: View {
         EMScreen {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("邮件模版", subtitle: "开放日 & 客户管理共用")
+                    EMSectionHeader("邮件模版", subtitle: "活动策划 & 客户管理共用")
 
                     EMCard {
                         EMTextField(title: "搜索", text: $query, prompt: "按名称/主题/正文搜索")
@@ -90,7 +90,7 @@ struct EmailTemplatesListView: View {
                                     .font(.headline)
                                     .foregroundStyle(EMTheme.ink)
 
-                                Text("创建一份模版后，就可以在开放日自动发信、或在客户管理里快速发送。")
+                                Text("创建一份模版后，就可以在活动策划自动发信、或在客户管理里快速发送。")
                                     .font(.footnote)
                                     .foregroundStyle(EMTheme.ink2)
                                     .multilineTextAlignment(.center)

@@ -111,7 +111,7 @@ struct CRMContactsListView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "暂无客户" : "没有匹配的客户")
                                     .font(.headline)
-                                Text("你可以先从开放日的提交里转入客户（后续做），或手动新增。")
+                                Text("你可以先从活动策划的提交里转入客户（后续做），或手动新增。")
                                     .font(.caption)
                                     .foregroundStyle(EMTheme.ink2)
                             }

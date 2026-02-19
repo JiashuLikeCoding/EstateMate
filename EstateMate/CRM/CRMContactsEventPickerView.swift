@@ -42,7 +42,7 @@ struct CRMContactsEventPickerView: View {
                         }
                     }
 
-                    Section("开放日活动") {
+                    Section("活动策划") {
                         ForEach(events, id: \.id) { ev in
                             Button {
                                 onPick(ev)

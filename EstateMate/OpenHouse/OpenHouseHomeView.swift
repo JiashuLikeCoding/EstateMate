@@ -23,7 +23,7 @@ struct OpenHouseHomeView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                EMSectionHeader("开放日", subtitle: "创建表单、创建活动、开始现场填写")
+                EMSectionHeader("活动策划", subtitle: "创建表单、创建活动、开始现场填写")
 
                 EMCard {
                     NavigationLink {

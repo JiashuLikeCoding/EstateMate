@@ -19,10 +19,16 @@ enum CRMContactStage: String, CaseIterable, Codable, Equatable {
 }
 
 enum CRMContactSource: String, CaseIterable, Codable, Equatable {
+    // NOTE: raw values are persisted; do NOT change them lightly.
     case manual = "手动"
     case openHouse = "开放日"
 
-    var displayName: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .manual: return "手动"
+        case .openHouse: return "活动策划"
+        }
+    }
 }
 
 struct CRMContact: Codable, Identifiable, Equatable {
