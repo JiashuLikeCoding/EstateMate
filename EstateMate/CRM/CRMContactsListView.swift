@@ -32,6 +32,9 @@ struct CRMContactsListView: View {
     @State private var showDeleteConfirm = false
     @State private var showBulkEditSheet = false
 
+    @State private var showBulkEmailSheet = false
+    @State private var bulkEmailError: String? = nil
+
     @State private var navigateToContact: ContactNavTarget? = nil
 
     private let service = CRMService()
@@ -184,6 +187,21 @@ struct CRMContactsListView: View {
                 Task { await bulkEditSelected(patch) }
             }
         }
+        .sheet(isPresented: $showBulkEmailSheet) {
+            NavigationStack {
+                CRMBulkEmailComposeView(
+                    recipients: bulkEmailRecipients,
+                    skippedNoEmail: bulkEmailSkippedNoEmail
+                )
+            }
+        }
+        .alert("群发邮件", isPresented: Binding(get: { bulkEmailError != nil }, set: { v in if !v { bulkEmailError = nil } })) {
+            Button("好的", role: .cancel) {
+                bulkEmailError = nil
+            }
+        } message: {
+            Text(bulkEmailError ?? "")
+        }
         .safeAreaInset(edge: .bottom) {
             if isSelecting {
                 bulkActionBar
@@ -218,12 +236,26 @@ struct CRMContactsListView: View {
                         .font(.subheadline.weight(.semibold))
                 }
 
-                NavigationLink {
-                    CRMGmailConnectView()
+                Button {
+                    // If not selecting, entering selecting mode means "pick recipients".
+                    if !isSelecting {
+                        withAnimation(.snappy) {
+                            isSelecting = true
+                            selectedIds = []
+                        }
+                        return
+                    }
+
+                    // Already selecting: open bulk composer (1+ recipients).
+                    if selectedIds.isEmpty {
+                        bulkEmailError = "请先选择至少 1 个客户"
+                        return
+                    }
+
+                    showBulkEmailSheet = true
                 } label: {
                     Image(systemName: "envelope")
                 }
-                .disabled(isSelecting)
 
                 NavigationLink {
                     CRMAIContactImportView()
@@ -294,6 +326,24 @@ struct CRMContactsListView: View {
         return set.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
+    private var bulkEmailRecipients: [CRMBulkEmailComposeView.Recipient] {
+        let selected = contacts.filter { selectedIds.contains($0.id) }
+        return selected.compactMap { c in
+            let email = c.email.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !email.isEmpty else { return nil }
+            return CRMBulkEmailComposeView.Recipient(id: c.id, name: c.fullName, email: email)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var bulkEmailSkippedNoEmail: [String] {
+        let selected = contacts.filter { selectedIds.contains($0.id) }
+        let out = selected
+            .filter { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .map { $0.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名）" : $0.fullName }
+        return out.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
     private var bulkActionBar: some View {
         EMCard {
             HStack(spacing: 10) {
@@ -311,6 +361,14 @@ struct CRMContactsListView: View {
                 .buttonStyle(EMSecondaryButtonStyle())
 
                 Spacer()
+
+                Button {
+                    showBulkEmailSheet = true
+                } label: {
+                    Text("群发")
+                }
+                .buttonStyle(EMSecondaryButtonStyle())
+                .disabled(selectedIds.isEmpty)
 
                 Button {
                     showBulkEditSheet = true
