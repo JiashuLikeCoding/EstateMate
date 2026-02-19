@@ -46,11 +46,11 @@ struct CRMHomeView: View {
             EMScreen {
                 GeometryReader { geo in
                     let rowCount: CGFloat = 3
-                    let rowHeight: CGFloat = max(58, (geo.size.height - 220) / rowCount)
-                    let iconBox: CGFloat = min(46, max(32, rowHeight * 0.55))
-                    let iconFontSize: CGFloat = min(22, max(16, iconBox * 0.5))
-                    let titleFontSize: CGFloat = min(20, max(17, rowHeight * 0.30))
-                    let subtitleFontSize: CGFloat = min(14, max(12, rowHeight * 0.20))
+                    let rowHeight: CGFloat = min(90, max(56, (geo.size.height - 320) / rowCount))
+                    let iconBox: CGFloat = min(42, max(28, rowHeight * 0.52))
+                    let iconFontSize: CGFloat = min(20, max(15, iconBox * 0.50))
+                    let titleFontSize: CGFloat = min(19, max(16, rowHeight * 0.30))
+                    let subtitleFontSize: CGFloat = min(13, max(11.5, rowHeight * 0.20))
 
                     let accent = Color.blue
 
@@ -141,32 +141,32 @@ struct CRMHomeView: View {
     }
 
     private func hero(icon: String, title: String, subtitle: String, accent: Color) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(accent)
-                .frame(width: 40, height: 40)
+                .frame(width: 34, height: 34)
                 .background(accent.opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                 Text(subtitle)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                     .foregroundStyle(EMTheme.ink2)
                     .lineLimit(2)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(12)
-        .background(accent.opacity(0.06))
+        .padding(10)
+        .background(accent.opacity(0.05))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(accent.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(accent.opacity(0.16), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
