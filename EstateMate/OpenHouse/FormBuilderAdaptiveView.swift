@@ -770,7 +770,13 @@ private struct FormBuilderDrawerView: View {
                             .environmentObject(state)
                             .emReadHeight { h in
                                 // Clamp to reasonable range so it doesn't get tiny/huge.
-                                sheetHeight = min(max(h + 80, 360), 720)
+                                // Avoid jitter while typing (preference updates can fire frequently).
+                                let proposed = min(max(h + 80, 360), 720)
+                                if abs(proposed - sheetHeight) > 24 {
+                                    withTransaction(Transaction(animation: nil)) {
+                                        sheetHeight = proposed
+                                    }
+                                }
                             }
                     }
                 case .properties:
@@ -791,7 +797,12 @@ private struct FormBuilderDrawerView: View {
                         )
                         .environmentObject(state)
                         .emReadHeight { h in
-                            sheetHeight = min(max(h + 80, 420), 820)
+                            let proposed = min(max(h + 80, 420), 820)
+                            if abs(proposed - sheetHeight) > 24 {
+                                withTransaction(Transaction(animation: nil)) {
+                                    sheetHeight = proposed
+                                }
+                            }
                         }
                     }
                 }
