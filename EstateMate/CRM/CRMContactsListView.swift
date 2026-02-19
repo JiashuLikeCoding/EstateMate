@@ -771,6 +771,14 @@ private struct CRMContactCardContent: View {
                     .foregroundStyle(EMTheme.ink2)
             }
 
+            let notes = contact.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !notes.isEmpty {
+                Text("备注：\(notes)")
+                    .font(.caption2)
+                    .foregroundStyle(EMTheme.ink2)
+                    .lineLimit(2)
+            }
+
             let addresses = splitInterestedAddresses(contact.address)
             if !addresses.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {

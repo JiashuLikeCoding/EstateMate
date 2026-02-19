@@ -732,8 +732,9 @@ final class DynamicFormService {
                     fullName: extracted.fullName,
                     phone: extracted.phone,
                     email: extracted.email,
-                    // CRM 备注：不自动写任何开放日/表单相关文字。
-                    notes: "",
+                    // CRM 备注：不自动写任何开放日/表单相关文字；
+                    // 但允许写入表单里明确的“备注/notes”字段（仅客户备注本身）。
+                    notes: extracted.notes,
                     address: location ?? "",
                     tags: extracted.tags,
                     stage: .newLead,
