@@ -29,15 +29,19 @@ struct OpenHouseHomeView: View {
             let titleFontSize: CGFloat = min(20, max(17, rowHeight * 0.28))
             let subtitleFontSize: CGFloat = min(14, max(12, rowHeight * 0.20))
 
+            let accent = Color.green
+
             VStack(alignment: .leading, spacing: 18) {
                 EMSectionHeader("活动策划", subtitle: "创建表单、创建活动、开始现场填写")
+
+                hero(icon: "calendar.badge.clock", title: "活动策划", subtitle: "现场接待 · 访客登记 · 自动发信", accent: accent)
 
                 EMCard {
                     VStack(spacing: 0) {
                         NavigationLink {
                             OpenHouseEventHubView(initialTab: .create)
                         } label: {
-                            row(icon: "plus.app", title: "新建活动", subtitle: "创建活动并绑定表单", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
+                            row(icon: "plus.app", title: "新建活动", subtitle: "创建活动并绑定表单", accent: accent, iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                 .frame(height: rowHeight)
                         }
 
@@ -46,7 +50,7 @@ struct OpenHouseHomeView: View {
                         NavigationLink {
                             OpenHouseEventHubView(initialTab: .list)
                         } label: {
-                            row(icon: "list.bullet.rectangle", title: "活动列表", subtitle: "查看并启用活动", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
+                            row(icon: "list.bullet.rectangle", title: "活动列表", subtitle: "查看并启用活动", accent: accent, iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                 .frame(height: rowHeight)
                         }
 
@@ -55,7 +59,7 @@ struct OpenHouseHomeView: View {
                         NavigationLink {
                             OpenHouseFormsView()
                         } label: {
-                            row(icon: "doc.text", title: "表单管理", subtitle: "查看与管理已创建的表单", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
+                            row(icon: "doc.text", title: "表单管理", subtitle: "查看与管理已创建的表单", accent: accent, iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                 .frame(height: rowHeight)
                         }
 
@@ -64,7 +68,7 @@ struct OpenHouseHomeView: View {
                         NavigationLink {
                             EmailTemplatesListView(workspace: .openhouse)
                         } label: {
-                            row(icon: "envelope.open", title: "邮件模版", subtitle: "查看与管理邮件模版（提交后自动发信会用到）", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
+                            row(icon: "envelope.open", title: "邮件模版", subtitle: "查看与管理邮件模版（提交后自动发信会用到）", accent: accent, iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                 .frame(height: rowHeight)
                         }
 
@@ -73,7 +77,7 @@ struct OpenHouseHomeView: View {
                         NavigationLink {
                             OpenHouseVisitorListView()
                         } label: {
-                            row(icon: "person.3", title: "访客列表", subtitle: "按活动查看所有访客登记", iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
+                            row(icon: "person.3", title: "访客列表", subtitle: "按活动查看所有访客登记", accent: accent, iconBox: iconBox, iconFontSize: iconFontSize, titleFontSize: titleFontSize, subtitleFontSize: subtitleFontSize)
                                 .frame(height: rowHeight)
                         }
                     }
@@ -86,6 +90,7 @@ struct OpenHouseHomeView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(EMPrimaryButtonStyle(disabled: false))
+                .tint(accent)
 
                 Button {
                     sessionStore.selectedWorkspace = nil
@@ -93,6 +98,7 @@ struct OpenHouseHomeView: View {
                     Text("返回选择系统")
                 }
                 .buttonStyle(EMSecondaryButtonStyle())
+                .tint(accent)
 
                 Spacer(minLength: 0)
             }
@@ -104,6 +110,7 @@ struct OpenHouseHomeView: View {
         icon: String,
         title: String,
         subtitle: String,
+        accent: Color,
         iconBox: CGFloat,
         iconFontSize: CGFloat,
         titleFontSize: CGFloat,
@@ -112,9 +119,9 @@ struct OpenHouseHomeView: View {
         HStack(alignment: .center, spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: iconFontSize, weight: .semibold))
-                .foregroundStyle(EMTheme.accent)
+                .foregroundStyle(accent)
                 .frame(width: iconBox, height: iconBox)
-                .background(EMTheme.accent.opacity(0.12))
+                .background(accent.opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
             VStack(alignment: .leading, spacing: 6) {
@@ -129,6 +136,35 @@ struct OpenHouseHomeView: View {
         }
         .contentShape(Rectangle())
         .frame(maxHeight: .infinity)
+    }
+
+    private func hero(icon: String, title: String, subtitle: String, accent: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 40, height: 40)
+                .background(accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(EMTheme.ink2)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(accent.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(accent.opacity(0.18), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

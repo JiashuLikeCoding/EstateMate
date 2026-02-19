@@ -19,8 +19,12 @@ struct WorkspacePickerView: View {
                     let titleFontSize: CGFloat = min(20, max(17, rowHeight * 0.30))
                     let subtitleFontSize: CGFloat = min(14, max(12, rowHeight * 0.20))
 
+                    let accent = Color.purple
+
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("选择系统", subtitle: "选择要进入的模块")
+
+                        hero(icon: "square.grid.2x2", title: "选择系统", subtitle: "快速切换：活动策划 / 客户管理 / 邮箱绑定", accent: accent)
 
                         EMCard {
                             VStack(spacing: 0) {
@@ -31,9 +35,9 @@ struct WorkspacePickerView: View {
                                         HStack(alignment: .center, spacing: 12) {
                                             Image(systemName: w.iconSystemName)
                                                 .font(.system(size: iconFontSize, weight: .semibold))
-                                                .foregroundStyle(EMTheme.accent)
+                                                .foregroundStyle(accent)
                                                 .frame(width: iconBox, height: iconBox)
-                                                .background(EMTheme.accent.opacity(0.12))
+                                                .background(accent.opacity(0.12))
                                                 .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
                                             VStack(alignment: .leading, spacing: 6) {
@@ -63,9 +67,9 @@ struct WorkspacePickerView: View {
                                     HStack(alignment: .center, spacing: 12) {
                                         Image(systemName: "envelope")
                                             .font(.system(size: iconFontSize, weight: .semibold))
-                                            .foregroundStyle(EMTheme.accent)
+                                            .foregroundStyle(accent)
                                             .frame(width: iconBox, height: iconBox)
-                                            .background(EMTheme.accent.opacity(0.12))
+                                            .background(accent.opacity(0.12))
                                             .clipShape(RoundedRectangle(cornerRadius: max(8, iconBox * 0.28), style: .continuous))
 
                                         VStack(alignment: .leading, spacing: 6) {
@@ -78,7 +82,7 @@ struct WorkspacePickerView: View {
                                         }
                                         Spacer()
                                         Image(systemName: "chevron.right")
-                                            .foregroundStyle(EMTheme.ink2)
+                                            .foregroundStyle(accent.opacity(0.6))
                                     }
                                     .contentShape(Rectangle())
                                     .frame(maxHeight: .infinity)
@@ -102,6 +106,36 @@ struct WorkspacePickerView: View {
                 }
             }
         }
+    }
+
+
+    private func hero(icon: String, title: String, subtitle: String, accent: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 40, height: 40)
+                .background(accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold))
+                Text(subtitle)
+                    .font(.system(size: 13))
+                    .foregroundStyle(EMTheme.ink2)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(accent.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(accent.opacity(0.18), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
