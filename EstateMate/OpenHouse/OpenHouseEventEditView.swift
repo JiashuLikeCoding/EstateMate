@@ -510,10 +510,15 @@ struct OpenHouseEventEditView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            // Toggle archive only; keep submissions.
+            // Toggle archive; keep submissions.
+            // Product rule: archiving also ends the event.
             let next = !isArchived
             try await service.archiveEvent(id: event.id, isArchived: next)
             event.isArchived = next
+            if next {
+                event.isActive = false
+                event.endedAt = Date()
+            }
             errorMessage = nil
 
             // After toggling archive state, go back to list.

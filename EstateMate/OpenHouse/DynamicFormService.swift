@@ -209,7 +209,39 @@ final class DynamicFormService {
 
     func archiveEvent(id: UUID, isArchived: Bool) async throws {
         // Requires openhouse_events.is_archived column (see migration).
-        let payload: [String: Bool] = ["is_archived": isArchived]
+        // Product rule: archiving an event also ends it.
+        struct Patch: Encodable {
+            var isArchived: Bool
+            var isActive: Bool?
+            var endedAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case isArchived = "is_archived"
+                case isActive = "is_active"
+                case endedAt = "ended_at"
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(isArchived, forKey: .isArchived)
+
+                if let isActive {
+                    try container.encode(isActive, forKey: .isActive)
+                }
+
+                if let endedAt {
+                    try container.encode(endedAt, forKey: .endedAt)
+                }
+            }
+        }
+
+        let payload: Patch
+        if isArchived {
+            payload = Patch(isArchived: true, isActive: false, endedAt: Date())
+        } else {
+            payload = Patch(isArchived: false, isActive: nil, endedAt: nil)
+        }
+
         _ = try await client
             .from("openhouse_events")
             .update(payload)
