@@ -11,6 +11,7 @@ struct OpenHouseSubmissionsListView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
+    private let crmService = CRMService()
 
     let event: OpenHouseEventV2
 
@@ -25,6 +26,11 @@ struct OpenHouseSubmissionsListView: View {
     @State private var showDeleteConfirm = false
 
     @State private var showTagPicker = false
+
+    @State private var showAddNoteSheet = false
+    @State private var addNoteText = ""
+    @State private var addNoteError: String?
+    @State private var isSavingNote = false
 
     // Export
     @State private var isSelecting = false
@@ -90,6 +96,16 @@ struct OpenHouseSubmissionsListView: View {
                                             }
                                             .buttonStyle(.plain)
                                             .accessibilityLabel("添加标签")
+
+                                            Button {
+                                                selectedSubmission = s
+                                                showAddNoteSheet = true
+                                            } label: {
+                                                Image(systemName: "note.text")
+                                                    .foregroundStyle(EMTheme.ink2)
+                                            }
+                                            .buttonStyle(.plain)
+                                            .accessibilityLabel("添加备注")
 
                                             Button {
                                                 selectedSubmission = s
@@ -243,11 +259,105 @@ struct OpenHouseSubmissionsListView: View {
                 )
             }
         }
+        .sheet(isPresented: $showAddNoteSheet, onDismiss: {
+            selectedSubmission = nil
+            addNoteText = ""
+            addNoteError = nil
+            isSavingNote = false
+        }) {
+            NavigationStack {
+                EMScreen {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("给客户添加备注")
+                            .font(.headline)
+                            .foregroundStyle(EMTheme.ink)
+
+                        Text("备注会追加到客户资料里（不会覆盖原备注）。")
+                            .font(.callout)
+                            .foregroundStyle(EMTheme.ink2)
+
+                        if let addNoteError {
+                            Text(addNoteError)
+                                .font(.callout)
+                                .foregroundStyle(.red)
+                        }
+
+                        EMCard {
+                            TextField("请输入备注...", text: $addNoteText, axis: .vertical)
+                                .lineLimit(6...10)
+                                .font(.body)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(EMTheme.padding)
+                }
+                .navigationTitle("备注")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("取消") { showAddNoteSheet = false }
+                            .foregroundStyle(EMTheme.ink2)
+                    }
+
+                    ToolbarItem(placement: .topBarTrailing) {
+                        let trimmed = addNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        Button(isSavingNote ? "保存中…" : "保存") {
+                            Task { await saveContactNote() }
+                        }
+                        .disabled(isSavingNote || trimmed.isEmpty)
+                        .opacity((isSavingNote || trimmed.isEmpty) ? 0.4 : 1)
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     private func formForSubmission(_ submission: SubmissionV2) -> FormRecord? {
         let id = submission.formId ?? event.formId
         return formsById[id]
+    }
+
+    private func saveContactNote() async {
+        let note = addNoteText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !note.isEmpty else { return }
+        guard let submission = selectedSubmission else {
+            addNoteError = "未选择提交记录"
+            return
+        }
+        guard let contactId = submission.contactId else {
+            addNoteError = "这条提交还没有关联到客户（contact_id 为空）。请先回到客户列表确认已生成客户。"
+            return
+        }
+
+        isSavingNote = true
+        addNoteError = nil
+        defer { isSavingNote = false }
+
+        do {
+            let existing = try await crmService.getContact(id: contactId)
+            let existingNotes = existing.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            let merged = existingNotes.isEmpty ? note : (existingNotes + "\n" + note)
+
+            _ = try await crmService.updateContact(
+                id: contactId,
+                patch: CRMContactUpdate(
+                    fullName: nil,
+                    phone: nil,
+                    email: nil,
+                    notes: merged,
+                    tags: nil,
+                    stage: nil,
+                    source: nil,
+                    lastContactedAt: nil
+                )
+            )
+
+            showAddNoteSheet = false
+        } catch {
+            addNoteError = "保存失败：\(error.localizedDescription)"
+        }
     }
 
     private var exportBar: some View {
