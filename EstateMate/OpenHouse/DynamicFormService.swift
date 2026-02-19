@@ -144,7 +144,12 @@ final class DynamicFormService {
         let sellingKey = form.schema.fields[sellingIndex].key
         guard !sellingKey.isEmpty else { return form }
 
-        func shouldPatch(_ f: FormField) -> Bool {
+        func isSellingQuestion(_ f: FormField) -> Bool {
+            f.label.localizedCaseInsensitiveContains("considering selling") ||
+            f.label.contains("考虑出售")
+        }
+
+        func isDependentQuestion(_ f: FormField) -> Bool {
             let label = f.label
             return label.localizedCaseInsensitiveContains("How soon do you want to sell") ||
                 label.contains("多快出售") ||
@@ -157,14 +162,28 @@ final class DynamicFormService {
 
         for idx in patched.schema.fields.indices {
             var f = patched.schema.fields[idx]
-            guard shouldPatch(f) else { continue }
 
-            // Only patch if there is no rule yet (avoid overwriting user-configured logic).
+            // These three questions should NOT be required in the default registration form.
+            if isSellingQuestion(f) || isDependentQuestion(f) {
+                if f.required {
+                    f.required = false
+                    didChange = true
+                }
+            }
+
+            guard isDependentQuestion(f) else {
+                // still persist any required=false change
+                patched.schema.fields[idx] = f
+                continue
+            }
+
+            // Only patch visibility if there is no rule yet (avoid overwriting user-configured logic).
             if f.visibleWhen == nil {
                 f.visibleWhen = .init(dependsOnKey: sellingKey, op: .equals, value: "Yes", clearOnHide: true)
-                patched.schema.fields[idx] = f
                 didChange = true
             }
+
+            patched.schema.fields[idx] = f
         }
 
         return didChange ? patched : form
