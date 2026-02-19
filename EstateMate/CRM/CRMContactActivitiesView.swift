@@ -68,13 +68,6 @@ struct CRMContactActivitiesView: View {
                                         .foregroundStyle(EMTheme.ink)
 
                                     VStack(alignment: .leading, spacing: 6) {
-                                        HStack(spacing: 10) {
-                                            Text("提交：\(row.submissions.count)")
-                                                .font(.footnote)
-                                                .foregroundStyle(EMTheme.ink2)
-                                            Spacer()
-                                        }
-
                                         if let location = row.event.location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                             metaRow(icon: "mappin.and.ellipse", text: location)
                                         }
