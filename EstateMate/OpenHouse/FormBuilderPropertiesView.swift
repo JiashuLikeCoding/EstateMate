@@ -852,7 +852,11 @@ struct FormBuilderPropertiesView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("电话格式")
-                        .font(.footnote.weight(.medium))
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(EMTheme.ink)
+
+                    Text("提示：选择“带区号”会显示 2 个输入框（区号 + 手机号）。")
+                        .font(.caption)
                         .foregroundStyle(EMTheme.ink2)
 
                     Picker("电话格式", selection: Binding(
