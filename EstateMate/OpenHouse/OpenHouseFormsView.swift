@@ -209,7 +209,18 @@ struct OpenHouseFormsView: View {
             forms = try await service.listForms(includeArchived: includeArchived)
             errorMessage = nil
         } catch {
-            errorMessage = error.localizedDescription
+            // If archived forms include legacy/bad rows, the whole decode can fail.
+            // In that case, still show non-archived forms and surface a friendly hint.
+            if includeArchived {
+                do {
+                    forms = try await service.listForms(includeArchived: false)
+                    errorMessage = "部分已归档表单数据异常，暂时无法读取。你可以先关闭“显示已归档”，或把有问题的归档表单复制/重新创建。"
+                } catch {
+                    errorMessage = error.localizedDescription
+                }
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

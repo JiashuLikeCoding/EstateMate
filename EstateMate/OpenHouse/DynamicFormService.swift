@@ -34,9 +34,15 @@ final class DynamicFormService {
                 .execute()
                 .value
         } catch {
-            // Backward compatibility if the column isn't migrated yet.
+            // Backward compatibility if the column isn't migrated yet (or PostgREST schema cache is stale).
             let msg = (error as NSError).localizedDescription.lowercased()
-            if msg.contains("is_archived") && msg.contains("does not exist") {
+            let isArchivedMissing = msg.contains("is_archived") && (
+                msg.contains("does not exist") ||
+                msg.contains("schema cache") ||
+                msg.contains("could not find")
+            )
+
+            if isArchivedMissing {
                 return try await client
                     .from("forms")
                     .select()
