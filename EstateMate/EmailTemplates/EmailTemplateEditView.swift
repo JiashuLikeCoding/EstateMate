@@ -220,7 +220,8 @@ struct EmailTemplateEditView: View {
 
                             let builtInKeys: [String] = {
                                 guard workspace == .openhouse else { return [] }
-                                return ["firstname", "first_name", "lastname", "last_name", "middle_name", "address", "date", "time", "event_title"]
+                                // Prefer legacy keys (no underscore) for consistency in the UI.
+                                return ["firstname", "lastname", "middle_name", "address", "date", "time", "event_title"]
                             }()
 
                             if !(variables.isEmpty && builtInKeys.isEmpty) {
