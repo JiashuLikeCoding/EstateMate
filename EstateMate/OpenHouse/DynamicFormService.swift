@@ -883,6 +883,27 @@ final class DynamicFormService {
         return "<div style=\"font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#111;\">\n\(htmlParas.joined(separator: "\n"))\n</div>"
     }
 
+    /// Preserve user-authored newlines when the body is already HTML.
+    ///
+    /// If the user uses inline formatting tags (bold/italic/color) without explicit <br>/<p>,
+    /// Gmail will collapse raw newline characters.
+    private func preserveLineBreaksForSimpleHTML(_ html: String) -> String {
+        let normalized = html
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        let lower = normalized.lowercased()
+        // If the HTML already declares layout, do not touch it.
+        if lower.contains("<br") || lower.contains("<p") || lower.contains("<html") || lower.contains("<body") {
+            return normalized
+        }
+
+        if !normalized.contains("\n") { return normalized }
+
+        let withBreaks = normalized.replacingOccurrences(of: "\n", with: "<br>\n")
+        return "<div>\(withBreaks)</div>"
+    }
+
     private func bestEffortSendAutoEmailGmail(
         eventId: UUID,
         submissionId: UUID,
@@ -1043,7 +1064,13 @@ final class DynamicFormService {
             // If the user authored plain text, still send HTML too.
             // This prevents "random" hard wraps that can appear in some clients when the plain text contains
             // accidental line breaks (e.g. from copy/paste or transport). HTML will wrap naturally.
-            let bodyHTML = isHTML ? bodyRaw : plainTextToHTML(bodyRaw)
+            let bodyHTML: String = {
+                if isHTML {
+                    return preserveLineBreaksForSimpleHTML(bodyRaw)
+                }
+                return plainTextToHTML(bodyRaw)
+            }()
+
             let bodyText = isHTML ? stripHTML(bodyRaw) : bodyRaw
 
             if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
