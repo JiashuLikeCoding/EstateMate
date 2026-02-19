@@ -16,6 +16,8 @@ struct CRMContactDetailView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var contact: CRMContact?
+    @State private var activitiesCount: Int = 0
+    @State private var emailsCount: Int = 0
     @State private var submissionsCount: Int = 0
 
     struct ContactNavTarget: Identifiable, Equatable, Hashable {
@@ -26,6 +28,7 @@ struct CRMContactDetailView: View {
     @State private var mergedIntoContact: ContactNavTarget? = nil
 
     private let service = CRMService()
+    private let emailService = CRMEmailService()
     private let formService = DynamicFormService()
 
     var body: some View {
@@ -120,7 +123,7 @@ struct CRMContactDetailView: View {
                                 NavigationLink {
                                     CRMContactActivitiesView(contactId: contactId)
                                 } label: {
-                                    linkRow(icon: "calendar", title: "参与的活动")
+                                    linkRow(icon: "calendar", title: "参与的活动（\(activitiesCount)）")
                                 }
                                 .buttonStyle(.plain)
 
@@ -129,7 +132,7 @@ struct CRMContactDetailView: View {
                                 NavigationLink {
                                     CRMEmailLogsView(contactId: contactId)
                                 } label: {
-                                    linkRow(icon: "envelope", title: "来往的邮件")
+                                    linkRow(icon: "envelope", title: "来往的邮件（\(emailsCount)）")
                                 }
                                 .buttonStyle(.plain)
 
@@ -189,9 +192,14 @@ struct CRMContactDetailView: View {
 
         do {
             contact = try await service.getContact(id: contactId)
+
             // Only show a clean entrypoint for submissions; details are inside the drill-down.
             let subs = (try? await formService.listSubmissions(contactId: contactId)) ?? []
             submissionsCount = subs.count
+            activitiesCount = Set(subs.map { $0.eventId }).count
+
+            let emailLogs = (try? await emailService.listLogs(contactId: contactId)) ?? []
+            emailsCount = emailLogs.count
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
