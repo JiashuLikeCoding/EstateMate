@@ -678,12 +678,21 @@ struct EmailTemplateEditView: View {
         let normalized = html
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\u{2028}", with: "\n")  // line separator
+            .replacingOccurrences(of: "\u{2029}", with: "\n")  // paragraph separator
 
         let lower = normalized.lowercased()
-        let alreadyHasLayout = lower.contains("<br") || lower.contains("<p") || lower.contains("<div") || lower.contains("<li") || lower.contains("<ul") || lower.contains("<ol")
+
+        // If the HTML already declares explicit line/paragraph structure, don't touch it.
+        // Note: we intentionally do NOT treat <div> as "already has layout" because <div> alone
+        // doesn't preserve raw newlines.
+        let alreadyHasLayout = lower.contains("<br") || lower.contains("<p") || lower.contains("<pre") || lower.contains("<li")
         guard !alreadyHasLayout else { return normalized }
 
-        let withBreaks = normalized.replacingOccurrences(of: "\n", with: "<br>")
+        guard normalized.contains("\n") else { return normalized }
+
+        // Preserve user-authored newlines.
+        let withBreaks = normalized.replacingOccurrences(of: "\n", with: "<br>\n")
         return "<p>\(withBreaks)</p>"
     }
 
