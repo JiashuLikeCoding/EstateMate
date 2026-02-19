@@ -30,10 +30,13 @@ struct MainView: View {
         switch sessionStore.selectedWorkspace {
         case .openHouse:
             OpenHouseHomeView()
+                .emAccentColor(.green)
         case .crm:
             CRMHomeView()
+                .emAccentColor(.blue)
         case .none:
             WorkspacePickerView()
+                .emAccentColor(.purple)
         }
     }
 }

@@ -5,9 +5,31 @@
 
 import SwiftUI
 
+// MARK: - Accent Color (per module)
+
+private struct EMAccentColorKey: EnvironmentKey {
+    static let defaultValue: Color = EMTheme.accent
+}
+
+extension EnvironmentValues {
+    var emAccentColor: Color {
+        get { self[EMAccentColorKey.self] }
+        set { self[EMAccentColorKey.self] = newValue }
+    }
+}
+
+extension View {
+    func emAccentColor(_ color: Color) -> some View {
+        environment(\.emAccentColor, color)
+            .tint(color)
+    }
+}
+
 struct EMScreen<Content: View>: View {
     let title: String?
     let content: Content
+
+    @Environment(\.emAccentColor) private var accent
 
     init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
@@ -29,7 +51,7 @@ struct EMScreen<Content: View>: View {
             content
                 .foregroundStyle(EMTheme.ink)
         }
-        .tint(EMTheme.accent)
+        .tint(accent)
         .navigationTitle(title ?? "")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -652,6 +674,8 @@ struct EMChoiceField: View {
     let options: [String]
     var selection: Binding<String>
 
+    @Environment(\.emAccentColor) private var accent
+
     @State private var isExpanded = false
 
     private var displayText: String {
@@ -742,7 +766,7 @@ struct EMChoiceField: View {
                                         Spacer(minLength: 0)
                                         Image(systemName: selection.wrappedValue == opt ? "largecircle.fill.circle" : "circle")
                                             .font(.title3)
-                                            .foregroundStyle(selection.wrappedValue == opt ? EMTheme.accent : EMTheme.ink2)
+                                            .foregroundStyle(selection.wrappedValue == opt ? accent : EMTheme.ink2)
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 12)
@@ -770,6 +794,8 @@ struct EMSelectDotsField: View {
     let options: [String]
     var selection: Binding<String>
 
+    @Environment(\.emAccentColor) private var accent
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -786,7 +812,7 @@ struct EMSelectDotsField: View {
                         HStack(spacing: 10) {
                             Image(systemName: selection.wrappedValue == opt ? "circle.inset.filled" : "circle")
                                 .font(.title3)
-                                .foregroundStyle(selection.wrappedValue == opt ? EMTheme.accent : EMTheme.ink2)
+                                .foregroundStyle(selection.wrappedValue == opt ? accent : EMTheme.ink2)
 
                             Text(opt)
                                 .font(.callout)
@@ -817,6 +843,8 @@ struct EMMultiSelectField: View {
     let options: [String]
     var selection: Binding<Set<String>>
     var style: MultiSelectStyle = .chips
+
+    @Environment(\.emAccentColor) private var accent
 
     @State private var isExpanded: Bool = false
 
@@ -869,7 +897,7 @@ struct EMMultiSelectField: View {
                             HStack(spacing: 12) {
                                 Image(systemName: selection.wrappedValue.contains(opt) ? "checkmark.square.fill" : "square")
                                     .font(.title3)
-                                    .foregroundStyle(selection.wrappedValue.contains(opt) ? EMTheme.accent : EMTheme.ink2)
+                                    .foregroundStyle(selection.wrappedValue.contains(opt) ? accent : EMTheme.ink2)
 
                                 Text(opt)
                                     .font(.callout)
@@ -940,7 +968,7 @@ struct EMMultiSelectField: View {
 
                                         Image(systemName: selection.wrappedValue.contains(opt) ? "checkmark.circle.fill" : "circle")
                                             .font(.title3)
-                                            .foregroundStyle(selection.wrappedValue.contains(opt) ? EMTheme.accent : EMTheme.ink2)
+                                            .foregroundStyle(selection.wrappedValue.contains(opt) ? accent : EMTheme.ink2)
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 12)
@@ -979,6 +1007,8 @@ struct EMMultiSelectField: View {
 
 struct EMFormBackgroundView: View {
     let background: FormBackground
+
+    @Environment(\.emAccentColor) private var accent
 
     private let service = DynamicFormService()
 
@@ -1043,7 +1073,7 @@ struct EMFormBackgroundView: View {
 
         case "moss":
             LinearGradient(
-                colors: [EMTheme.paper, EMTheme.accent.opacity(0.22), EMTheme.paper],
+                colors: [EMTheme.paper, accent.opacity(0.22), EMTheme.paper],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -1061,6 +1091,8 @@ struct EMFormBackgroundView: View {
 struct EMPrimaryButtonStyle: ButtonStyle {
     var disabled: Bool
 
+    @Environment(\.emAccentColor) private var accent
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
@@ -1069,7 +1101,7 @@ struct EMPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .background(
                 RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                    .fill(disabled ? Color.gray.opacity(0.35) : EMTheme.accent)
+                    .fill(disabled ? Color.gray.opacity(0.35) : accent)
             )
             .opacity(configuration.isPressed ? 0.92 : 1)
     }
