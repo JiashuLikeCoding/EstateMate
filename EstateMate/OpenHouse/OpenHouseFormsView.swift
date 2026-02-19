@@ -8,13 +8,21 @@ import SwiftUI
 struct OpenHouseFormsView: View {
     private let service = DynamicFormService()
 
+    private static let shortDateTime: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = .current
+        f.dateStyle = .short
+        f.timeStyle = .short
+        return f
+    }()
+
     /// Optional selection mode (used when this screen is shown as a “bind form” management sheet).
     /// When provided, we show a consistent “不绑定” row (same style as EmailTemplatesListView selection mode).
     var selection: Binding<UUID?>? = nil
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var forms: [FormRecord] = []
+    @State private var forms: [FormSummary] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -101,7 +109,7 @@ struct OpenHouseFormsView: View {
                                     ForEach(Array(forms.enumerated()), id: \.element.id) { idx, f in
                                         ZStack(alignment: .topTrailing) {
                                             NavigationLink {
-                                                FormBuilderAdaptiveView(form: f)
+                                                FormBuilderLoadView(formId: f.id)
                                             } label: {
                                                 HStack(alignment: .top, spacing: 12) {
                                                     VStack(alignment: .leading, spacing: 8) {
@@ -115,22 +123,20 @@ struct OpenHouseFormsView: View {
                                                             }
                                                         }
 
-                                                        if f.schema.fields.isEmpty {
-                                                            Text("暂无字段")
-                                                                .font(.caption)
+                                                        Text("点击进入编辑")
+                                                            .font(.caption)
+                                                            .foregroundStyle(EMTheme.ink2)
+
+                                                        if let createdAt = f.createdAt {
+                                                            Text("创建时间：\(OpenHouseFormsView.shortDateTime.string(from: createdAt))")
+                                                                .font(.caption2)
                                                                 .foregroundStyle(EMTheme.ink2)
-                                                        } else {
-                                                            VStack(alignment: .leading, spacing: 6) {
-                                                                ForEach(chunks(of: fieldChips(for: f), size: 3), id: \.self) { row in
-                                                                    HStack(spacing: 8) {
-                                                                        ForEach(row, id: \.self) { t in
-                                                                            EMChip(text: t, isOn: false)
-                                                                        }
-                                                                        Spacer(minLength: 0)
-                                                                    }
-                                                                }
-                                                            }
-                                                            .padding(.vertical, 2)
+                                                        }
+
+                                                        if (f.isArchived ?? false), let archivedAt = f.archivedAt {
+                                                            Text("归档时间：\(OpenHouseFormsView.shortDateTime.string(from: archivedAt))")
+                                                                .font(.caption2)
+                                                                .foregroundStyle(EMTheme.ink2)
                                                         }
                                                     }
                                                     Spacer(minLength: 0)
@@ -146,11 +152,13 @@ struct OpenHouseFormsView: View {
                                                     Task { await copyForm(f) }
                                                 }
 
-                                                Button("归档") {
-                                                    Task { await archiveForm(f, isArchived: true) }
+                                                if (f.isArchived ?? false) == false {
+                                                    Button("归档") {
+                                                        Task { await archiveForm(f, isArchived: true) }
+                                                    }
                                                 }
 
-                                                if includeArchived {
+                                                if includeArchived, (f.isArchived ?? false) {
                                                     Button("取消归档") {
                                                         Task { await archiveForm(f, isArchived: false) }
                                                     }
@@ -206,14 +214,14 @@ struct OpenHouseFormsView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            forms = try await service.listForms(includeArchived: includeArchived)
+            forms = try await service.listFormSummaries(includeArchived: includeArchived)
             errorMessage = nil
         } catch {
             // If archived forms include legacy/bad rows, the whole decode can fail.
             // In that case, still show non-archived forms and surface a friendly hint.
             if includeArchived {
                 do {
-                    forms = try await service.listForms(includeArchived: false)
+                    forms = try await service.listFormSummaries(includeArchived: false)
                     errorMessage = "部分已归档表单数据异常，暂时无法读取。你可以先关闭“显示已归档”，或把有问题的归档表单复制/重新创建。"
                 } catch {
                     errorMessage = error.localizedDescription
@@ -224,20 +232,22 @@ struct OpenHouseFormsView: View {
         }
     }
 
-    private func copyForm(_ form: FormRecord) async {
+    private func copyForm(_ form: FormSummary) async {
         guard isWorking == false else { return }
         isWorking = true
         defer { isWorking = false }
 
         do {
-            _ = try await service.createForm(name: "\(form.name) 副本", schema: form.schema)
+            // Copy needs full schema; load it first.
+            let full = try await service.getForm(id: form.id)
+            _ = try await service.createForm(name: "\(full.name) 副本", schema: full.schema)
             await load()
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    private func archiveForm(_ form: FormRecord, isArchived: Bool) async {
+    private func archiveForm(_ form: FormSummary, isArchived: Bool) async {
         guard isWorking == false else { return }
         isWorking = true
         defer { isWorking = false }
@@ -256,112 +266,4 @@ struct OpenHouseFormsView: View {
         }
     }
 
-    private func fieldChips(for form: FormRecord) -> [String] {
-        // Keep it compact: show up to 6 chips, no count label.
-        let maxCount = 6
-        let fields = form.schema.fields
-
-        func typeTitle(_ type: FormFieldType) -> String {
-            switch type {
-            case .name: return "姓名"
-            case .text: return "文本"
-            case .multilineText: return "多行文本"
-            case .phone: return "手机号"
-            case .email: return "邮箱"
-            case .select: return "单选"
-            case .dropdown: return "下拉选框"
-            case .multiSelect: return "多选"
-            case .checkbox: return "勾选"
-            case .date: return "日期"
-            case .time: return "时间"
-            case .address: return "地址"
-            case .sectionTitle: return "大标题"
-            case .sectionSubtitle: return "小标题"
-            case .divider: return "分割线"
-            case .splice: return "拼接"
-            }
-        }
-
-        var chips: [String] = []
-        for f in fields.prefix(maxCount) {
-            let required = f.required ? "*" : ""
-            chips.append("\(f.label)\(required)（\(typeTitle(f.type))）")
-        }
-
-        if fields.count > maxCount {
-            chips.append("+\(fields.count - maxCount)")
-        }
-
-        return chips
-    }
-
-    private func chunks<T: Hashable>(of items: [T], size: Int) -> [[T]] {
-        guard size > 0 else { return [items] }
-        var result: [[T]] = []
-        var i = 0
-        while i < items.count {
-            let end = min(items.count, i + size)
-            result.append(Array(items[i..<end]))
-            i = end
-        }
-        return result
-    }
-}
-
-private struct OpenHouseFormDetailView: View {
-    let form: FormRecord
-
-    var body: some View {
-        EMScreen("表单详情") {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader(form.name, subtitle: "字段预览")
-
-                    EMCard {
-                        VStack(spacing: 0) {
-                            ForEach(Array(form.schema.fields.enumerated()), id: \.element.id) { idx, f in
-                                HStack {
-                                    Text(f.label)
-                                        .font(.headline)
-                                    Spacer()
-                                    Text(typeName(f))
-                                        .font(.caption)
-                                        .foregroundStyle(EMTheme.ink2)
-                                }
-                                .padding(.vertical, 10)
-
-                                if idx != form.schema.fields.count - 1 {
-                                    Divider().overlay(EMTheme.line)
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(minLength: 20)
-                }
-                .padding(EMTheme.padding)
-            }
-        }
-    }
-
-    private func typeName(_ f: FormField) -> String {
-        switch f.type {
-        case .name: return "姓名"
-        case .text: return "文本"
-        case .multilineText: return "多行文本"
-        case .phone: return "手机号"
-        case .email: return "邮箱"
-        case .select: return "单选"
-        case .dropdown: return "下拉选框"
-        case .multiSelect: return "多选"
-        case .checkbox: return "勾选"
-        case .date: return "日期"
-        case .time: return "时间"
-        case .address: return "地址"
-        case .sectionTitle: return "大标题"
-        case .sectionSubtitle: return "小标题"
-        case .divider: return "分割线"
-        case .splice: return "拼接"
-        }
-    }
 }

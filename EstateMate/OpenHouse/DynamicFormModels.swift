@@ -299,6 +299,7 @@ struct FormRecord: Codable, Identifiable, Hashable {
     var name: String
     var schema: FormSchema
     var isArchived: Bool?
+    var archivedAt: Date?
     var createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -307,6 +308,24 @@ struct FormRecord: Codable, Identifiable, Hashable {
         case name
         case schema
         case isArchived = "is_archived"
+        case archivedAt = "archived_at"
+        case createdAt = "created_at"
+    }
+}
+
+/// Lightweight list row model for forms (does NOT include schema).
+struct FormSummary: Codable, Identifiable, Hashable {
+    let id: UUID
+    var name: String
+    var isArchived: Bool?
+    var archivedAt: Date?
+    var createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case isArchived = "is_archived"
+        case archivedAt = "archived_at"
         case createdAt = "created_at"
     }
 }

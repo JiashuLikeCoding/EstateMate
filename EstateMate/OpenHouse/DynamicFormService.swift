@@ -54,6 +54,65 @@ final class DynamicFormService {
         }
     }
 
+    /// Safe list query that does not fetch `schema` (avoids decoding failures caused by legacy/bad schema JSON).
+    func listFormSummaries(includeArchived: Bool = false) async throws -> [FormSummary] {
+        do {
+            var q = client
+                .from("forms")
+                .select("id,name,is_archived,archived_at,created_at")
+
+            if includeArchived == false {
+                q = q.eq("is_archived", value: false)
+            }
+
+            return try await q
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            // Backward compatibility if columns aren't migrated yet (or PostgREST schema cache is stale).
+            let msg = (error as NSError).localizedDescription.lowercased()
+
+            let isArchivedMissing = msg.contains("is_archived") && (
+                msg.contains("does not exist") ||
+                msg.contains("schema cache") ||
+                msg.contains("could not find")
+            )
+
+            if isArchivedMissing {
+                return try await client
+                    .from("forms")
+                    .select("id,name,created_at")
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+            }
+
+            let archivedAtMissing = msg.contains("archived_at") && (
+                msg.contains("does not exist") ||
+                msg.contains("schema cache") ||
+                msg.contains("could not find")
+            )
+
+            if archivedAtMissing {
+                var q = client
+                    .from("forms")
+                    .select("id,name,is_archived,created_at")
+
+                if includeArchived == false {
+                    q = q.eq("is_archived", value: false)
+                }
+
+                return try await q
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+            }
+
+            throw error
+        }
+    }
+
     func createForm(name: String, schema: FormSchema) async throws -> FormRecord {
         let payload = FormInsert(name: name, schema: schema)
         return try await client
@@ -78,8 +137,32 @@ final class DynamicFormService {
     }
 
     func archiveForm(id: UUID, isArchived: Bool) async throws {
-        // Requires forms.is_archived column (see migration).
-        let payload: [String: Bool] = ["is_archived": isArchived]
+        // Requires forms.is_archived + forms.archived_at columns (see migration).
+        struct FormArchivePatch: Encodable {
+            var isArchived: Bool
+            var archivedAt: Date?
+
+            enum CodingKeys: String, CodingKey {
+                case isArchived = "is_archived"
+                case archivedAt = "archived_at"
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(isArchived, forKey: .isArchived)
+                if let archivedAt {
+                    try container.encode(archivedAt, forKey: .archivedAt)
+                } else {
+                    try container.encodeNil(forKey: .archivedAt)
+                }
+            }
+        }
+
+        let payload = FormArchivePatch(
+            isArchived: isArchived,
+            archivedAt: isArchived ? Date() : nil
+        )
+
         _ = try await client
             .from("forms")
             .update(payload)
