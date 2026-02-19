@@ -1005,9 +1005,17 @@ final class DynamicFormService {
             let firstName = (data["first_name"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             let middleName = (data["middle_name"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
-            if !firstName.isEmpty { overrides["firstname"] = firstName }
-            if !lastName.isEmpty { overrides["lastname"] = lastName }
-            if !middleName.isEmpty { overrides["middle_name"] = middleName }
+            if !firstName.isEmpty {
+                overrides["firstname"] = firstName
+                overrides["first_name"] = firstName // alias
+            }
+            if !lastName.isEmpty {
+                overrides["lastname"] = lastName
+                overrides["last_name"] = lastName // alias
+            }
+            if !middleName.isEmpty {
+                overrides["middle_name"] = middleName
+            }
 
             if overrides["firstname"] == nil || overrides["lastname"] == nil {
                 let parts = extracted.fullName
