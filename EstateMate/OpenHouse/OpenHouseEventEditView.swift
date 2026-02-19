@@ -273,7 +273,7 @@ struct OpenHouseEventEditView: View {
                                 .buttonStyle(EMDangerButtonStyle())
                             }
 
-                            Button("删除活动") {
+                            Button("归档活动") {
                                 showDeleteConfirm = true
                             }
                             .buttonStyle(EMDangerButtonStyle())
@@ -317,13 +317,13 @@ struct OpenHouseEventEditView: View {
                 EmailTemplatesListView(workspace: .openhouse, selection: $selectedEmailTemplateId)
             }
         }
-        .alert("删除这个活动？", isPresented: $showDeleteConfirm) {
+        .alert("归档这个活动？", isPresented: $showDeleteConfirm) {
             Button("取消", role: .cancel) {}
-            Button("删除", role: .destructive) {
-                Task { await deleteEvent() }
+            Button("归档", role: .destructive) {
+                Task { await archiveEvent() }
             }
         } message: {
-            Text("删除后无法恢复，并会同时删除该活动下的所有提交记录")
+            Text("归档后活动会从列表隐藏，但提交记录会保留。")
         }
     }
 
@@ -500,11 +500,12 @@ struct OpenHouseEventEditView: View {
         }
     }
 
-    private func deleteEvent() async {
+    private func archiveEvent() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            try await service.deleteEvent(id: event.id)
+            // Archive only; keep submissions.
+            try await service.archiveEvent(id: event.id, isArchived: true)
             errorMessage = nil
             dismiss()
         } catch {

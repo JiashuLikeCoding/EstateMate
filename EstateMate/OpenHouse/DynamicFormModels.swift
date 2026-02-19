@@ -300,6 +300,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
     var emailTemplateId: UUID?
 
     var isActive: Bool
+    var isArchived: Bool?
     var createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
@@ -315,6 +316,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
         case formId = "form_id"
         case emailTemplateId = "email_template_id"
         case isActive = "is_active"
+        case isArchived = "is_archived"
         case createdAt = "created_at"
     }
 }

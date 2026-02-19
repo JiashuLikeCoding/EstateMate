@@ -115,13 +115,33 @@ final class DynamicFormService {
 
     // MARK: - Events
 
-    func listEvents() async throws -> [OpenHouseEventV2] {
-        try await client
-            .from("openhouse_events")
-            .select()
-            .order("created_at", ascending: false)
-            .execute()
-            .value
+    func listEvents(includeArchived: Bool = false) async throws -> [OpenHouseEventV2] {
+        do {
+            var q = client
+                .from("openhouse_events")
+                .select()
+
+            if includeArchived == false {
+                q = q.eq("is_archived", value: false)
+            }
+
+            return try await q
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            // Backward compatibility if the column isn't migrated yet.
+            let msg = (error as NSError).localizedDescription.lowercased()
+            if msg.contains("is_archived") && msg.contains("does not exist") {
+                return try await client
+                    .from("openhouse_events")
+                    .select()
+                    .order("created_at", ascending: false)
+                    .execute()
+                    .value
+            }
+            throw error
+        }
     }
 
     func createEvent(
@@ -187,7 +207,18 @@ final class DynamicFormService {
             .value
     }
 
+    func archiveEvent(id: UUID, isArchived: Bool) async throws {
+        // Requires openhouse_events.is_archived column (see migration).
+        let payload: [String: Bool] = ["is_archived": isArchived]
+        _ = try await client
+            .from("openhouse_events")
+            .update(payload)
+            .eq("id", value: id.uuidString)
+            .execute()
+    }
+
     func deleteEvent(id: UUID) async throws {
+        // Hard delete (kept for admin/debug only; UI uses archive).
         _ = try await client
             .from("openhouse_events")
             .delete()
@@ -196,17 +227,40 @@ final class DynamicFormService {
     }
 
     func setActive(eventId: UUID) async throws {
-        _ = try await client
-            .from("openhouse_events")
-            .update(["is_active": false])
-            .neq("id", value: eventId.uuidString)
-            .execute()
+        // Do not activate archived events; and do not touch archived ones when clearing actives.
+        do {
+            _ = try await client
+                .from("openhouse_events")
+                .update(["is_active": false])
+                .eq("is_archived", value: false)
+                .neq("id", value: eventId.uuidString)
+                .execute()
 
-        _ = try await client
-            .from("openhouse_events")
-            .update(["is_active": true])
-            .eq("id", value: eventId.uuidString)
-            .execute()
+            _ = try await client
+                .from("openhouse_events")
+                .update(["is_active": true])
+                .eq("id", value: eventId.uuidString)
+                .eq("is_archived", value: false)
+                .execute()
+        } catch {
+            // Backward compatibility if the column isn't migrated yet.
+            let msg = (error as NSError).localizedDescription.lowercased()
+            if msg.contains("is_archived") && msg.contains("does not exist") {
+                _ = try await client
+                    .from("openhouse_events")
+                    .update(["is_active": false])
+                    .neq("id", value: eventId.uuidString)
+                    .execute()
+
+                _ = try await client
+                    .from("openhouse_events")
+                    .update(["is_active": true])
+                    .eq("id", value: eventId.uuidString)
+                    .execute()
+                return
+            }
+            throw error
+        }
     }
 
     func markEventEnded(eventId: UUID, endedAt: Date = Date()) async throws -> OpenHouseEventV2 {
@@ -234,14 +288,31 @@ final class DynamicFormService {
     }
 
     func getActiveEvent() async throws -> OpenHouseEventV2? {
-        let events: [OpenHouseEventV2] = try await client
-            .from("openhouse_events")
-            .select()
-            .eq("is_active", value: true)
-            .limit(1)
-            .execute()
-            .value
-        return events.first
+        do {
+            let events: [OpenHouseEventV2] = try await client
+                .from("openhouse_events")
+                .select()
+                .eq("is_active", value: true)
+                .eq("is_archived", value: false)
+                .limit(1)
+                .execute()
+                .value
+            return events.first
+        } catch {
+            // Backward compatibility if the column isn't migrated yet.
+            let msg = (error as NSError).localizedDescription.lowercased()
+            if msg.contains("is_archived") && msg.contains("does not exist") {
+                let events: [OpenHouseEventV2] = try await client
+                    .from("openhouse_events")
+                    .select()
+                    .eq("is_active", value: true)
+                    .limit(1)
+                    .execute()
+                    .value
+                return events.first
+            }
+            throw error
+        }
     }
 
     func getForm(id: UUID) async throws -> FormRecord {
