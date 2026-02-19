@@ -32,7 +32,8 @@ struct RichTextEditorView: UIViewRepresentable {
         tv.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
         tv.textContainer.lineFragmentPadding = 0
 
-        tv.font = UIFont.systemFont(ofSize: 16)
+        // Match the rest of the app's body text sizing.
+        tv.font = UIFont.preferredFont(forTextStyle: .body)
         tv.textColor = UIColor.label
 
         // Auto-detect links for WYSIWYG
@@ -120,12 +121,24 @@ private func applyVariableHighlight(to attributed: NSAttributedString) -> NSAttr
     let pattern = "\\{\\{[^{}]+\\}\\}" // simple + safe
     guard let regex = try? NSRegularExpression(pattern: pattern) else { return attributed }
 
-    let tokenColor = UIColor.systemGreen
+    let tokenColor = UIColor(hexString: "#0B5A2A") ?? UIColor.systemGreen
     regex.enumerateMatches(in: mutable.string, range: fullRange) { match, _, _ in
         guard let r = match?.range, r.length > 0 else { return }
 
-        // Apply green, but keep existing font/bold/italic etc.
+        // Editor-only: deep green + bold for {{...}} tokens.
+        // IMPORTANT: we strip this styling before saving/export.
         mutable.addAttribute(.foregroundColor, value: tokenColor, range: r)
+
+        mutable.enumerateAttribute(.font, in: r, options: []) { value, subRange, _ in
+            let baseFont = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+            let descriptor = baseFont.fontDescriptor
+            let traits = descriptor.symbolicTraits.union(.traitBold)
+            if let newDescriptor = descriptor.withSymbolicTraits(traits) {
+                mutable.addAttribute(.font, value: UIFont(descriptor: newDescriptor, size: baseFont.pointSize), range: subRange)
+            } else {
+                mutable.addAttribute(.font, value: UIFont.boldSystemFont(ofSize: baseFont.pointSize), range: subRange)
+            }
+        }
     }
 
     return mutable
@@ -144,9 +157,22 @@ private func stripVariableHighlight(from attributed: NSAttributedString) -> NSAt
     regex.enumerateMatches(in: mutable.string, range: fullRange) { match, _, _ in
         guard let r = match?.range, r.length > 0 else { return }
 
-        // Remove token color so it doesn't get saved/exported.
+        // Remove token styling so it doesn't get saved/exported.
         // (Other user-chosen colors elsewhere remain.)
         mutable.removeAttribute(.foregroundColor, range: r)
+
+        // Also remove the bold we apply in the editor for tokens.
+        mutable.enumerateAttribute(.font, in: r, options: []) { value, subRange, _ in
+            let baseFont = (value as? UIFont) ?? UIFont.preferredFont(forTextStyle: .body)
+            let descriptor = baseFont.fontDescriptor
+            var traits = descriptor.symbolicTraits
+            traits.remove(.traitBold)
+            if let newDescriptor = descriptor.withSymbolicTraits(traits) {
+                mutable.addAttribute(.font, value: UIFont(descriptor: newDescriptor, size: baseFont.pointSize), range: subRange)
+            } else {
+                mutable.addAttribute(.font, value: UIFont.systemFont(ofSize: baseFont.pointSize), range: subRange)
+            }
+        }
     }
 
     return mutable
