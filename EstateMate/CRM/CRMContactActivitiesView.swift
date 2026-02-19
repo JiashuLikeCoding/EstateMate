@@ -59,7 +59,7 @@ struct CRMContactActivitiesView: View {
 
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                         NavigationLink {
-                            CRMContactActivityDetailView(contactId: contactId, event: row.event, submissions: row.submissions)
+                            CRMContactActivityFormDetailView(contactId: contactId, event: row.event, submissions: row.submissions)
                         } label: {
                             EMCard {
                                 VStack(alignment: .leading, spacing: 10) {
