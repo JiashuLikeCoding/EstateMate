@@ -10,6 +10,7 @@ import SwiftUI
 /// Note: Device lock is currently disabled. Multiple devices can use OpenHouse concurrently.
 struct OpenHouseHomeView: View {
     @EnvironmentObject var sessionStore: SessionStore
+    @Environment(\.emAccentColor) private var accent
 
     var body: some View {
         NavigationStack {
@@ -28,8 +29,6 @@ struct OpenHouseHomeView: View {
             let iconFontSize: CGFloat = min(20, max(15, iconBox * 0.50))
             let titleFontSize: CGFloat = min(19, max(16, rowHeight * 0.28))
             let subtitleFontSize: CGFloat = min(13, max(11.5, rowHeight * 0.20))
-
-            let accent = Color.green
 
             VStack(alignment: .leading, spacing: 18) {
                 EMSectionHeader("活动策划", subtitle: "创建表单、创建活动、开始现场填写")

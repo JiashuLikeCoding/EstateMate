@@ -17,6 +17,12 @@ enum EMTheme {
     /// Moss green (subtle, premium)
     static let accent = Color(red: 0.20, green: 0.52, blue: 0.42)
 
+    /// Mature, muted CRM blue.
+    static let crmAccent = Color(red: 0.16, green: 0.36, blue: 0.54)
+
+    /// Mature, muted system picker accent.
+    static let systemAccent = Color(red: 0.38, green: 0.28, blue: 0.52)
+
     static let line = Color.black.opacity(0.08)
 
     // MARK: - Decoration colors (persisted as keys in form schema)

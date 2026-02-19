@@ -30,19 +30,20 @@ struct MainView: View {
         switch sessionStore.selectedWorkspace {
         case .openHouse:
             OpenHouseHomeView()
-                .emAccentColor(.green)
+                .emAccentColor(EMTheme.accent)
         case .crm:
             CRMHomeView()
-                .emAccentColor(.blue)
+                .emAccentColor(EMTheme.crmAccent)
         case .none:
             WorkspacePickerView()
-                .emAccentColor(.purple)
+                .emAccentColor(EMTheme.systemAccent)
         }
     }
 }
 
 struct CRMHomeView: View {
     @EnvironmentObject var sessionStore: SessionStore
+    @Environment(\.emAccentColor) private var accent
 
     var body: some View {
         NavigationStack {
@@ -54,8 +55,6 @@ struct CRMHomeView: View {
                     let iconFontSize: CGFloat = min(20, max(15, iconBox * 0.50))
                     let titleFontSize: CGFloat = min(19, max(16, rowHeight * 0.30))
                     let subtitleFontSize: CGFloat = min(13, max(11.5, rowHeight * 0.20))
-
-                    let accent = Color.blue
 
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("客户管理", subtitle: "线索、客户、任务（开发中）")

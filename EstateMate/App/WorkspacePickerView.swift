@@ -7,6 +7,7 @@ import SwiftUI
 
 struct WorkspacePickerView: View {
     @EnvironmentObject var sessionStore: SessionStore
+    @Environment(\.emAccentColor) private var accent
 
     var body: some View {
         NavigationStack {
@@ -18,8 +19,6 @@ struct WorkspacePickerView: View {
                     let iconFontSize: CGFloat = min(20, max(15, iconBox * 0.50))
                     let titleFontSize: CGFloat = min(19, max(16, rowHeight * 0.30))
                     let subtitleFontSize: CGFloat = min(13, max(11.5, rowHeight * 0.20))
-
-                    let accent = Color.purple
 
                     VStack(alignment: .leading, spacing: 18) {
                         EMSectionHeader("选择系统", subtitle: "选择要进入的模块")
