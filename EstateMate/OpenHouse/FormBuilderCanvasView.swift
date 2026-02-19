@@ -125,7 +125,6 @@ struct FormBuilderCanvasView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var state: FormBuilderState
     private let service = DynamicFormService()
-    private let aiLayoutService = OpenHouseFormLayoutAIService()
 
     @State private var draggingField: FormField? = nil
 
@@ -140,11 +139,6 @@ struct FormBuilderCanvasView: View {
 
     @State private var showSavedAlert: Bool = false
     @State private var showPreviewSheet: Bool = false
-
-    @State private var isAILayouting: Bool = false
-    @State private var aiLayoutNotes: String?
-    @State private var aiProposedFields: [FormField] = []
-    @State private var showAILayoutSheet: Bool = false
 
     @State private var showBackgroundMenu: Bool = false
     @State private var showPhotoPicker: Bool = false
@@ -343,20 +337,6 @@ struct FormBuilderCanvasView: View {
                     .padding(.top, 6)
                 }
 
-
-                Button {
-                    Task { await aiAutoLayout() }
-                } label: {
-                    Text(isAILayouting ? "AI排版中…" : "AI一键自动排版")
-                }
-                .buttonStyle(EMSecondaryButtonStyle())
-                .disabled(isAILayouting || state.fields.isEmpty)
-                .opacity(state.fields.isEmpty ? 0.45 : 1)
-                .sheet(isPresented: $showAILayoutSheet) {
-                    NavigationStack {
-                        aiLayoutSheet
-                    }
-                }
 
                 Button {
                     hideKeyboard()
@@ -702,76 +682,6 @@ struct FormBuilderCanvasView: View {
 
 
 
-    private var aiLayoutSheet: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("AI 自动排版预览", subtitle: "先预览效果，确认后才会替换当前字段顺序/分组")
-
-                    if let aiLayoutNotes, !aiLayoutNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        EMCard {
-                            Text(aiLayoutNotes)
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
-
-                    EMCard {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("AI排版后预览")
-                                .font(.headline)
-                                .foregroundStyle(EMTheme.ink)
-
-                            FormPreviewView(
-                                formName: state.formName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "预览" : state.formName,
-                                fields: aiProposedFields,
-                                presentation: state.presentation
-                            )
-                            .frame(minHeight: 420)
-                        }
-                    }
-
-                    Button {
-                        state.fields = aiProposedFields
-                        showAILayoutSheet = false
-                    } label: {
-                        Text("应用排版（替换当前字段）")
-                    }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: false))
-
-                    Button {
-                        showAILayoutSheet = false
-                    } label: {
-                        Text("取消")
-                    }
-                    .buttonStyle(EMSecondaryButtonStyle())
-
-                    Spacer(minLength: 20)
-                }
-                .padding(EMTheme.padding)
-            }
-            .safeAreaPadding(.top, 8)
-        }
-        .navigationTitle("AI排版")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private func aiAutoLayout() async {
-        hideKeyboard()
-        guard !state.fields.isEmpty else { return }
-
-        isAILayouting = true
-        defer { isAILayouting = false }
-
-        do {
-            let res = try await aiLayoutService.layout(formName: state.formName, fields: state.fields)
-            aiProposedFields = res.fields
-            aiLayoutNotes = res.notes
-            showAILayoutSheet = true
-        } catch {
-            state.errorMessage = "AI排版失败：\(error.localizedDescription)"
-        }
-    }
     private func save() async {
         state.isSaving = true
         defer { state.isSaving = false }
