@@ -172,6 +172,13 @@ struct OpenHouseSubmissionsListView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("返回") {
+                    dismiss()
+                }
+                .foregroundStyle(EMTheme.ink2)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     toggleSelecting()
