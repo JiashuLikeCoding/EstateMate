@@ -38,33 +38,37 @@ struct OpenHouseVisitorListView: View {
                                 .padding(.vertical, 10)
                         }
                     } else {
-                        EMCard {
-                            VStack(spacing: 0) {
-                                ForEach(Array(events.enumerated()), id: \.element.id) { idx, e in
+                        VStack(spacing: 12) {
+                            ForEach(events, id: \.id) { e in
+                                EMCard {
                                     NavigationLink {
                                         OpenHouseSubmissionsListView(event: e)
                                     } label: {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(e.title)
-                                                .font(.headline)
-                                                .foregroundStyle(EMTheme.ink)
+                                        HStack(alignment: .center, spacing: 12) {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                Text(e.title)
+                                                    .font(.headline)
+                                                    .foregroundStyle(EMTheme.ink)
 
-                                            if let sub = subtitle(for: e).nilIfBlank {
-                                                Text(sub)
-                                                    .font(.caption)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                    .lineLimit(2)
+                                                if let sub = subtitle(for: e).nilIfBlank {
+                                                    Text(sub)
+                                                        .font(.caption)
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                        .lineLimit(2)
+                                                }
                                             }
+
+                                            Spacer(minLength: 0)
+
+                                            Image(systemName: "chevron.right")
+                                                .font(.footnote.weight(.semibold))
+                                                .foregroundStyle(EMTheme.ink2)
                                         }
                                         .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.vertical, 12)
+                                        .padding(.vertical, 6)
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
-
-                                    if idx != events.count - 1 {
-                                        Divider().overlay(EMTheme.line)
-                                    }
                                 }
                             }
                         }
