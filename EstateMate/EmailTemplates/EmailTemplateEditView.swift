@@ -396,8 +396,10 @@ struct EmailTemplateEditView: View {
                 name = t.name
                 subject = t.subject
                 // Load body as rich text (HTML) when possible.
+                // Note: some legacy templates store "simple HTML" (inline tags) with raw newlines.
+                // HTML collapses raw newlines, so we convert them to <br> for correct display in the editor.
                 if looksLikeHTML(t.body) {
-                    bodyAttributed = .fromHTML(t.body)
+                    bodyAttributed = .fromHTML(preserveLineBreaksForSimpleHTML(t.body))
                 } else {
                     bodyAttributed = NSAttributedString(string: t.body)
                 }
@@ -798,7 +800,7 @@ struct EmailTemplateEditView: View {
                 // Keep the user on the edit page; just refresh content locally.
                 name = n
                 subject = s
-                bodyAttributed = looksLikeHTML(bodyHTML) ? .fromHTML(bodyHTML) : NSAttributedString(string: bodyHTML)
+                bodyAttributed = looksLikeHTML(bodyHTML) ? .fromHTML(preserveLineBreaksForSimpleHTML(bodyHTML)) : NSAttributedString(string: bodyHTML)
                 errorMessage = "已保存"
             } else {
                 _ = try await service.createTemplate(
