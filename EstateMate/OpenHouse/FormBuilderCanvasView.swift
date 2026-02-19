@@ -477,6 +477,18 @@ struct FormBuilderCanvasView: View {
                 Text(summary(f))
                     .font(.caption)
                     .foregroundStyle(EMTheme.ink2)
+
+                if let desc = visibilityRelationshipLine(for: f) {
+                    Text(desc)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(EMTheme.accent)
+                }
+
+                if let desc = visibilityControlsLine(for: f) {
+                    Text(desc)
+                        .font(.caption2)
+                        .foregroundStyle(EMTheme.ink2)
+                }
             }
 
             Spacer(minLength: 0)
@@ -602,6 +614,50 @@ struct FormBuilderCanvasView: View {
         // Selection should feel instant and never shift the scroll position.
         // Avoid updating the top message here (it can reflow the layout and cause a perceived "jump").
         state.selectedFieldKey = key
+    }
+
+    private func titleForKey(_ key: String) -> String {
+        if let f = state.fields.first(where: { $0.key == key }) {
+            let t = f.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? key : t
+        }
+        return key
+    }
+
+    private func visibilityRelationshipLine(for f: FormField) -> String? {
+        // Only show for real input fields.
+        switch f.type {
+        case .sectionTitle, .sectionSubtitle, .divider, .splice:
+            return nil
+        default:
+            break
+        }
+
+        guard let rule = f.visibleWhen else { return nil }
+        let triggerTitle = titleForKey(rule.dependsOnKey)
+        let opTitle = rule.op.title
+        let value = rule.value.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if value.isEmpty {
+            return "条件显示：当 \(triggerTitle) \(opTitle)（未选择）"
+        }
+        return "条件显示：当 \(triggerTitle) \(opTitle) \(value)"
+    }
+
+    private func visibilityControlsLine(for f: FormField) -> String? {
+        // If this field is a trigger for other fields, show a lightweight hint.
+        let dependents = state.fields.filter { other in
+            other.key != f.key && (other.visibleWhen?.dependsOnKey == f.key)
+        }
+        guard dependents.isEmpty == false else { return nil }
+
+        let names = dependents
+            .compactMap { $0.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? $0.key : $0.label }
+
+        if names.count <= 2 {
+            return "影响：\(names.joined(separator: "、"))"
+        }
+        return "影响：\(names.prefix(2).joined(separator: "、")) 等 \(names.count) 项"
     }
 
     private func summary(_ f: FormField) -> String {
