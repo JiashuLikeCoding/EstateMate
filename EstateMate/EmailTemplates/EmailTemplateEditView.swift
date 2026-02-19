@@ -279,42 +279,38 @@ struct EmailTemplateEditView: View {
                         }
                     }
 
-                    EMCard {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("变量")
-                                .font(.headline)
-                                .foregroundStyle(EMTheme.ink)
+                    if !variables.isEmpty {
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("变量")
+                                    .font(.headline)
+                                    .foregroundStyle(EMTheme.ink)
 
-                            if variables.isEmpty {
-                                Text("暂无变量。你可以先创建变量，再在正文中插入 {{key}}")
-                                    .font(.subheadline)
-                                    .foregroundStyle(EMTheme.ink2)
-                            }
-
-                            ForEach(Array(variables.enumerated()), id: \.offset) { idx, v in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Text("{{\(v.key)}}")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(EMTheme.accent)
-                                        Spacer()
-                                        Button(role: .destructive) {
-                                            variables.remove(at: idx)
-                                        } label: {
-                                            Image(systemName: "trash")
-                                                .font(.footnote.weight(.semibold))
+                                ForEach(Array(variables.enumerated()), id: \.offset) { idx, v in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Text("{{\(v.key)}}")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(EMTheme.accent)
+                                            Spacer()
+                                            Button(role: .destructive) {
+                                                variables.remove(at: idx)
+                                            } label: {
+                                                Image(systemName: "trash")
+                                                    .font(.footnote.weight(.semibold))
+                                            }
+                                            .buttonStyle(.plain)
                                         }
-                                        .buttonStyle(.plain)
-                                    }
-                                    Text(v.label.isEmpty ? "（未填写提示）" : v.label)
-                                        .font(.subheadline)
-                                        .foregroundStyle(EMTheme.ink)
-                                    if idx != variables.count - 1 {
-                                        Divider().overlay(EMTheme.line)
+                                        Text(v.label.isEmpty ? "（未填写提示）" : v.label)
+                                            .font(.subheadline)
+                                            .foregroundStyle(EMTheme.ink)
+                                        if idx != variables.count - 1 {
+                                            Divider().overlay(EMTheme.line)
+                                        }
                                     }
                                 }
-                            }
 
+                            }
                         }
                     }
 
