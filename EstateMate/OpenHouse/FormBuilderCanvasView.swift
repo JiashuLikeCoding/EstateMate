@@ -840,68 +840,8 @@ struct FormBuilderCanvasView: View {
         state.isSaving = true
         defer { state.isSaving = false }
 
-        // Never allow saving changes into an archived form.
-        if state.formId != nil, state.isArchived {
-            state.errorMessage = "该表单已归档，无法修改。请先取消归档，或复制一个新表单再编辑。"
-            return
-        }
-
         do {
-            // 1) Options validation
-            for f in state.fields where (f.type == .select || f.type == .dropdown || f.type == .multiSelect) {
-                if (f.options ?? []).isEmpty {
-                    throw NSError(domain: "FormBuilder", code: 1, userInfo: [NSLocalizedDescriptionKey: "字段 \"\(f.label)\" 需要选项"])
-                }
-            }
-
-            // 2) Basic required presence
-            // OpenHouse 现场表单必须至少能联系到客人：手机号/邮箱二选一。
-            let hasPhoneOrEmail = state.fields.contains(where: { $0.type == .phone || $0.type == .email })
-            if hasPhoneOrEmail == false {
-                throw NSError(domain: "FormBuilder", code: 2, userInfo: [NSLocalizedDescriptionKey: "表单必须包含“手机号”或“邮箱”字段（至少一个），否则无法保存"])
-            }
-
-            // 3) Splice rules
-            if state.fields.first?.type == .splice || state.fields.last?.type == .splice {
-                throw NSError(domain: "FormBuilder", code: 3, userInfo: [NSLocalizedDescriptionKey: "拼接不能放在表单的开头或结尾"])
-            }
-
-            for i in 1..<state.fields.count {
-                if state.fields[i].type == .splice, state.fields[i - 1].type == .splice {
-                    throw NSError(domain: "FormBuilder", code: 3, userInfo: [NSLocalizedDescriptionKey: "不允许两个拼接挨在一起"])
-                }
-            }
-
-            // Max chain: field splice field splice field splice field (max 4 fields, i.e. max 3 splices in a chain)
-            var chainCount = 0
-            for i in state.fields.indices {
-                let f = state.fields[i]
-                if f.type == .splice {
-                    continue
-                }
-
-                // new chain unless previous was splice
-                if i > 0, state.fields[i - 1].type == .splice {
-                    chainCount += 1
-                } else {
-                    chainCount = 1
-                }
-
-                if chainCount > 4 {
-                    throw NSError(domain: "FormBuilder", code: 4, userInfo: [NSLocalizedDescriptionKey: "拼接最大支持一行 4 个字段（字段 拼接 字段 拼接 字段 拼接 字段）"])
-                }
-            }
-
-            let schema = FormSchema(version: 1, fields: state.fields, presentation: state.presentation)
-
-            if let id = state.formId {
-                _ = try await service.updateForm(id: id, name: state.formName, schema: schema)
-            } else {
-                let created = try await service.createForm(name: state.formName, schema: schema)
-                state.formId = created.id
-            }
-
-            state.errorMessage = nil
+            try await state.save(using: service)
             showSavedAlert = true
         } catch {
             state.errorMessage = error.localizedDescription

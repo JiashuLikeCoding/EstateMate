@@ -62,6 +62,33 @@ final class FormBuilderState: ObservableObject {
     /// If true, the form is archived (read-only until unarchived).
     @Published var isArchived: Bool = false
 
+    struct Snapshot: Equatable {
+        var formName: String
+        var fields: [FormField]
+        var presentation: FormPresentation
+        var isArchived: Bool
+    }
+
+    @Published private(set) var initialSnapshot: Snapshot? = nil
+
+    var currentSnapshot: Snapshot {
+        Snapshot(
+            formName: formName.trimmingCharacters(in: .whitespacesAndNewlines),
+            fields: fields,
+            presentation: presentation,
+            isArchived: isArchived
+        )
+    }
+
+    var isDirty: Bool {
+        guard let initialSnapshot else { return false }
+        return currentSnapshot != initialSnapshot
+    }
+
+    func markSavedBaseline() {
+        initialSnapshot = currentSnapshot
+    }
+
     /// When adding a new field, we stage it here so user can confirm Add/Cancel.
     /// Also used when updating an existing field type via the palette (confirm Update/Cancel).
     @Published var draftField: FormField? = nil
@@ -77,6 +104,7 @@ final class FormBuilderState: ObservableObject {
         guard fields.isEmpty else { return }
         isArchived = false
         fields = []
+        markSavedBaseline()
     }
 
     func load(form: FormRecord) {
@@ -95,6 +123,7 @@ final class FormBuilderState: ObservableObject {
 
         presentation = form.schema.presentation ?? .init(background: nil)
         selectedFieldKey = fields.first?.key
+        markSavedBaseline()
     }
 
     func startDraft(type: FormFieldType) {
@@ -700,6 +729,12 @@ private struct FormBuilderDrawerView: View {
     @Environment(\.horizontalSizeClass) private var hSize
     @StateObject private var state = FormBuilderState()
 
+    @State private var isBackConfirmPresented: Bool = false
+    @State private var isBackSaving: Bool = false
+    @State private var backSaveError: String? = nil
+
+    private let service = DynamicFormService()
+
     enum SheetMode {
         case palette
         case properties
@@ -746,6 +781,55 @@ private struct FormBuilderDrawerView: View {
                     }
                 )
                 .environmentObject(state)
+            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        hideKeyboard()
+                        if state.isSaving || isBackSaving {
+                            return
+                        }
+                        if state.isDirty {
+                            isBackConfirmPresented = true
+                        } else {
+                            dismiss()
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                            Text("返回")
+                        }
+                    }
+                }
+            }
+            .alert("未保存的修改", isPresented: $isBackConfirmPresented) {
+                Button(isBackSaving ? "保存中…" : "保存") {
+                    Task {
+                        isBackSaving = true
+                        backSaveError = nil
+                        defer { isBackSaving = false }
+
+                        do {
+                            try await state.save(using: service)
+                            dismiss()
+                        } catch {
+                            backSaveError = error.localizedDescription
+                        }
+                    }
+                }
+
+                Button("不保存", role: .destructive) {
+                    dismiss()
+                }
+
+                Button("继续编辑", role: .cancel) {}
+            } message: {
+                if let backSaveError {
+                    Text("保存失败：\(backSaveError)")
+                } else {
+                    Text("你有未保存的修改，是否需要保存？")
+                }
             }
         }
         .fullScreenCover(isPresented: ipadPresented) {

@@ -76,6 +76,18 @@ struct EmailTemplateEditView: View {
 
     @State private var variables: [EmailTemplateVariable] = []
 
+    private struct Snapshot: Equatable {
+        var workspace: EstateMateWorkspaceKind
+        var name: String
+        var fromName: String
+        var subject: String
+        var bodyPlain: String
+        var variables: [EmailTemplateVariable]
+    }
+
+    @State private var initialSnapshot: Snapshot? = nil
+    @State private var isBackConfirmPresented: Bool = false
+
     // AI format + save
                 
     // Rich text helpers (HTML tags)
@@ -382,6 +394,52 @@ struct EmailTemplateEditView: View {
             .safeAreaPadding(.top, 8)
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    hideKeyboard()
+                    if isLoading {
+                        return
+                    }
+                    if isDirty {
+                        isBackConfirmPresented = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                        Text("返回")
+                    }
+                }
+            }
+        }
+        .alert("未保存的修改", isPresented: $isBackConfirmPresented) {
+            if canSave {
+                Button("保存") {
+                    Task {
+                        await save()
+                        // If we're still on this screen (edit mode), refresh the baseline.
+                        if mode.templateId != nil {
+                            initialSnapshot = currentSnapshot
+                        }
+                    }
+                }
+            }
+
+            Button("不保存", role: .destructive) {
+                dismiss()
+            }
+
+            Button("继续编辑", role: .cancel) {}
+        } message: {
+            if canSave {
+                Text("你有未保存的修改，是否需要保存？")
+            } else {
+                Text("你有未保存的修改（且当前内容不完整，无法保存）。是否直接退出？")
+            }
+        }
         .task(id: mode) {
             await loadIfNeeded()
         }
@@ -395,6 +453,7 @@ struct EmailTemplateEditView: View {
             // Create mode: do not auto-fill any content.
             // (Jason request) User must explicitly enter: name, from name, subject, body.
             variables = []
+            initialSnapshot = currentSnapshot
             return
         }
 
@@ -424,6 +483,8 @@ struct EmailTemplateEditView: View {
                 }
                 variables = t.variables
                 fromName = (t.fromName ?? "")
+
+                initialSnapshot = currentSnapshot
             }
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
@@ -440,6 +501,25 @@ struct EmailTemplateEditView: View {
         let s = subject.trimmingCharacters(in: .whitespacesAndNewlines)
         let b = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
         return !n.isEmpty && !f.isEmpty && !s.isEmpty && !b.isEmpty
+    }
+
+    private var currentSnapshot: Snapshot {
+        Snapshot(
+            workspace: workspace,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
+            subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
+            bodyPlain: bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines),
+            variables: variables
+        )
+    }
+
+    private var isDirty: Bool {
+        guard let initialSnapshot else {
+            // If we haven't loaded yet, do not block navigation.
+            return false
+        }
+        return currentSnapshot != initialSnapshot
     }
 
     private func insertVariableToken(_ key: String) {
@@ -1042,6 +1122,7 @@ struct EmailTemplateEditView: View {
                 subject = s
                 bodyAttributed = looksLikeHTML(bodyHTML) ? .fromHTML(preserveLineBreaksForSimpleHTML(bodyHTML)) : NSAttributedString(string: bodyHTML)
                 errorMessage = "已保存"
+                initialSnapshot = currentSnapshot
             } else {
                 _ = try await service.createTemplate(
                     EmailTemplateInsert(
