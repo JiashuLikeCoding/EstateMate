@@ -11,6 +11,7 @@ import SwiftUI
 import Foundation
 
 struct CRMContactDetailView: View {
+    @Environment(\.emAccentColor) private var accent
     let contactId: UUID
 
     @State private var isLoading = false
@@ -19,6 +20,7 @@ struct CRMContactDetailView: View {
     @State private var activitiesCount: Int = 0
     @State private var emailsCount: Int = 0
     @State private var submissionsCount: Int = 0
+    @State private var tasksCount: Int = 0
 
     struct ContactNavTarget: Identifiable, Equatable, Hashable {
         let id: UUID
@@ -30,6 +32,7 @@ struct CRMContactDetailView: View {
     private let service = CRMService()
     private let emailService = CRMEmailService()
     private let formService = DynamicFormService()
+    private let tasksService = CRMTasksService()
 
     var body: some View {
         EMScreen {
@@ -144,6 +147,15 @@ struct CRMContactDetailView: View {
                                     linkRow(icon: "doc.text", title: "填写过的表单（\(submissionsCount)）")
                                 }
                                 .buttonStyle(.plain)
+
+                                Divider().overlay(EMTheme.line)
+
+                                NavigationLink {
+                                    CRMContactTasksListView(contactId: contactId)
+                                } label: {
+                                    linkRow(icon: "checkmark.circle", title: "待办任务（\(tasksCount)）")
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -200,6 +212,10 @@ struct CRMContactDetailView: View {
 
             let emailLogs = (try? await emailService.listLogs(contactId: contactId)) ?? []
             emailsCount = emailLogs.count
+
+            // Tasks: only count unfinished tasks for this contact.
+            let openTasks = (try? await tasksService.listTasks(contactId: contactId, includeDone: false)) ?? []
+            tasksCount = openTasks.count
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
@@ -223,11 +239,11 @@ struct CRMContactDetailView: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.callout.weight(.semibold))
-                .foregroundStyle(EMTheme.accent)
+                .foregroundStyle(accent)
                 .frame(width: 28, height: 28)
                 .background(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(EMTheme.accent.opacity(0.10))
+                        .fill(accent.opacity(0.10))
                 )
 
             Text(title)
