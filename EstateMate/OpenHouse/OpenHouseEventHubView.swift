@@ -449,6 +449,8 @@ private struct OpenHouseEventListCardView: View {
     @State private var events: [OpenHouseEventV2] = []
     @State private var forms: [FormRecord] = []
 
+    @State private var showArchived: Bool = false
+
     @State private var isLoading = false
     @State private var errorMessage: String?
 
@@ -460,7 +462,12 @@ private struct OpenHouseEventListCardView: View {
                     .foregroundStyle(.red)
             }
 
-            if events.isEmpty {
+            Toggle("显示已归档活动", isOn: $showArchived)
+                .onChange(of: showArchived) { _, _ in
+                    Task { await load() }
+                }
+
+            if visibleEvents.isEmpty {
                 VStack(alignment: .center, spacing: 12) {
                     Image(systemName: "calendar.badge.plus")
                         .font(.system(size: 28, weight: .semibold))
@@ -489,6 +496,7 @@ private struct OpenHouseEventListCardView: View {
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     if ongoingEvents.isEmpty == false {
+                        sectionHeader("进行中")
                         eventList(ongoingEvents)
                     }
 
@@ -497,10 +505,18 @@ private struct OpenHouseEventListCardView: View {
                             Divider().overlay(EMTheme.line)
                                 .padding(.vertical, 8)
                         }
+                        sectionHeader("已结束")
                         eventList(endedEvents)
                     }
 
-                    if ongoingEvents.isEmpty && endedEvents.isEmpty {
+                    if archivedEvents.isEmpty == false {
+                        Divider().overlay(EMTheme.line)
+                            .padding(.vertical, 8)
+                        sectionHeader("已归档")
+                        eventList(archivedEvents)
+                    }
+
+                    if ongoingEvents.isEmpty && endedEvents.isEmpty && archivedEvents.isEmpty {
                         VStack(alignment: .center, spacing: 12) {
                             Image(systemName: "calendar")
                                 .font(.system(size: 24, weight: .semibold))
@@ -526,8 +542,16 @@ private struct OpenHouseEventListCardView: View {
         }
     }
 
+    private var visibleEvents: [OpenHouseEventV2] {
+        if showArchived {
+            return events
+        }
+        return events.filter { ($0.isArchived ?? false) == false }
+    }
+
     private var ongoingEvents: [OpenHouseEventV2] {
-        events
+        visibleEvents
+            .filter { ($0.isArchived ?? false) == false }
             .filter { $0.endedAt == nil }
             .sorted { a, b in
                 (a.startsAt ?? .distantFuture) < (b.startsAt ?? .distantFuture)
@@ -535,10 +559,20 @@ private struct OpenHouseEventListCardView: View {
     }
 
     private var endedEvents: [OpenHouseEventV2] {
-        events
+        visibleEvents
+            .filter { ($0.isArchived ?? false) == false }
             .filter { $0.endedAt != nil }
             .sorted { a, b in
                 (a.endedAt ?? .distantPast) > (b.endedAt ?? .distantPast)
+            }
+    }
+
+    private var archivedEvents: [OpenHouseEventV2] {
+        guard showArchived else { return [] }
+        return visibleEvents
+            .filter { ($0.isArchived ?? false) == true }
+            .sorted { a, b in
+                (a.createdAt ?? .distantPast) > (b.createdAt ?? .distantPast)
             }
     }
 
@@ -582,11 +616,15 @@ private struct OpenHouseEventListCardView: View {
                                     metaRow(icon: "person.2", text: "助手：\(assistant)")
                                 }
 
-                                metaRow(
-                                    icon: isEnded(e) ? "xmark.seal.fill" : "checkmark.seal.fill",
-                                    text: isEnded(e) ? "已结束" : "进行中",
-                                    tint: isEnded(e) ? .red : .green
-                                )
+                                if (e.isArchived ?? false) {
+                                    metaRow(icon: "archivebox.fill", text: "已归档", tint: .gray)
+                                } else {
+                                    metaRow(
+                                        icon: isEnded(e) ? "xmark.seal.fill" : "checkmark.seal.fill",
+                                        text: isEnded(e) ? "已结束" : "进行中",
+                                        tint: isEnded(e) ? .red : .green
+                                    )
+                                }
                             }
                         }
 
@@ -641,7 +679,7 @@ private struct OpenHouseEventListCardView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            async let eventsTask = service.listEvents()
+            async let eventsTask = service.listEvents(includeArchived: showArchived)
             async let formsTask = service.listForms()
             events = try await eventsTask
             forms = try await formsTask
