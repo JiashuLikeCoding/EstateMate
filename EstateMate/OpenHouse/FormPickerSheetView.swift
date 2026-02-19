@@ -172,6 +172,12 @@ struct FormPickerSheetView: View {
             }) {
                 NavigationStack {
                     FormBuilderAdaptiveView()
+                        .toolbar {
+                            ToolbarItem(placement: .topBarLeading) {
+                                Button("取消") { showCreateForm = false }
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                        }
                 }
             }
             .task {
