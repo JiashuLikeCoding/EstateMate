@@ -37,13 +37,7 @@ struct EmailTemplateEditView: View {
 
 
 
-    enum AIPreviewTab: String, CaseIterable, Identifiable {
-        case preview = "正式预览"
-        case diff = "差异标注"
-        case suggestions = "变量/校对"
 
-        var id: String { rawValue }
-    }
 
     let mode: Mode
 
@@ -75,11 +69,7 @@ struct EmailTemplateEditView: View {
     @State private var variables: [EmailTemplateVariable] = []
 
     // AI format + save
-    @State private var isAIFormatting: Bool = false
-    @State private var isAIPreviewPresented: Bool = false
-    @State private var aiResult: EmailTemplateAIFormatService.Response?
-    @State private var aiPreviewTab: AIPreviewTab = .preview
-
+                
     // Rich text helpers (HTML tags)
     @State private var isColorPickerPresented: Bool = false
     @State private var pickedColor: Color = EMTheme.accent
@@ -90,7 +80,6 @@ struct EmailTemplateEditView: View {
     @State private var testSendResult: String?
 
     private let service = EmailTemplateService()
-    private let aiFormatService = EmailTemplateAIFormatService()
     private let gmailService = CRMGmailIntegrationService()
 
     var body: some View {
@@ -110,17 +99,7 @@ struct EmailTemplateEditView: View {
                     EMCard {
                         EMTextField(title: "名称", text: $name, prompt: "例如：感谢来访")
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("名称")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
-                                    Text(aiResult?.name ?? "")
-                                        .font(.subheadline)
-                                        .foregroundStyle(EMTheme.ink)
-
-                                    Divider().overlay(EMTheme.line)
-
-                                    Text("主题")
+                        Text("主题")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
@@ -316,19 +295,6 @@ struct EmailTemplateEditView: View {
 
 
                     Button {
-                        Task { await aiFormatAndPreview() }
-                    } label: {
-                        Text(isAIFormatting ? "AI排版中…" : "AI一键排版并保存")
-                    }
-                    .buttonStyle(EMSecondaryButtonStyle())
-                    .disabled(isLoading || isAIFormatting)
-                    .sheet(isPresented: $isAIPreviewPresented) {
-                        NavigationStack {
-                            aiPreviewSheet
-                        }
-                    }
-
-                    Button {
                         hideKeyboard()
                         isPreviewPresented = true
                     } label: {
@@ -394,7 +360,6 @@ struct EmailTemplateEditView: View {
                 .padding(EMTheme.padding)
             }
             .safeAreaPadding(.top, 8)
-        }
         .navigationTitle(mode.title)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: mode) {
@@ -519,191 +484,6 @@ struct EmailTemplateEditView: View {
     private func applyPickedColorToBodySelection() {
         guard let hex = EMTheme.hexFromColor(pickedColor) else { return }
         wrapBodySelection(prefix: "<span style=\"color:\(hex)\">", suffix: "</span>")
-    }
-
-    private var aiPreviewSheet: some View {
-        EMScreen {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    EMSectionHeader("AI 排版预览", subtitle: "红色仅标注 AI 改动；确认后才会覆盖并保存")
-
-                    Picker("", selection: $aiPreviewTab) {
-                        ForEach(AIPreviewTab.allCases) { t in
-                            Text(t.rawValue).tag(t)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    if let notes = aiResult?.notes, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        EMCard {
-                            Text(notes)
-                                .font(.footnote)
-                                .foregroundStyle(EMTheme.ink2)
-                        }
-                    }
-
-                    Group {
-                        switch aiPreviewTab {
-                        case .preview:
-                            EMCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("主题")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
-                                    Text(aiResult?.subject ?? "")
-                                        .font(.subheadline)
-                                        .foregroundStyle(EMTheme.ink)
-
-                                    Divider().overlay(EMTheme.line)
-
-                                    Text("正文（正式发送效果）")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
-
-                                    HTMLWebView(html: aiResult?.preview_body_html ?? "")
-                                        .frame(minHeight: 260)
-                                }
-                            }
-
-                        case .diff:
-                            EMCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("AI 改动差异（红色标注）")
-                                        .font(.footnote.weight(.medium))
-                                        .foregroundStyle(EMTheme.ink2)
-                                    HTMLWebView(html: aiResult?.diff_body_html ?? "")
-                                        .frame(minHeight: 320)
-                                }
-                            }
-
-                        case .suggestions:
-                            EMCard {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("变量建议")
-                                        .font(.headline)
-                                        .foregroundStyle(EMTheme.ink)
-
-                                    if (aiResult?.suggested_variables.isEmpty ?? true) {
-                                        Text("暂无建议")
-                                            .font(.subheadline)
-                                            .foregroundStyle(EMTheme.ink2)
-                                    } else {
-                                        ForEach(aiResult?.suggested_variables ?? []) { s in
-                                            VStack(alignment: .leading, spacing: 6) {
-                                                Text("{{\(s.key)}}")
-                                                    .font(.subheadline.weight(.semibold))
-                                                    .foregroundStyle(EMTheme.accent)
-                                                Text(s.label)
-                                                    .font(.subheadline)
-                                                    .foregroundStyle(EMTheme.ink)
-                                                if let r = s.reason, !r.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                                    Text(r)
-                                                        .font(.footnote)
-                                                        .foregroundStyle(EMTheme.ink2)
-                                                }
-                                                if let snip = s.original_snippet, !snip.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                                    Text("原文：\(snip)")
-                                                        .font(.footnote)
-                                                        .foregroundStyle(EMTheme.ink2)
-                                                }
-                                                Divider().overlay(EMTheme.line)
-                                            }
-                                        }
-                                    }
-
-                                    if !(aiResult?.token_corrections.isEmpty ?? true) {
-                                        Divider().overlay(EMTheme.line)
-                                        Text("变量名修正建议")
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-
-                                        ForEach(aiResult?.token_corrections ?? []) { c in
-                                            VStack(alignment: .leading, spacing: 6) {
-                                                Text("\(c.from) → \(c.to)")
-                                                    .font(.subheadline.weight(.semibold))
-                                                    .foregroundStyle(EMTheme.ink)
-                                                if let r = c.reason {
-                                                    Text(r)
-                                                        .font(.footnote)
-                                                        .foregroundStyle(EMTheme.ink2)
-                                                }
-                                                Divider().overlay(EMTheme.line)
-                                            }
-                                        }
-                                    }
-
-                                    if !(aiResult?.token_issues.isEmpty ?? true) {
-                                        Divider().overlay(EMTheme.line)
-                                        Text("变量问题")
-                                            .font(.headline)
-                                            .foregroundStyle(EMTheme.ink)
-
-                                        ForEach(aiResult?.token_issues ?? []) { i in
-                                            VStack(alignment: .leading, spacing: 6) {
-                                                Text(i.token)
-                                                    .font(.subheadline.weight(.semibold))
-                                                    .foregroundStyle(.red)
-                                                Text(i.message ?? "")
-                                                    .font(.footnote)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                                Divider().overlay(EMTheme.line)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Button {
-                        Task { await applyAIAndSave() }
-                    } label: {
-                        Text(isLoading ? "保存中…" : "确认并保存")
-                    }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
-                    .disabled(isLoading)
-
-                    Button {
-                        isAIPreviewPresented = false
-                    } label: {
-                        Text("取消")
-                    }
-                    .buttonStyle(EMSecondaryButtonStyle())
-                    .disabled(isLoading)
-
-                    Spacer(minLength: 20)
-                }
-                .padding(EMTheme.padding)
-            }
-            .safeAreaPadding(.top, 8)
-        }
-        .navigationTitle("AI排版")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-
-    private func aiFormatAndPreview() async {
-        hideKeyboard()
-        isAIFormatting = true
-        errorMessage = nil
-        defer { isAIFormatting = false }
-
-        do {
-            let res = try await aiFormatService.format(workspace: workspace, name: name, subject: subject, body: bodyText, declaredKeys: variables.map(\.key))
-            aiResult = res
-            aiPreviewTab = .preview
-            isAIPreviewPresented = true
-        } catch {
-            errorMessage = "AI排版失败：\(error.localizedDescription)"
-        }
-    }
-
-    private func applyAIAndSave() async {
-        name = aiResult?.name ?? name
-        subject = aiResult?.subject ?? subject
-        bodyText = aiResult?.body_html ?? bodyText
-        isAIPreviewPresented = false
-        await save()
     }
 
     private var savePreviewSheet: some View {
@@ -889,6 +669,24 @@ struct EmailTemplateEditView: View {
         return "<p>\(withBreaks)</p>"
     }
 
+    /// When the user inserted simple inline HTML tags (bold/italic/color) but kept plain newlines,
+    /// browsers/Gmail will collapse newlines into spaces.
+    ///
+    /// This helper preserves the user's paragraphs by converting newline characters to <br>.
+    /// If the HTML already contains block/line-break tags, we leave it unchanged.
+    private func preserveLineBreaksForSimpleHTML(_ html: String) -> String {
+        let normalized = html
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+
+        let lower = normalized.lowercased()
+        let alreadyHasLayout = lower.contains("<br") || lower.contains("<p") || lower.contains("<div") || lower.contains("<li") || lower.contains("<ul") || lower.contains("<ol")
+        guard !alreadyHasLayout else { return normalized }
+
+        let withBreaks = normalized.replacingOccurrences(of: "\n", with: "<br>")
+        return "<p>\(withBreaks)</p>"
+    }
+
     private func wrapEmailHTML(_ inner: String) -> String {
         return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}</style></head><body>\(inner)</body></html>"
     }
@@ -896,7 +694,14 @@ struct EmailTemplateEditView: View {
     private func buildFinalPreviewHTML() -> String {
         let raw = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
         if raw.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
-        let inner = looksLikeHTML(raw) ? raw : plainTextToHTML(raw)
+
+        let inner: String
+        if looksLikeHTML(raw) {
+            inner = preserveLineBreaksForSimpleHTML(raw)
+        } else {
+            inner = plainTextToHTML(raw)
+        }
+
         return wrapEmailHTML(inner)
     }
 
