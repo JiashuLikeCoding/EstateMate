@@ -52,7 +52,7 @@ struct CRMHomeView: View {
                             NavigationLink {
                                 CRMContactsListView()
                             } label: {
-                                row(title: "客户列表", subtitle: "查看与搜索客户")
+                                row(icon: "person.2", title: "客户列表", subtitle: "查看与搜索客户")
                             }
                             .buttonStyle(.plain)
 
@@ -61,7 +61,7 @@ struct CRMHomeView: View {
                             NavigationLink {
                                 CRMContactEditView(mode: .create)
                             } label: {
-                                row(title: "新增客户", subtitle: "快速录入一位客户")
+                                row(icon: "person.badge.plus", title: "新增客户", subtitle: "快速录入一位客户")
                             }
                             .buttonStyle(.plain)
 
@@ -70,7 +70,7 @@ struct CRMHomeView: View {
                             NavigationLink {
                                 CRMTasksListView()
                             } label: {
-                                row(title: "待办任务", subtitle: "跟进提醒与记录")
+                                row(icon: "checklist", title: "待办任务", subtitle: "跟进提醒与记录")
                             }
                             .buttonStyle(.plain)
                         }
@@ -90,8 +90,15 @@ struct CRMHomeView: View {
         }
     }
 
-    private func row(title: String, subtitle: String) -> some View {
+    private func row(icon: String, title: String, subtitle: String) -> some View {
         HStack(alignment: .center, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(EMTheme.accent)
+                .frame(width: 32, height: 32)
+                .background(EMTheme.accent.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
