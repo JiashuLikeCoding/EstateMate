@@ -58,6 +58,8 @@ struct EmailTemplateEditView: View {
     @State private var errorMessage: String?
 
     @State private var isSavePreviewPresented: Bool = false
+    @State private var isPreviewPresented: Bool = false
+    @State private var isTestSendPresented: Bool = false
 
     @State private var workspace: EstateMateWorkspaceKind
 
@@ -82,8 +84,14 @@ struct EmailTemplateEditView: View {
     @State private var isColorPickerPresented: Bool = false
     @State private var pickedColor: Color = EMTheme.accent
 
+    // Test send
+    @State private var testToEmail: String = ""
+    @State private var isTestSending: Bool = false
+    @State private var testSendResult: String?
+
     private let service = EmailTemplateService()
     private let aiFormatService = EmailTemplateAIFormatService()
+    private let gmailService = CRMGmailIntegrationService()
 
     var body: some View {
         EMScreen {
@@ -326,6 +334,35 @@ struct EmailTemplateEditView: View {
 
                     Button {
                         hideKeyboard()
+                        isPreviewPresented = true
+                    } label: {
+                        Text("预览")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isLoading)
+                    .sheet(isPresented: $isPreviewPresented) {
+                        NavigationStack {
+                            previewSheet
+                        }
+                    }
+
+                    Button {
+                        hideKeyboard()
+                        testSendResult = nil
+                        isTestSendPresented = true
+                    } label: {
+                        Text("测试发送")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isLoading)
+                    .sheet(isPresented: $isTestSendPresented) {
+                        NavigationStack {
+                            testSendSheet
+                        }
+                    }
+
+                    Button {
+                        hideKeyboard()
                         isSavePreviewPresented = true
                     } label: {
                         Text("保存")
@@ -376,6 +413,21 @@ struct EmailTemplateEditView: View {
         guard let id = mode.templateId else {
             // create defaults
             variables = []
+
+            // Give the user a ready-to-edit starter template (no need to know <p> / HTML).
+            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                subject = workspace == .openhouse
+                    ? "感谢您来参加 {{event_title}}"
+                    : "很高兴认识您"
+            }
+
+            if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                bodyText = workspace == .openhouse
+                    ? "{{firstname}} 您好，\n\n感谢您今天来参加我们的活动策划！\n如果您对 {{address}} 感兴趣，欢迎随时回复我。\n\n祝您有美好的一天！"
+                    : "您好，\n\n很高兴认识您！\n如果您方便，我们可以约个时间聊一下您的需求。\n\n谢谢！"
+            }
+
+            // default declared variables (optional): keep empty for now.
             return
         }
 
@@ -722,6 +774,102 @@ struct EmailTemplateEditView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    private var previewSheet: some View {
+        EMScreen {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    EMSectionHeader("预览", subtitle: "这是最终发送效果预览（不会保存）")
+
+                    EMCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("主题")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+                            Text(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
+                                .font(.subheadline)
+                                .foregroundStyle(EMTheme.ink)
+
+                            Divider().overlay(EMTheme.line)
+
+                            Text("正文")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(EMTheme.ink2)
+
+                            HTMLWebView(html: buildFinalPreviewHTML())
+                                .frame(minHeight: 320)
+                        }
+                    }
+
+                    Button {
+                        isPreviewPresented = false
+                    } label: {
+                        Text("关闭")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+
+                    Spacer(minLength: 20)
+                }
+                .padding(EMTheme.padding)
+            }
+            .safeAreaPadding(.top, 8)
+        }
+        .navigationTitle("预览")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var testSendSheet: some View {
+        EMScreen {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    EMSectionHeader("测试发送", subtitle: "输入一个邮箱地址，把当前模板发一封测试邮件")
+
+                    if let testSendResult {
+                        EMCard {
+                            Text(testSendResult)
+                                .font(.subheadline)
+                                .foregroundStyle(testSendResult.contains("成功") ? EMTheme.accent : .red)
+                        }
+                    }
+
+                    EMCard {
+                        EMTextField(title: "收件人邮箱", text: $testToEmail, prompt: "例如：test@gmail.com")
+
+                        Divider().overlay(EMTheme.line)
+
+                        Text("预览")
+                            .font(.footnote.weight(.medium))
+                            .foregroundStyle(EMTheme.ink2)
+
+                        HTMLWebView(html: buildFinalPreviewHTML())
+                            .frame(minHeight: 260)
+                    }
+
+                    Button {
+                        Task { await sendTestEmail() }
+                    } label: {
+                        Text(isTestSending ? "发送中…" : "发送测试邮件")
+                    }
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isTestSending))
+                    .disabled(isTestSending)
+
+                    Button {
+                        isTestSendPresented = false
+                    } label: {
+                        Text("关闭")
+                    }
+                    .buttonStyle(EMSecondaryButtonStyle())
+                    .disabled(isTestSending)
+
+                    Spacer(minLength: 20)
+                }
+                .padding(EMTheme.padding)
+            }
+            .safeAreaPadding(.top, 8)
+        }
+        .navigationTitle("测试发送")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
     private func looksLikeHTML(_ s: String) -> Bool {
         // Very lightweight heuristic.
         return s.contains("<") && s.contains(">")
@@ -754,6 +902,56 @@ struct EmailTemplateEditView: View {
         if raw.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
         let inner = looksLikeHTML(raw) ? raw : plainTextToHTML(raw)
         return wrapEmailHTML(inner)
+    }
+
+    private func htmlToPlainText(_ html: String) -> String {
+        var s = html
+            .replacingOccurrences(of: "<br>", with: "\n")
+            .replacingOccurrences(of: "<br/>", with: "\n")
+            .replacingOccurrences(of: "<br />", with: "\n")
+            .replacingOccurrences(of: "</p>", with: "\n\n")
+        s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        s = s.replacingOccurrences(of: "&nbsp;", with: " ")
+        s = s.replacingOccurrences(of: "&amp;", with: "&")
+        s = s.replacingOccurrences(of: "&lt;", with: "<")
+        s = s.replacingOccurrences(of: "&gt;", with: ">")
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func sendTestEmail() async {
+        let to = testToEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard to.contains("@") else {
+            testSendResult = "请输入正确的邮箱地址"
+            return
+        }
+
+        isTestSending = true
+        testSendResult = nil
+        defer { isTestSending = false }
+
+        do {
+            let subj = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+            let rawBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let html = rawBody.isEmpty ? nil : buildFinalPreviewHTML()
+
+            let text: String = {
+                if rawBody.isEmpty { return "" }
+                if looksLikeHTML(rawBody) { return htmlToPlainText(rawBody) }
+                return rawBody
+            }()
+
+            _ = try await gmailService.sendTestMessage(
+                to: to,
+                subject: subj.isEmpty ? "(无主题)" : subj,
+                text: text.isEmpty ? "(无正文)" : text,
+                html: html,
+                workspace: workspace
+            )
+
+            testSendResult = "发送成功"
+        } catch {
+            testSendResult = "发送失败：\(error.localizedDescription)"
+        }
     }
 
 

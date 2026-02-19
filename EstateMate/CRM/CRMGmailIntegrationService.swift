@@ -255,6 +255,33 @@ final class CRMGmailIntegrationService {
         )
     }
 
+    func sendTestMessage(
+        to: String,
+        subject: String,
+        text: String,
+        html: String?,
+        workspace: EstateMateWorkspaceKind = .openhouse
+    ) async throws -> SendResponse {
+        struct Body: Encodable {
+            let to: String
+            let subject: String
+            let text: String
+            let html: String?
+            let workspace: String
+        }
+
+        return try await invokeWithTimeout(
+            "gmail_send_test",
+            body: Body(
+                to: to,
+                subject: subject,
+                text: text,
+                html: html,
+                workspace: workspace.rawValue
+            )
+        )
+    }
+
     func connectInteractive() async throws -> Status {
         guard GoogleOAuthConfig.isConfigured else {
             throw EMError.message("尚未配置 Google OAuth（需要 clientId/redirectUri）。")
