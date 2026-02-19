@@ -81,23 +81,6 @@ struct OpenHouseEventEditView: View {
                                 TextField("例如：123 Main St - 2月10日", text: $title)
                                     .textInputAutocapitalization(.sentences)
                                     .autocorrectionDisabled(false)
-
-                                Button {
-                                    hideKeyboard()
-                                    Task { await fillTitleFromCurrentLocation() }
-                                } label: {
-                                    if isFillingLocation {
-                                        ProgressView()
-                                            .controlSize(.small)
-                                    } else {
-                                        Image(systemName: "location.fill")
-                                            .font(.callout.weight(.semibold))
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                                .foregroundStyle(EMTheme.accent)
-                                .disabled(isFillingLocation)
-                                .accessibilityLabel("使用当前位置生成标题")
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 12)
