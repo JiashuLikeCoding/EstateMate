@@ -8,6 +8,9 @@
 import SwiftUI
 import UIKit
 
+// WYSIWYG body editor
+
+
 struct EmailTemplateEditView: View {
     enum Mode: Equatable {
         case create(workspace: EstateMateWorkspaceKind)
@@ -63,7 +66,7 @@ struct EmailTemplateEditView: View {
     @State private var subjectSelection: NSRange = NSRange(location: 0, length: 0)
     @State private var isSubjectFocused: Bool = false
 
-    @State private var bodyText: String = ""
+    @State private var bodyAttributed: NSAttributedString = NSAttributedString(string: "")
     @State private var bodySelection: NSRange = NSRange(location: 0, length: 0)
     @State private var isBodyFocused: Bool = false
 
@@ -134,9 +137,8 @@ struct EmailTemplateEditView: View {
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
 
-                            CursorAwareTextView(text: $bodyText, selection: $bodySelection, isFocused: $isBodyFocused)
+                            RichTextEditorView(attributedText: $bodyAttributed, selection: $bodySelection, isFocused: $isBodyFocused)
                                 .frame(minHeight: 180, maxHeight: 260)
-                                .padding(10)
                                 .background(
                                     RoundedRectangle(cornerRadius: 14)
                                         .fill(Color.white.opacity(0.65))
@@ -151,7 +153,7 @@ struct EmailTemplateEditView: View {
                                 HStack(spacing: 10) {
                                     Button {
                                         isBodyFocused = true
-                                        wrapBodySelection(prefix: "<b>", suffix: "</b>")
+                                        bodyAttributed = RichTextFormatting.toggle(.bold, in: bodyAttributed, range: bodySelection)
                                     } label: {
                                         Label("加粗", systemImage: "bold")
                                             .font(.footnote.weight(.medium))
@@ -165,7 +167,7 @@ struct EmailTemplateEditView: View {
 
                                     Button {
                                         isBodyFocused = true
-                                        wrapBodySelection(prefix: "<i>", suffix: "</i>")
+                                        bodyAttributed = RichTextFormatting.toggle(.italic, in: bodyAttributed, range: bodySelection)
                                     } label: {
                                         Label("斜体", systemImage: "italic")
                                             .font(.footnote.weight(.medium))
@@ -393,7 +395,12 @@ struct EmailTemplateEditView: View {
                 workspace = t.workspace
                 name = t.name
                 subject = t.subject
-                bodyText = t.body
+                // Load body as rich text (HTML) when possible.
+                if looksLikeHTML(t.body) {
+                    bodyAttributed = .fromHTML(t.body)
+                } else {
+                    bodyAttributed = NSAttributedString(string: t.body)
+                }
                 variables = t.variables
                 fromName = (t.fromName ?? "")
             }
@@ -410,7 +417,7 @@ struct EmailTemplateEditView: View {
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let f = fromName.trimmingCharacters(in: .whitespacesAndNewlines)
         let s = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let b = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let b = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
         return !n.isEmpty && !f.isEmpty && !s.isEmpty && !b.isEmpty
     }
 
@@ -445,46 +452,40 @@ struct EmailTemplateEditView: View {
     }
 
     private func insertTokenIntoBody(_ token: String) {
-        let ns = bodyText as NSString
-        let safeLoc = min(max(bodySelection.location, 0), ns.length)
-        let safeLen = min(max(bodySelection.length, 0), ns.length - safeLoc)
+        let plain = bodyAttributed.string as NSString
+        let safeLoc = min(max(bodySelection.location, 0), plain.length)
+        let safeLen = min(max(bodySelection.length, 0), plain.length - safeLoc)
         let range = NSRange(location: safeLoc, length: safeLen)
 
         let needsLeadingSpace: Bool = {
             guard range.location > 0 else { return false }
-            let prev = ns.substring(with: NSRange(location: range.location - 1, length: 1))
+            let prev = plain.substring(with: NSRange(location: range.location - 1, length: 1))
             return prev != " " && prev != "\n"
         }()
 
         let insertion = (needsLeadingSpace ? " " : "") + token
-        bodyText = ns.replacingCharacters(in: range, with: insertion)
+
+        let mutable = NSMutableAttributedString(attributedString: bodyAttributed)
+        let attrs: [NSAttributedString.Key: Any] = {
+            guard mutable.length > 0 else {
+                return [.font: UIFont.systemFont(ofSize: 16), .foregroundColor: UIColor.label]
+            }
+            let idx = max(0, min(range.location, mutable.length - 1))
+            return mutable.attributes(at: idx, effectiveRange: nil)
+        }()
+        mutable.replaceCharacters(in: range, with: NSAttributedString(string: insertion, attributes: attrs))
+        bodyAttributed = mutable
 
         let newCursor = range.location + (insertion as NSString).length
         bodySelection = NSRange(location: newCursor, length: 0)
     }
 
-    private func wrapBodySelection(prefix: String, suffix: String) {
-        let ns = bodyText as NSString
-        let safeLoc = min(max(bodySelection.location, 0), ns.length)
-        let safeLen = min(max(bodySelection.length, 0), ns.length - safeLoc)
-        let range = NSRange(location: safeLoc, length: safeLen)
-
-        if range.length == 0 {
-            // Insert empty tag pair and place cursor inside.
-            let insertion = prefix + suffix
-            bodyText = ns.replacingCharacters(in: range, with: insertion)
-            bodySelection = NSRange(location: range.location + (prefix as NSString).length, length: 0)
-        } else {
-            let selected = ns.substring(with: range)
-            let wrapped = prefix + selected + suffix
-            bodyText = ns.replacingCharacters(in: range, with: wrapped)
-            bodySelection = NSRange(location: range.location + (wrapped as NSString).length, length: 0)
-        }
-    }
+    // wrapBodySelection removed: body is edited as rich text (WYSIWYG) now.
 
     private func applyPickedColorToBodySelection() {
         guard let hex = EMTheme.hexFromColor(pickedColor) else { return }
-        wrapBodySelection(prefix: "<span style=\"color:\(hex)\">", suffix: "</span>")
+        let uiColor = UIColor(hexString: hex) ?? UIColor.label
+        bodyAttributed = RichTextFormatting.applyColor(uiColor, in: bodyAttributed, range: bodySelection)
     }
 
     private var savePreviewSheet: some View {
@@ -704,32 +705,36 @@ struct EmailTemplateEditView: View {
         return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}</style></head><body>\(inner)</body></html>"
     }
 
-    private func buildFinalPreviewHTML() -> String {
-        let raw = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if raw.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
-
-        let inner: String
-        if looksLikeHTML(raw) {
-            inner = preserveLineBreaksForSimpleHTML(raw)
-        } else {
-            inner = plainTextToHTML(raw)
+    private func extractBodyInnerHTML(_ fullHTML: String) -> String {
+        // NSAttributedString html export often emits a full HTML doc.
+        // We only want the <body> inner HTML so we can wrap with our own consistent styles.
+        let lower = fullHTML.lowercased()
+        guard let bodyStart = lower.range(of: "<body"), let bodyTagEnd = lower[bodyStart.upperBound...].range(of: ">") else {
+            return fullHTML
         }
-
-        return wrapEmailHTML(inner)
+        let contentStart = bodyTagEnd.upperBound
+        guard let bodyEnd = lower.range(of: "</body>") else {
+            return String(fullHTML[contentStart...])
+        }
+        return String(fullHTML[contentStart..<bodyEnd.lowerBound])
     }
 
-    private func htmlToPlainText(_ html: String) -> String {
-        var s = html
-            .replacingOccurrences(of: "<br>", with: "\n")
-            .replacingOccurrences(of: "<br/>", with: "\n")
-            .replacingOccurrences(of: "<br />", with: "\n")
-            .replacingOccurrences(of: "</p>", with: "\n\n")
-        s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        s = s.replacingOccurrences(of: "&nbsp;", with: " ")
-        s = s.replacingOccurrences(of: "&amp;", with: "&")
-        s = s.replacingOccurrences(of: "&lt;", with: "<")
-        s = s.replacingOccurrences(of: "&gt;", with: ">")
-        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+    private func bodyInnerHTMLFromAttributed() -> String? {
+        guard let full = bodyAttributed.toHTML() else { return nil }
+        let inner = extractBodyInnerHTML(full).trimmingCharacters(in: .whitespacesAndNewlines)
+        return inner.isEmpty ? nil : inner
+    }
+
+    private func buildFinalPreviewHTML() -> String {
+        let plain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if plain.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
+
+        if let inner = bodyInnerHTMLFromAttributed() {
+            return wrapEmailHTML(inner)
+        }
+
+        // Fallback (should be rare)
+        return wrapEmailHTML(plainTextToHTML(plain))
     }
 
     private func sendTestEmail() async {
@@ -745,19 +750,13 @@ struct EmailTemplateEditView: View {
 
         do {
             let subj = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-            let rawBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let html = rawBody.isEmpty ? nil : buildFinalPreviewHTML()
-
-            let text: String = {
-                if rawBody.isEmpty { return "" }
-                if looksLikeHTML(rawBody) { return htmlToPlainText(rawBody) }
-                return rawBody
-            }()
+            let plain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            let html = plain.isEmpty ? nil : buildFinalPreviewHTML()
 
             _ = try await gmailService.sendTestMessage(
                 to: to,
                 subject: subj.isEmpty ? "(无主题)" : subj,
-                text: text.isEmpty ? "(无正文)" : text,
+                text: plain.isEmpty ? "(无正文)" : plain,
                 html: html,
                 fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                 workspace: workspace
@@ -778,7 +777,8 @@ struct EmailTemplateEditView: View {
 
         let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let s = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let b = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bodyPlain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bodyHTML = bodyInnerHTMLFromAttributed() ?? bodyPlain
 
         do {
             if let id = mode.templateId {
@@ -788,7 +788,7 @@ struct EmailTemplateEditView: View {
                         workspace: workspace,
                         name: n,
                         subject: s,
-                        body: b,
+                        body: bodyHTML,
                         variables: variables,
                         fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                         isArchived: nil
@@ -798,11 +798,18 @@ struct EmailTemplateEditView: View {
                 // Keep the user on the edit page; just refresh content locally.
                 name = n
                 subject = s
-                bodyText = b
+                bodyAttributed = looksLikeHTML(bodyHTML) ? .fromHTML(bodyHTML) : NSAttributedString(string: bodyHTML)
                 errorMessage = "已保存"
             } else {
                 _ = try await service.createTemplate(
-                    EmailTemplateInsert(workspace: workspace, name: n, subject: s, body: b, variables: variables, fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines))
+                    EmailTemplateInsert(
+                        workspace: workspace,
+                        name: n,
+                        subject: s,
+                        body: bodyHTML,
+                        variables: variables,
+                        fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    )
                 )
 
                 // Creating a new template: dismiss back to list.
