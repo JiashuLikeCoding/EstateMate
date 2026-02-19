@@ -512,7 +512,7 @@ struct EmailTemplateEditView: View {
                             Text("主题")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
-                            Text(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
+                            subjectPreviewText(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
                                 .font(.subheadline)
                                 .foregroundStyle(EMTheme.ink)
 
@@ -568,7 +568,7 @@ struct EmailTemplateEditView: View {
                             Text("主题")
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(EMTheme.ink2)
-                            Text(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
+                            subjectPreviewText(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（无主题）" : subject)
                                 .font(.subheadline)
                                 .foregroundStyle(EMTheme.ink)
 
@@ -660,6 +660,48 @@ struct EmailTemplateEditView: View {
         return s.contains("<") && s.contains(">")
     }
 
+    private func subjectPreviewText(_ s: String) -> Text {
+        let base = s
+        // Highlight {{var}} tokens in the preview UI with deep green.
+        let pattern = "\\{\\{[^{}]+\\}\\}" // simple + safe
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return Text(base) }
+
+        let ns = base as NSString
+        let full = NSRange(location: 0, length: ns.length)
+
+        var chunks: [Text] = []
+        var cursor = 0
+
+        let matches = regex.matches(in: base, range: full)
+        for m in matches {
+            let r = m.range
+            if r.location > cursor {
+                let part = ns.substring(with: NSRange(location: cursor, length: r.location - cursor))
+                chunks.append(Text(part))
+            }
+
+            let token = ns.substring(with: r)
+            chunks.append(Text(token).foregroundStyle(Color(red: 11/255, green: 90/255, blue: 42/255)))
+            cursor = r.location + r.length
+        }
+
+        if cursor < ns.length {
+            chunks.append(Text(ns.substring(from: cursor)))
+        }
+
+        return chunks.reduce(Text("")) { $0 + $1 }
+    }
+
+    private func highlightTemplateVariablesInHTML(_ html: String) -> String {
+        // Wrap {{var}} tokens so CSS can color them in the preview WebView.
+        // This is for preview only; we do NOT persist it.
+        let pattern = "\\{\\{[^{}]+\\}\\}" // simple + safe
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return html }
+
+        let full = NSRange(location: 0, length: (html as NSString).length)
+        return regex.stringByReplacingMatches(in: html, range: full, withTemplate: "<span class=\"em-var\">$0</span>")
+    }
+
     private func unescapeCommonNewlines(_ s: String) -> String {
         // Handle legacy content that contains literal backslash sequences like "\\n".
         // We only target newline-related escapes to avoid surprising other backslashes.
@@ -715,7 +757,9 @@ struct EmailTemplateEditView: View {
     }
 
     private func wrapEmailHTML(_ inner: String) -> String {
-        return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}</style></head><body>\(inner)</body></html>"
+        // Deep green for template variable tokens + link color.
+        let varColor = "#0B5A2A"
+        return "<!doctype html><html><head><meta charset=\"utf-8\" /><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" /><style>body{font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#222;line-height:1.55;padding:14px;}p{margin:0 0 10px 0;}a{color:\(varColor);text-decoration:underline;word-break:break-word;}span.em-var{color:\(varColor);font-weight:600;}</style></head><body>\(inner)</body></html>"
     }
 
     private func extractBodyInnerHTML(_ fullHTML: String) -> String {
@@ -743,11 +787,12 @@ struct EmailTemplateEditView: View {
         if plain.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
 
         if let inner = bodyInnerHTMLFromAttributed() {
-            return wrapEmailHTML(inner)
+            let styled = highlightTemplateVariablesInHTML(inner)
+            return wrapEmailHTML(styled)
         }
 
         // Fallback (should be rare)
-        return wrapEmailHTML(plainTextToHTML(plain))
+        return wrapEmailHTML(highlightTemplateVariablesInHTML(plainTextToHTML(plain)))
     }
 
     private func sendTestEmail() async {
