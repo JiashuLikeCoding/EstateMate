@@ -115,7 +115,10 @@ final class CRMGmailIntegrationService {
     ) async throws -> T {
         func invokeOnce(accessToken: String) async throws -> T {
             let headers = [
-                "Authorization": "Bearer \(accessToken)"
+                "Authorization": "Bearer \(accessToken)",
+                // Some Supabase Edge Function gateways require the API key header in addition to Authorization.
+                // Without it, the gateway may respond with 401 Invalid JWT.
+                "apikey": SupabaseClientProvider.anonKey
             ]
 
             return try await withThrowingTaskGroup(of: T.self) { group in
