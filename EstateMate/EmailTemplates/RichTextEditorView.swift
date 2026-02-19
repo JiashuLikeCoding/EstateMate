@@ -18,6 +18,10 @@ struct RichTextEditorView: UIViewRepresentable {
 
     var minHeight: CGFloat = 180
 
+    /// Highlight template variables like {{first_name}} in the editor.
+    /// Note: this is editor-only; we strip this highlight before saving/export.
+    var highlightVariables: Bool = true
+
     func makeUIView(context: Context) -> UITextView {
         let tv = UITextView()
         tv.delegate = context.coordinator
@@ -34,14 +38,16 @@ struct RichTextEditorView: UIViewRepresentable {
         // Auto-detect links for WYSIWYG
         tv.dataDetectorTypes = [.link]
 
-        // Initial content
-        tv.attributedText = attributedText
+        // Initial content (with editor-only variable highlighting)
+        tv.attributedText = highlightVariables ? applyVariableHighlight(to: attributedText) : attributedText
         return tv
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.attributedText != attributedText {
-            uiView.attributedText = attributedText
+        // Compare against a stripped version because the UITextView may have editor-only highlighting.
+        let currentBase = highlightVariables ? stripVariableHighlight(from: uiView.attributedText) : uiView.attributedText
+        if currentBase != attributedText {
+            uiView.attributedText = highlightVariables ? applyVariableHighlight(to: attributedText) : attributedText
         }
 
         if uiView.selectedRange != selection {
@@ -71,7 +77,20 @@ struct RichTextEditorView: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            parent.attributedText = textView.attributedText
+            let raw = textView.attributedText ?? NSAttributedString(string: "")
+
+            // Strip editor-only variable styling so we don't persist the green color into the saved HTML.
+            let base = parent.highlightVariables ? stripVariableHighlight(from: raw) : raw
+            parent.attributedText = base
+
+            // Re-apply highlight for display (keeping cursor stable as much as possible).
+            guard parent.highlightVariables else { return }
+            let selected = textView.selectedRange
+            let highlighted = applyVariableHighlight(to: base)
+            if textView.attributedText != highlighted {
+                textView.attributedText = highlighted
+                textView.selectedRange = selected
+            }
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -86,6 +105,51 @@ struct RichTextEditorView: UIViewRepresentable {
             parent.isFocused = false
         }
     }
+}
+
+// MARK: - Editor-only variable highlighting
+
+private func applyVariableHighlight(to attributed: NSAttributedString) -> NSAttributedString {
+    guard attributed.length > 0 else { return attributed }
+
+    let mutable = NSMutableAttributedString(attributedString: attributed)
+    let s = mutable.string as NSString
+    let fullRange = NSRange(location: 0, length: s.length)
+
+    // Match {{variable_name}} tokens.
+    let pattern = "\\{\\{[^{}]+\\}\\}" // simple + safe
+    guard let regex = try? NSRegularExpression(pattern: pattern) else { return attributed }
+
+    let tokenColor = UIColor.systemGreen
+    regex.enumerateMatches(in: mutable.string, range: fullRange) { match, _, _ in
+        guard let r = match?.range, r.length > 0 else { return }
+
+        // Apply green, but keep existing font/bold/italic etc.
+        mutable.addAttribute(.foregroundColor, value: tokenColor, range: r)
+    }
+
+    return mutable
+}
+
+private func stripVariableHighlight(from attributed: NSAttributedString) -> NSAttributedString {
+    guard attributed.length > 0 else { return attributed }
+
+    let mutable = NSMutableAttributedString(attributedString: attributed)
+    let s = mutable.string as NSString
+    let fullRange = NSRange(location: 0, length: s.length)
+
+    let pattern = "\\{\\{[^{}]+\\}\\}" // same as apply
+    guard let regex = try? NSRegularExpression(pattern: pattern) else { return attributed }
+
+    regex.enumerateMatches(in: mutable.string, range: fullRange) { match, _, _ in
+        guard let r = match?.range, r.length > 0 else { return }
+
+        // Remove token color so it doesn't get saved/exported.
+        // (Other user-chosen colors elsewhere remain.)
+        mutable.removeAttribute(.foregroundColor, range: r)
+    }
+
+    return mutable
 }
 
 // MARK: - Attributed text helpers
