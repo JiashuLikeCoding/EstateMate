@@ -39,7 +39,7 @@ struct OpenHouseEventEditView: View {
 
     @State private var showEndEarlyConfirm = false
 
-    @State private var showDeleteConfirm = false
+    @State private var showArchiveConfirm = false
 
     @State private var isFillingLocation = false
     @State private var locationErrorMessage: String?
@@ -273,10 +273,11 @@ struct OpenHouseEventEditView: View {
                                 .buttonStyle(EMDangerButtonStyle())
                             }
 
-                            Button("归档活动") {
-                                showDeleteConfirm = true
+                            Button(isArchived ? "取消归档" : "归档活动") {
+                                showArchiveConfirm = true
                             }
-                            .buttonStyle(EMDangerButtonStyle())
+                            .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
+                            .disabled(isLoading)
                         }
                     }
 
@@ -317,13 +318,13 @@ struct OpenHouseEventEditView: View {
                 EmailTemplatesListView(workspace: .openhouse, selection: $selectedEmailTemplateId)
             }
         }
-        .alert("归档这个活动？", isPresented: $showDeleteConfirm) {
+        .alert(isArchived ? "取消归档这个活动？" : "归档这个活动？", isPresented: $showArchiveConfirm) {
             Button("取消", role: .cancel) {}
-            Button("归档", role: .destructive) {
-                Task { await archiveEvent() }
+            Button(isArchived ? "取消归档" : "归档") {
+                Task { await toggleArchive() }
             }
         } message: {
-            Text("归档后活动会从列表隐藏，但提交记录会保留。")
+            Text(isArchived ? "取消归档后活动会重新出现在列表。" : "归档后活动会从列表隐藏，但提交记录会保留。")
         }
     }
 
@@ -500,14 +501,24 @@ struct OpenHouseEventEditView: View {
         }
     }
 
-    private func archiveEvent() async {
+    private var isArchived: Bool {
+        event.isArchived ?? false
+    }
+
+    private func toggleArchive() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            // Archive only; keep submissions.
-            try await service.archiveEvent(id: event.id, isArchived: true)
+            // Toggle archive only; keep submissions.
+            let next = !isArchived
+            try await service.archiveEvent(id: event.id, isArchived: next)
+            event.isArchived = next
             errorMessage = nil
-            dismiss()
+
+            // If archiving, go back to list (so it disappears immediately).
+            if next {
+                dismiss()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
