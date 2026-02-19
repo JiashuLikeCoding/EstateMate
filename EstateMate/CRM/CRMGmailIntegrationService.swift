@@ -118,7 +118,10 @@ final class CRMGmailIntegrationService {
                 "Authorization": "Bearer \(accessToken)",
                 // Some Supabase Edge Function gateways require the API key header in addition to Authorization.
                 // Without it, the gateway may respond with 401 Invalid JWT.
-                "apikey": SupabaseClientProvider.anonKey
+                "apikey": SupabaseClientProvider.anonKey,
+                // Some proxies/providers use x-api-key instead.
+                "x-api-key": SupabaseClientProvider.anonKey,
+                "content-type": "application/json"
             ]
 
             return try await withThrowingTaskGroup(of: T.self) { group in
