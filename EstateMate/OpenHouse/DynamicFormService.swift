@@ -141,8 +141,21 @@ final class DynamicFormService {
             $0.label.contains("考虑出售")
         })
         guard let sellingIndex else { return form }
-        let sellingKey = form.schema.fields[sellingIndex].key
+        let sellingField = form.schema.fields[sellingIndex]
+        let sellingKey = sellingField.key
         guard !sellingKey.isEmpty else { return form }
+
+        let yesValue: String = {
+            // Try to match the actual option string stored by the select field.
+            let opts = sellingField.options ?? []
+            if let exact = opts.first(where: { $0.localizedCaseInsensitiveContains("yes") }) {
+                return exact
+            }
+            if let exact = opts.first(where: { $0.contains("是") }) {
+                return exact
+            }
+            return "Yes"
+        }()
 
         func isSellingQuestion(_ f: FormField) -> Bool {
             f.label.localizedCaseInsensitiveContains("considering selling") ||
@@ -177,9 +190,20 @@ final class DynamicFormService {
                 continue
             }
 
-            // Only patch visibility if there is no rule yet (avoid overwriting user-configured logic).
+            // Patch visibility.
+            // - If there is no rule yet, add it.
+            // - If there is an existing rule that looks like our legacy default (value == "Yes"),
+            //   update it to match the actual stored option (e.g. "Yes (是)").
             if f.visibleWhen == nil {
-                f.visibleWhen = .init(dependsOnKey: sellingKey, op: .equals, value: "Yes", clearOnHide: true)
+                f.visibleWhen = .init(dependsOnKey: sellingKey, op: .equals, value: yesValue, clearOnHide: true)
+                didChange = true
+            } else if var r = f.visibleWhen,
+                      r.dependsOnKey == sellingKey,
+                      r.op == .equals,
+                      r.value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "yes",
+                      yesValue != r.value {
+                r.value = yesValue
+                f.visibleWhen = r
                 didChange = true
             }
 
