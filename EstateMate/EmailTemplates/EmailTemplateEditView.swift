@@ -332,8 +332,8 @@ struct EmailTemplateEditView: View {
                     } label: {
                         Text("保存")
                     }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
-                    .disabled(isLoading)
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSave))
+                    .disabled(isLoading || !canSave)
                     .sheet(isPresented: $isSavePreviewPresented) {
                         NavigationStack {
                             savePreviewSheet
@@ -376,32 +376,9 @@ struct EmailTemplateEditView: View {
 
     private func loadIfNeeded() async {
         guard let id = mode.templateId else {
-            // create defaults
+            // Create mode: do not auto-fill any content.
+            // (Jason request) User must explicitly enter: name, from name, subject, body.
             variables = []
-            fromName = ""
-
-            // Give the user a ready-to-edit starter template (no need to know <p> / HTML).
-            if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                name = workspace == .openhouse ? "Open House模版" : "新邮件模版"
-            }
-
-            if fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                fromName = workspace == .openhouse ? "Ming REN Realty" : ""
-            }
-
-            if subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                subject = workspace == .openhouse
-                    ? "感谢您来参加 {{event_title}}"
-                    : "很高兴认识您"
-            }
-
-            if bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                bodyText = workspace == .openhouse
-                    ? "Dear {{firstname}},\n\nI trust this message finds you well. I want to express our sincere gratitude for your presence at our recent Open House event.\n\nShould you have any further inquiries or require additional information, please don't hesitate to reach out. Your feedback is crucial to us, and we look forward to the possibility of future partnerships.\n\nOnce again, thank you for making our Open House a success. We hope to have the pleasure of hosting you again at our upcoming events.\n\nPlease make sure to review the RECO Information Guide before your real estate agent provides any services or assistance.\n\nLink: https://www.reco.on.ca/about/plans-and-publications/reco-information-guide\n\nWe hope this guide will be helpful for you to gain insights and assistance as you seek real estate services.\n\nBest Regards\n\nMing Ren( 大鸣）\nBroker <b># 1 Realtor in Lake Wilcox Area & Top 1% Realtor in GTA* # 1 Realtor in Re/Max Realtron Realty RH Branch(2020,2021,2022,2023,2024) Re/Max Diamond Award Winner Re/Max Chairman Award Winner Re/Max Hall of Fame Award Winner (位列Re/max 全球名人堂）</b>\nMulti-Channel Marketing Tools, Sell Your Property faster\nRe/Max Realtron Realty (运亨地产）\nCell: 647-779-9186\nBus：905-764-8688\nWeChat: 812298606\nEmail: MingRenRealty@gmail.com\nWebsite: www.MingRenRealty.ca\n老老实实做人，踏踏实实做事\nTrusted Professional, Diligent Work"
-                    : "您好，\n\n很高兴认识您！\n如果您方便，我们可以约个时间聊一下您的需求。\n\n谢谢！"
-            }
-
-            // default declared variables (optional): keep empty for now.
             return
         }
 
@@ -426,6 +403,16 @@ struct EmailTemplateEditView: View {
     }
 
 
+
+    private var canSave: Bool {
+        // Requirement: on create, user must fill all core fields before Save is enabled.
+        // For edit, we keep the same rule to avoid accidentally saving an empty template.
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let f = fromName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let b = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !n.isEmpty && !f.isEmpty && !s.isEmpty && !b.isEmpty
+    }
 
     private func insertVariableToken(_ key: String) {
         let token = "{{\(key)}}"
@@ -543,8 +530,8 @@ struct EmailTemplateEditView: View {
                     } label: {
                         Text(isLoading ? "保存中…" : "确认保存")
                     }
-                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading))
-                    .disabled(isLoading)
+                    .buttonStyle(EMPrimaryButtonStyle(disabled: isLoading || !canSave))
+                    .disabled(isLoading || !canSave)
 
                     Button {
                         isSavePreviewPresented = false
