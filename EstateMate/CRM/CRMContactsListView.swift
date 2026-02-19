@@ -18,6 +18,9 @@ struct CRMContactsListView: View {
     @State private var errorMessage: String?
     @State private var contacts: [CRMContact] = []
 
+    // Open (not-done) tasks grouped by contact.
+    @State private var openTasksByContactId: [UUID: [CRMTask]] = [:]
+
     @State private var isSelecting = false
     @State private var selectedIds = Set<UUID>()
 
@@ -32,6 +35,7 @@ struct CRMContactsListView: View {
     @State private var navigateToContact: ContactNavTarget? = nil
 
     private let service = CRMService()
+    private let tasksService = CRMTasksService()
 
     struct ContactsFilter: Equatable {
         var stage: CRMContactStage? = nil
@@ -127,7 +131,7 @@ struct CRMContactsListView: View {
                                         }
                                         .buttonStyle(.plain)
 
-                                        CRMContactCardContent(contact: c)
+                                        CRMContactCardContent(contact: c, tasks: openTasksByContactId[c.id] ?? [])
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
@@ -136,7 +140,7 @@ struct CRMContactsListView: View {
                                 }
                             } else {
                                 EMCard {
-                                    CRMContactCardContent(contact: c)
+                                    CRMContactCardContent(contact: c, tasks: openTasksByContactId[c.id] ?? [])
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -420,7 +424,18 @@ struct CRMContactsListView: View {
         defer { isLoading = false }
 
         do {
-            contacts = try await service.listContacts()
+            async let contactsTask = service.listContacts()
+            async let tasksTask = tasksService.listTasks(includeDone: false)
+
+            contacts = try await contactsTask
+
+            let tasks = (try? await tasksTask) ?? []
+            var byId: [UUID: [CRMTask]] = [:]
+            for t in tasks {
+                guard let cid = t.contactId else { continue }
+                byId[cid, default: []].append(t)
+            }
+            openTasksByContactId = byId
         } catch {
             errorMessage = "加载失败：\(error.localizedDescription)"
         }
@@ -663,6 +678,7 @@ private extension Date {
 
 private struct CRMContactCardContent: View {
     let contact: CRMContact
+    let tasks: [CRMTask]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -719,6 +735,45 @@ private struct CRMContactCardContent: View {
                     FlowLayout(maxPerRow: 99, spacing: 8) {
                         ForEach(tags, id: \.self) { t in
                             EMChip(text: t, isOn: true)
+                        }
+                    }
+                }
+            }
+
+            let open = tasks.filter { !$0.isDone }
+            if !open.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("代办：")
+                        .font(.caption2)
+                        .foregroundStyle(EMTheme.ink2)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(open.prefix(2)).indices, id: \.self) { idx in
+                            let t = open[idx]
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Text("•")
+                                    .font(.caption2)
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Text(t.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "（未命名任务）" : t.title)
+                                    .font(.caption2)
+                                    .foregroundStyle(EMTheme.ink)
+                                    .lineLimit(1)
+
+                                if let due = t.dueAt {
+                                    Text(due.formatted(date: .abbreviated, time: .omitted))
+                                        .font(.caption2)
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+
+                                Spacer(minLength: 0)
+                            }
+                        }
+
+                        if open.count > 2 {
+                            Text("还有 \(open.count - 2) 条…")
+                                .font(.caption2)
+                                .foregroundStyle(EMTheme.ink2)
                         }
                     }
                 }
