@@ -67,19 +67,29 @@ struct CRMContactActivitiesView: View {
                                         .font(.headline)
                                         .foregroundStyle(EMTheme.ink)
 
-                                    HStack(spacing: 10) {
-                                        Text("提交：\(row.submissions.count)")
-                                            .font(.footnote)
-                                            .foregroundStyle(EMTheme.ink2)
-
-                                        if let location = row.event.location, !location.isEmpty {
-                                            Text(location)
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack(spacing: 10) {
+                                            Text("提交：\(row.submissions.count)")
                                                 .font(.footnote)
                                                 .foregroundStyle(EMTheme.ink2)
-                                                .lineLimit(1)
+                                            Spacer()
                                         }
 
-                                        Spacer()
+                                        if let location = row.event.location, !location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                            metaRow(icon: "mappin.and.ellipse", text: location)
+                                        }
+
+                                        if let time = timeText(for: row.event).nilIfBlank {
+                                            metaRow(icon: "clock", text: time)
+                                        }
+
+                                        if let host = row.event.host?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                            metaRow(icon: "person", text: "主理人：\(host)")
+                                        }
+
+                                        if let assistant = row.event.assistant?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank {
+                                            metaRow(icon: "person.2", text: "助手：\(assistant)")
+                                        }
                                     }
                                 }
                             }
@@ -99,6 +109,31 @@ struct CRMContactActivitiesView: View {
         }
         .refreshable {
             await reload()
+        }
+    }
+
+    @ViewBuilder
+    private func metaRow(icon: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(EMTheme.ink2)
+                .frame(width: 16)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(EMTheme.ink2)
+                .lineLimit(2)
+        }
+    }
+
+    private func timeText(for event: OpenHouseEventV2) -> String {
+        guard let start = event.startsAt else { return "" }
+        let startText = start.formatted(date: .abbreviated, time: .shortened)
+        if let end = event.endsAt {
+            let endText = end.formatted(date: .omitted, time: .shortened)
+            return "\(startText) – \(endText)"
+        } else {
+            return startText
         }
     }
 
