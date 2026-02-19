@@ -70,6 +70,10 @@ struct EmailTemplateEditView: View {
     @State private var bodySelection: NSRange = NSRange(location: 0, length: 0)
     @State private var isBodyFocused: Bool = false
 
+    /// If we loaded the body from HTML and the user hasn't edited it yet,
+    /// keep the original HTML source so preview/test-send can preserve tags like <b> reliably.
+    @State private var bodyHTMLSourceIfUnedited: String? = nil
+
     @State private var variables: [EmailTemplateVariable] = []
 
     // AI format + save
@@ -372,6 +376,10 @@ struct EmailTemplateEditView: View {
         .task(id: mode) {
             await loadIfNeeded()
         }
+        .onChange(of: bodyAttributed) { _, _ in
+            // Once the user edits anything, we should not rely on the original HTML source.
+            bodyHTMLSourceIfUnedited = nil
+        }
         .onTapGesture {
             hideKeyboard()
         }
@@ -400,8 +408,11 @@ struct EmailTemplateEditView: View {
                 // Note: some legacy templates store "simple HTML" (inline tags) with raw newlines.
                 // HTML collapses raw newlines, so we convert them to <br> for correct display in the editor.
                 if looksLikeHTML(t.body) {
-                    bodyAttributed = .fromHTML(preserveLineBreaksForSimpleHTML(t.body))
+                    let prepared = preserveLineBreaksForSimpleHTML(t.body)
+                    bodyHTMLSourceIfUnedited = prepared
+                    bodyAttributed = .fromHTML(prepared)
                 } else {
+                    bodyHTMLSourceIfUnedited = nil
                     // Some templates were saved with literal "\\n" sequences instead of real newlines.
                     // Convert those to real line breaks for correct WYSIWYG display.
                     bodyAttributed = NSAttributedString(string: unescapeCommonNewlines(t.body))
@@ -786,6 +797,12 @@ struct EmailTemplateEditView: View {
     private func buildFinalPreviewHTML() -> String {
         let plain = bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
         if plain.isEmpty { return wrapEmailHTML("<p>（无正文）</p>") }
+
+        // Prefer the original HTML source (if unedited) so tags like <b> keep working.
+        if let src = bodyHTMLSourceIfUnedited, !src.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let styled = highlightTemplateVariablesInHTML(src)
+            return wrapEmailHTML(styled)
+        }
 
         if let inner = bodyInnerHTMLFromAttributed() {
             let styled = highlightTemplateVariablesInHTML(inner)
