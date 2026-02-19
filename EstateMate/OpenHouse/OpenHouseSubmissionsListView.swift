@@ -593,6 +593,8 @@ private struct SubmissionTagPickerView: View {
     @Environment(\.dismiss) private var dismiss
 
     let service: DynamicFormService
+    private let crmService = CRMService()
+
     let submission: SubmissionV2?
     let onSaved: (SubmissionV2) -> Void
 
@@ -733,8 +735,49 @@ private struct SubmissionTagPickerView: View {
         isLoading = true
         defer { isLoading = false }
 
+        func mergedTags(existing: [String]?, incoming: [String]?) -> [String]? {
+            let a = existing ?? []
+            let b = incoming ?? []
+            if a.isEmpty && b.isEmpty { return nil }
+            var seen = Set<String>()
+            var out: [String] = []
+            for t in (a + b) {
+                let key = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !key.isEmpty else { continue }
+                if seen.contains(key.lowercased()) { continue }
+                seen.insert(key.lowercased())
+                out.append(key)
+            }
+            return out.isEmpty ? nil : out
+        }
+
         do {
             let updated = try await service.updateSubmissionTags(id: submission.id, tags: Array(selected).sorted())
+
+            // Sync submission tags -> CRM contact tags (best effort)
+            if let contactId = updated.contactId {
+                do {
+                    let contact = try await crmService.getContact(id: contactId)
+                    let merged = mergedTags(existing: contact.tags, incoming: updated.tags)
+                    _ = try await crmService.updateContact(
+                        id: contactId,
+                        patch: CRMContactUpdate(
+                            fullName: nil,
+                            phone: nil,
+                            email: nil,
+                            notes: nil,
+                            tags: merged,
+                            stage: nil,
+                            source: nil,
+                            lastContactedAt: nil
+                        )
+                    )
+                } catch {
+                    // Don't block tag saving UX if CRM sync fails
+                    // (e.g. legacy submission without contact row or permission issue)
+                }
+            }
+
             onSaved(updated)
             dismiss()
         } catch {
