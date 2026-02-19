@@ -260,14 +260,22 @@ struct FormBuilderVisibilityEditor: View {
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(EMTheme.ink2)
 
-                    FlowLayout(maxPerRow: 3, spacing: 8) {
-                        ForEach(opts, id: \.self) { opt in
-                            Button {
-                                value.wrappedValue = opt
-                            } label: {
-                                EMChip(text: opt, isOn: value.wrappedValue == opt)
+                    VStack(alignment: .leading, spacing: 8) {
+                        FlowLayout(maxPerRow: 3, spacing: 8) {
+                            ForEach(opts, id: \.self) { opt in
+                                Button {
+                                    value.wrappedValue = opt
+                                } label: {
+                                    EMChip(text: opt, isOn: value.wrappedValue == opt)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+                        }
+
+                        if value.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text("请选择一个触发值")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
                         }
                     }
                     .padding(12)
@@ -294,7 +302,8 @@ struct FormBuilderVisibilityEditor: View {
         case .checkbox:
             return "是"
         case .select, .dropdown:
-            return trigger?.options?.first ?? ""
+            // Do NOT preselect a default option. Let user choose explicitly.
+            return ""
         default:
             return ""
         }
