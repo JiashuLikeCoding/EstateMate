@@ -401,7 +401,9 @@ struct EmailTemplateEditView: View {
                 if looksLikeHTML(t.body) {
                     bodyAttributed = .fromHTML(preserveLineBreaksForSimpleHTML(t.body))
                 } else {
-                    bodyAttributed = NSAttributedString(string: t.body)
+                    // Some templates were saved with literal "\\n" sequences instead of real newlines.
+                    // Convert those to real line breaks for correct WYSIWYG display.
+                    bodyAttributed = NSAttributedString(string: unescapeCommonNewlines(t.body))
                 }
                 variables = t.variables
                 fromName = (t.fromName ?? "")
@@ -656,6 +658,15 @@ struct EmailTemplateEditView: View {
     private func looksLikeHTML(_ s: String) -> Bool {
         // Very lightweight heuristic.
         return s.contains("<") && s.contains(">")
+    }
+
+    private func unescapeCommonNewlines(_ s: String) -> String {
+        // Handle legacy content that contains literal backslash sequences like "\\n".
+        // We only target newline-related escapes to avoid surprising other backslashes.
+        return s
+            .replacingOccurrences(of: "\\r\\n", with: "\n")
+            .replacingOccurrences(of: "\\n", with: "\n")
+            .replacingOccurrences(of: "\\r", with: "\n")
     }
 
     private func escapeHTML(_ s: String) -> String {
