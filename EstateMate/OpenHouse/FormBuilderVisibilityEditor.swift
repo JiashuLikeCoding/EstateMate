@@ -11,18 +11,33 @@ struct FormBuilderVisibilityEditor: View {
 
     @State private var showTriggerPicker: Bool = false
 
-    private var isEnabled: Binding<Bool> {
+    private enum VisibilityMode: String, CaseIterable {
+        case defaultShow
+        case conditional
+
+        var title: String {
+            switch self {
+            case .defaultShow: return "默认显示"
+            case .conditional: return "按条件显示"
+            }
+        }
+    }
+
+    private var mode: Binding<VisibilityMode> {
         Binding(
-            get: { field.visibleWhen != nil },
-            set: { on in
-                if on {
-                    // Seed with a best-effort default.
-                    let candidate = availableTriggerFields.first
-                    let key = candidate?.key ?? ""
-                    let value = defaultValue(forTrigger: candidate)
-                    field.visibleWhen = .init(dependsOnKey: key, op: .equals, value: value, clearOnHide: true)
-                } else {
+            get: { field.visibleWhen == nil ? .defaultShow : .conditional },
+            set: { newMode in
+                switch newMode {
+                case .defaultShow:
                     field.visibleWhen = nil
+                case .conditional:
+                    if field.visibleWhen == nil {
+                        // Seed with a best-effort default.
+                        let candidate = availableTriggerFields.first
+                        let key = candidate?.key ?? ""
+                        let value = defaultValue(forTrigger: candidate)
+                        field.visibleWhen = .init(dependsOnKey: key, op: .equals, value: value, clearOnHide: true)
+                    }
                 }
             }
         )
@@ -71,22 +86,23 @@ struct FormBuilderVisibilityEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("显示条件")
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(EMTheme.ink)
-                    Spacer()
-                    Toggle("", isOn: isEnabled)
-                        .labelsHidden()
-                        .tint(EMTheme.accent)
-                }
+                Text("显示条件")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(EMTheme.ink)
 
                 Text("用于实现‘当客户选择了某个选项时，才显示后续字段’的联动。")
                     .font(.caption)
                     .foregroundStyle(EMTheme.ink2)
+
+                Picker("显示模式", selection: mode) {
+                    ForEach(VisibilityMode.allCases, id: \.self) { m in
+                        Text(m.title).tag(m)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
 
-            if isEnabled.wrappedValue {
+            if mode.wrappedValue == .conditional {            
                 if availableTriggerFields.isEmpty {
                     Text("暂无可用的条件字段（请先添加一个‘勾选/单选/下拉’字段）")
                         .font(.footnote)
