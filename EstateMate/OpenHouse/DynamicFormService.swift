@@ -1205,7 +1205,7 @@ final class DynamicFormService {
                         html: bodyHTML,
                         submissionId: submissionId.uuidString,
                         workspace: "openhouse",
-                        fromName: template.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : template.name
+                        fromName: (template.fromName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (template.fromName ?? "")
                     )
                 )
             ) as EmptyResponse
