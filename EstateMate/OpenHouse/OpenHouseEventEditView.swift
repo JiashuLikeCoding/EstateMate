@@ -10,6 +10,7 @@ import Supabase
 import Storage
 
 struct OpenHouseEventEditView: View {
+    private let MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
@@ -640,6 +641,12 @@ struct OpenHouseEventEditView: View {
                         throw error
                     }
                 }()
+
+                if data.count > MAX_ATTACHMENT_BYTES {
+                    let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+                    attachmentStatusMessage = "附件过大：\(url.lastPathComponent)（不能超过\(limit)）"
+                    continue
+                }
 
                 let rawName = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
                 let filename = rawName.removingPercentEncoding ?? rawName

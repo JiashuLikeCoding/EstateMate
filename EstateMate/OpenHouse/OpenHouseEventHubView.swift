@@ -65,6 +65,7 @@ struct OpenHouseEventHubView: View {
 }
 
 private struct OpenHouseEventCreateCardView: View {
+    private let MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024
     private let service = DynamicFormService()
     private let client = SupabaseClientProvider.client
 
@@ -594,6 +595,12 @@ private struct OpenHouseEventCreateCardView: View {
                     if let readError { return 0 }
                     return resultSize ?? 0
                 }()
+
+                if sizeBytes > MAX_ATTACHMENT_BYTES {
+                    let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+                    attachmentStatusMessage = "附件过大：\(filename)（不能超过\(limit)）"
+                    continue
+                }
 
                 let item = PendingAttachment(
                     tempURL: url,
