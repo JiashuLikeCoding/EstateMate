@@ -618,12 +618,18 @@ struct OpenHouseEventEditView: View {
         attachmentStatusMessage = nil
         defer { isUploadingAttachment = false }
 
+        var rejectedOversize: [String] = []
+        var uploadedCount = 0
+
         do {
             for url in urls {
                 let didAccess = url.startAccessingSecurityScopedResource()
                 defer {
                     if didAccess { url.stopAccessingSecurityScopedResource() }
                 }
+
+                let rawName = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+                let filenameDisplay = rawName.removingPercentEncoding ?? rawName
 
                 let data: Data = try {
                     do {
@@ -643,13 +649,10 @@ struct OpenHouseEventEditView: View {
                 }()
 
                 if data.count > MAX_ATTACHMENT_BYTES {
-                    let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
-                    attachmentStatusMessage = "附件过大：\(url.lastPathComponent)（不能超过\(limit)）"
+                    rejectedOversize.append(filenameDisplay)
                     continue
                 }
 
-                let rawName = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
-                let filename = rawName.removingPercentEncoding ?? rawName
                 let ext = url.pathExtension
 
                 let mimeType: String? = {
@@ -662,7 +665,7 @@ struct OpenHouseEventEditView: View {
                 }()
 
                 let safeFilename: String = {
-                    let cleaned = filename
+                    let cleaned = filenameDisplay
                         .replacingOccurrences(of: "/", with: "_")
                         .replacingOccurrences(of: "\\", with: "_")
 
@@ -684,17 +687,28 @@ struct OpenHouseEventEditView: View {
 
                 let item = EmailTemplateAttachment(
                     storagePath: path,
-                    filename: filename,
+                    filename: filenameDisplay,
                     mimeType: mimeType,
                     sizeBytes: data.count
                 )
 
                 autoEmailAttachments.removeAll { $0.storagePath == item.storagePath }
                 autoEmailAttachments.append(item)
+                uploadedCount += 1
             }
 
-            // Auto-save so the next submission email will include attachments.
-            await saveAutoEmailAttachmentsOnly()
+            let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+
+            if uploadedCount > 0 {
+                await saveAutoEmailAttachmentsOnly()
+
+                if rejectedOversize.isEmpty == false {
+                    attachmentStatusMessage = "已保存\(uploadedCount)个附件；以下文件过大已跳过（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                }
+            } else if rejectedOversize.isEmpty == false {
+                // Nothing uploaded; keep the rejection message (do not overwrite with "附件已保存").
+                attachmentStatusMessage = "附件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+            }
         } catch {
             attachmentStatusMessage = "上传失败：\(error.localizedDescription)"
         }

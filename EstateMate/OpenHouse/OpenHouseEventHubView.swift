@@ -576,27 +576,31 @@ private struct OpenHouseEventCreateCardView: View {
                 }()
 
                 let sizeBytes: Int = {
-                    // Try metadata first (fast), fallback to reading.
+                    // Try metadata first (fast)
                     if let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
                        let fs = values.fileSize, fs > 0 {
                         return fs
                     }
-                    // Fallback: coordinate read.
+
+                    // Fallback: coordinate read to fetch fileSize or content length.
                     let coordinator = NSFileCoordinator()
                     var readError: NSError?
                     var resultSize: Int?
                     coordinator.coordinate(readingItemAt: url, options: [], error: &readError) { readURL in
-                        if let values = try? readURL.resourceValues(forKeys: [.fileSizeKey]), let fs = values.fileSize {
+                        if let values = try? readURL.resourceValues(forKeys: [.fileSizeKey]), let fs = values.fileSize, fs > 0 {
                             resultSize = fs
                         } else if let data = try? Data(contentsOf: readURL) {
                             resultSize = data.count
                         }
                     }
-                    if let readError { return 0 }
+                    if readError != nil { return 0 }
                     return resultSize ?? 0
                 }()
 
-                if sizeBytes > MAX_ATTACHMENT_BYTES {
+                // If we still can't determine size, do a best-effort read to enforce the limit.
+                let effectiveSize = sizeBytes > 0 ? sizeBytes : (try? Data(contentsOf: url).count) ?? 0
+
+                if effectiveSize > MAX_ATTACHMENT_BYTES {
                     let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
                     attachmentStatusMessage = "附件过大：\(filename)（不能超过\(limit)）"
                     continue
