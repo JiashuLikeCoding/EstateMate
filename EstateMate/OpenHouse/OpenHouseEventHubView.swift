@@ -91,6 +91,7 @@ private struct OpenHouseEventCreateCardView: View {
     @State private var isAttachmentPickerPresented: Bool = false
     @State private var isUploadingAttachment: Bool = false
     @State private var attachmentStatusMessage: String?
+    @State private var attachmentStatusIsError: Bool = false
 
     @State private var newTitle: String = ""
     @State private var location: String = ""
@@ -318,7 +319,7 @@ private struct OpenHouseEventCreateCardView: View {
                 if let attachmentStatusMessage {
                     Text(attachmentStatusMessage)
                         .font(.footnote)
-                        .foregroundStyle(EMTheme.ink2)
+                        .foregroundStyle(attachmentStatusIsError ? .red : EMTheme.ink2)
                 }
 
                 if !pendingAutoEmailAttachments.isEmpty {
@@ -397,7 +398,8 @@ private struct OpenHouseEventCreateCardView: View {
             case .success(let urls):
                 Task { await handlePickedPendingAttachments(urls) }
             case .failure(let error):
-                attachmentStatusMessage = "选择文件失败：\(error.localizedDescription)"
+                attachmentStatusIsError = true
+                attachmentStatusMessage = "添加失败：\(error.localizedDescription)"
             }
         }
         .task { await load() }
@@ -553,6 +555,7 @@ private struct OpenHouseEventCreateCardView: View {
     private func handlePickedPendingAttachments(_ urls: [URL]) async {
         isUploadingAttachment = true
         attachmentStatusMessage = nil
+        attachmentStatusIsError = false
         defer { isUploadingAttachment = false }
 
         do {
@@ -602,7 +605,8 @@ private struct OpenHouseEventCreateCardView: View {
 
                 if effectiveSize > MAX_ATTACHMENT_BYTES {
                     let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
-                    attachmentStatusMessage = "附件过大：\(filename)（不能超过\(limit)）"
+                    attachmentStatusIsError = true
+                    attachmentStatusMessage = "添加失败：附件过大（不能超过\(limit)）：\(filename)"
                     continue
                 }
 
@@ -616,6 +620,7 @@ private struct OpenHouseEventCreateCardView: View {
                 pendingAutoEmailAttachments.append(item)
             }
 
+            attachmentStatusIsError = false
             attachmentStatusMessage = "已添加附件（创建后会自动上传绑定）"
         } catch {
             attachmentStatusMessage = "处理失败：\(error.localizedDescription)"

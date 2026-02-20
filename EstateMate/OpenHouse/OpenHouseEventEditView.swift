@@ -45,6 +45,7 @@ struct OpenHouseEventEditView: View {
     @State private var isAttachmentPickerPresented: Bool = false
     @State private var isUploadingAttachment: Bool = false
     @State private var attachmentStatusMessage: String?
+    @State private var attachmentStatusIsError: Bool = false
 
     @State private var showSaved = false
 
@@ -235,7 +236,7 @@ struct OpenHouseEventEditView: View {
                             if let attachmentStatusMessage {
                                 Text(attachmentStatusMessage)
                                     .font(.footnote)
-                                    .foregroundStyle(EMTheme.ink2)
+                                    .foregroundStyle(attachmentStatusIsError ? .red : EMTheme.ink2)
                             }
 
                             if !autoEmailAttachments.isEmpty {
@@ -616,6 +617,7 @@ struct OpenHouseEventEditView: View {
     private func handlePickedAutoEmailAttachments(_ urls: [URL]) async {
         isUploadingAttachment = true
         attachmentStatusMessage = nil
+        attachmentStatusIsError = false
         defer { isUploadingAttachment = false }
 
         var rejectedOversize: [String] = []
@@ -703,14 +705,17 @@ struct OpenHouseEventEditView: View {
                 await saveAutoEmailAttachmentsOnly()
 
                 if rejectedOversize.isEmpty == false {
-                    attachmentStatusMessage = "已保存\(uploadedCount)个附件；以下文件过大已跳过（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                    attachmentStatusIsError = true
+                    attachmentStatusMessage = "添加失败（已跳过）：以下文件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
                 }
             } else if rejectedOversize.isEmpty == false {
                 // Nothing uploaded; keep the rejection message (do not overwrite with "附件已保存").
-                attachmentStatusMessage = "附件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                attachmentStatusIsError = true
+                attachmentStatusMessage = "添加失败：附件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
             }
         } catch {
-            attachmentStatusMessage = "上传失败：\(error.localizedDescription)"
+            attachmentStatusIsError = true
+            attachmentStatusMessage = "添加失败：\(error.localizedDescription)"
         }
     }
 
@@ -751,9 +756,11 @@ struct OpenHouseEventEditView: View {
                 autoEmailAttachments: autoEmailAttachments
             )
             event = updated
+            attachmentStatusIsError = false
             attachmentStatusMessage = "附件已保存"
         } catch {
-            attachmentStatusMessage = "附件保存失败：\(error.localizedDescription)"
+            attachmentStatusIsError = true
+            attachmentStatusMessage = "添加失败：\(error.localizedDescription)"
         }
     }
 }
