@@ -357,6 +357,11 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
     /// Optional default email template for this event (e.g. follow-up email).
     var emailTemplateId: UUID?
 
+    /// Attachments to include in the event's auto-reply email.
+    /// Stored in openhouse_events.auto_email_attachments.
+    var autoEmailAttachments: [EmailTemplateAttachment]?
+
+
     var isActive: Bool
     var isArchived: Bool?
     var createdAt: Date?
@@ -373,6 +378,7 @@ struct OpenHouseEventV2: Codable, Identifiable, Hashable {
         case assistant
         case formId = "form_id"
         case emailTemplateId = "email_template_id"
+        case autoEmailAttachments = "auto_email_attachments"
         case isActive = "is_active"
         case isArchived = "is_archived"
         case createdAt = "created_at"
@@ -395,6 +401,7 @@ struct OpenHouseEventInsertV2: Encodable {
 
     var formId: UUID
     var emailTemplateId: UUID?
+    var autoEmailAttachments: [EmailTemplateAttachment] = []
     var isActive: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -407,6 +414,7 @@ struct OpenHouseEventInsertV2: Encodable {
         case assistant
         case formId = "form_id"
         case emailTemplateId = "email_template_id"
+        case autoEmailAttachments = "auto_email_attachments"
         case isActive = "is_active"
     }
 }
@@ -426,6 +434,9 @@ struct OpenHouseEventUpdateV2: Encodable {
     /// Optional default email template for this event.
     var emailTemplateId: UUID?
 
+    /// Attachments to include in the event's auto-reply email.
+    var autoEmailAttachments: [EmailTemplateAttachment] = []
+
     enum CodingKeys: String, CodingKey {
         case title
         case location
@@ -435,6 +446,7 @@ struct OpenHouseEventUpdateV2: Encodable {
         case assistant
         case formId = "form_id"
         case emailTemplateId = "email_template_id"
+        case autoEmailAttachments = "auto_email_attachments"
     }
 
     /// PostgREST 的 update：如果 Encodable 里某个 optional 是 nil，默认会「省略 key」，

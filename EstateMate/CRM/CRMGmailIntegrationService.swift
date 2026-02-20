@@ -279,11 +279,13 @@ final class CRMGmailIntegrationService {
             let storagePath: String
             let filename: String
             let mimeType: String?
+            let sizeBytes: Int?
 
             enum CodingKeys: String, CodingKey {
                 case storagePath = "storage_path"
                 case filename
                 case mimeType = "mime_type"
+                case sizeBytes = "size_bytes"
             }
         }
 
@@ -303,7 +305,7 @@ final class CRMGmailIntegrationService {
             text: text,
             html: html,
             fromName: fromName,
-            attachments: attachments.map { Attachment(storagePath: $0.storagePath, filename: $0.filename, mimeType: $0.mimeType) },
+            attachments: attachments.map { Attachment(storagePath: $0.storagePath, filename: $0.filename, mimeType: $0.mimeType, sizeBytes: $0.sizeBytes) },
             workspace: workspace.rawValue
         )
 

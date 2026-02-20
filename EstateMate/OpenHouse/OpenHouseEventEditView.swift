@@ -5,11 +5,15 @@
 
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
+import Supabase
+import Storage
 
 struct OpenHouseEventEditView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
+    private let client = SupabaseClientProvider.client
 
     @State private var locationService = LocationAddressService()
 
@@ -35,6 +39,12 @@ struct OpenHouseEventEditView: View {
     @State private var selectedEmailTemplateId: UUID?
     @State private var isEmailTemplateSheetPresented: Bool = false
 
+    // Auto-reply attachments (bound to event, not email template)
+    @State private var autoEmailAttachments: [EmailTemplateAttachment] = []
+    @State private var isAttachmentPickerPresented: Bool = false
+    @State private var isUploadingAttachment: Bool = false
+    @State private var attachmentStatusMessage: String?
+
     @State private var showSaved = false
 
     @State private var showEndEarlyConfirm = false
@@ -57,6 +67,7 @@ struct OpenHouseEventEditView: View {
         _assistant = State(initialValue: event.assistant ?? "")
         _selectedFormId = State(initialValue: event.formId)
         _selectedEmailTemplateId = State(initialValue: event.emailTemplateId)
+        _autoEmailAttachments = State(initialValue: event.autoEmailAttachments ?? [])
     }
 
     var body: some View {
@@ -205,6 +216,80 @@ struct OpenHouseEventEditView: View {
                                 .padding(.top, -2)
                         }
 
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text("自动回复附件")
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(EMTheme.ink2)
+
+                                Spacer()
+
+                                Button(isUploadingAttachment ? "上传中..." : "添加") {
+                                    isAttachmentPickerPresented = true
+                                }
+                                .buttonStyle(EMSecondaryButtonStyle())
+                                .disabled(isUploadingAttachment)
+                            }
+
+                            if let attachmentStatusMessage {
+                                Text(attachmentStatusMessage)
+                                    .font(.footnote)
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+
+                            if !autoEmailAttachments.isEmpty {
+                                VStack(spacing: 8) {
+                                    ForEach(autoEmailAttachments) { a in
+                                        HStack(spacing: 10) {
+                                            Image(systemName: "paperclip")
+                                                .foregroundStyle(EMTheme.ink2)
+
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(a.filename)
+                                                    .font(.callout)
+                                                    .foregroundStyle(EMTheme.ink)
+                                                    .lineLimit(1)
+
+                                                if let size = a.sizeBytes {
+                                                    Text("\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))")
+                                                        .font(.caption)
+                                                        .foregroundStyle(EMTheme.ink2)
+                                                }
+                                            }
+
+                                            Spacer()
+
+                                            Button {
+                                                Task { await removeAutoEmailAttachment(a) }
+                                            } label: {
+                                                Image(systemName: "trash")
+                                                    .foregroundStyle(.red)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+
+                                        if a.id != autoEmailAttachments.last?.id {
+                                            Divider().overlay(EMTheme.line)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                        .fill(EMTheme.paper2)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
+                                        .stroke(EMTheme.line, lineWidth: 1)
+                                )
+
+                                Text("说明：这些附件会在访客提交本活动表单后，自动回复邮件里一起发送。")
+                                    .font(.footnote)
+                                    .foregroundStyle(EMTheme.ink2)
+                            }
+                        }
+
                         Button(isLoading ? "保存中..." : "保存修改") { 
                             Task { await save() }
                         }
@@ -300,6 +385,18 @@ struct OpenHouseEventEditView: View {
         .sheet(isPresented: $isEmailTemplateSheetPresented) {
             NavigationStack {
                 EmailTemplatesListView(workspace: .openhouse, selection: $selectedEmailTemplateId)
+            }
+        }
+        .fileImporter(
+            isPresented: $isAttachmentPickerPresented,
+            allowedContentTypes: [.pdf, .data, .item],
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case .success(let urls):
+                Task { await handlePickedAutoEmailAttachments(urls) }
+            case .failure(let error):
+                attachmentStatusMessage = "选择文件失败：\(error.localizedDescription)"
             }
         }
         .alert(isArchived ? "取消归档这个活动？" : "归档这个活动？", isPresented: $showArchiveConfirm) {
@@ -405,7 +502,8 @@ struct OpenHouseEventEditView: View {
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
-                emailTemplateId: selectedEmailTemplateId
+                emailTemplateId: selectedEmailTemplateId,
+                autoEmailAttachments: autoEmailAttachments
             )
             // Keep manual state (isActive / endedAt) in sync too.
             event = updated
@@ -434,7 +532,8 @@ struct OpenHouseEventEditView: View {
                 host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
                 formId: formId,
-                emailTemplateId: selectedEmailTemplateId
+                emailTemplateId: selectedEmailTemplateId,
+                autoEmailAttachments: autoEmailAttachments
             )
 
             // 2) Mark manually ended
@@ -510,6 +609,101 @@ struct OpenHouseEventEditView: View {
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    private func handlePickedAutoEmailAttachments(_ urls: [URL]) async {
+        isUploadingAttachment = true
+        attachmentStatusMessage = nil
+        defer { isUploadingAttachment = false }
+
+        do {
+            for url in urls {
+                let didAccess = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didAccess { url.stopAccessingSecurityScopedResource() }
+                }
+
+                let data: Data = try {
+                    do {
+                        return try Data(contentsOf: url)
+                    } catch {
+                        // Fallback: coordinate read (some providers require it).
+                        let coordinator = NSFileCoordinator()
+                        var readError: NSError?
+                        var resultData: Data?
+                        coordinator.coordinate(readingItemAt: url, options: [], error: &readError) { readURL in
+                            resultData = try? Data(contentsOf: readURL)
+                        }
+                        if let readError { throw readError }
+                        if let resultData { return resultData }
+                        throw error
+                    }
+                }()
+
+                let rawName = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+                let filename = rawName.removingPercentEncoding ?? rawName
+                let ext = url.pathExtension
+
+                let mimeType: String? = {
+                    if let ut = UTType(filenameExtension: ext),
+                       let preferred = ut.preferredMIMEType {
+                        return preferred
+                    }
+                    if ext.lowercased() == "pdf" { return "application/pdf" }
+                    return "application/octet-stream"
+                }()
+
+                let safeFilename: String = {
+                    let cleaned = filename
+                        .replacingOccurrences(of: "/", with: "_")
+                        .replacingOccurrences(of: "\\", with: "_")
+
+                    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._- ")
+                    let ascii = cleaned.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }
+                    let collapsed = String(ascii)
+                        .replacingOccurrences(of: " ", with: "_")
+                        .replacingOccurrences(of: "__", with: "_")
+
+                    let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "._-"))
+                    return trimmed.isEmpty ? "attachment.pdf" : trimmed
+                }()
+
+                let path = "\(event.id.uuidString)/\(UUID().uuidString)_\(safeFilename)"
+
+                _ = try await client.storage
+                    .from("email_attachments")
+                    .upload(path, data: data, options: FileOptions(contentType: mimeType, upsert: true))
+
+                let item = EmailTemplateAttachment(
+                    storagePath: path,
+                    filename: filename,
+                    mimeType: mimeType,
+                    sizeBytes: data.count
+                )
+
+                autoEmailAttachments.removeAll { $0.storagePath == item.storagePath }
+                autoEmailAttachments.append(item)
+            }
+
+            attachmentStatusMessage = "已添加附件（记得点保存）"
+        } catch {
+            attachmentStatusMessage = "上传失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func removeAutoEmailAttachment(_ a: EmailTemplateAttachment) async {
+        autoEmailAttachments.removeAll { $0.storagePath == a.storagePath }
+
+        // Best-effort delete from Storage as well.
+        do {
+            try await client.storage
+                .from("email_attachments")
+                .remove(paths: [a.storagePath])
+            attachmentStatusMessage = "已移除附件（记得点保存）"
+        } catch {
+            // It's OK if we can't delete immediately.
+            attachmentStatusMessage = "已移除附件（Storage 删除失败：\(error.localizedDescription)）"
         }
     }
 }

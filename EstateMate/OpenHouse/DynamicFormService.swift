@@ -331,6 +331,7 @@ final class DynamicFormService {
         assistant: String?,
         formId: UUID,
         emailTemplateId: UUID? = nil,
+        autoEmailAttachments: [EmailTemplateAttachment] = [],
         isActive: Bool
     ) async throws -> OpenHouseEventV2 {
         let payload = OpenHouseEventInsertV2(
@@ -342,6 +343,7 @@ final class DynamicFormService {
             assistant: assistant,
             formId: formId,
             emailTemplateId: emailTemplateId,
+            autoEmailAttachments: autoEmailAttachments,
             isActive: isActive
         )
         return try await client
@@ -362,7 +364,8 @@ final class DynamicFormService {
         host: String?,
         assistant: String?,
         formId: UUID,
-        emailTemplateId: UUID?
+        emailTemplateId: UUID?,
+        autoEmailAttachments: [EmailTemplateAttachment] = []
     ) async throws -> OpenHouseEventV2 {
         // We don't overwrite is_active here; use setActive for that.
         let payload = OpenHouseEventUpdateV2(
@@ -373,7 +376,8 @@ final class DynamicFormService {
             host: host,
             assistant: assistant,
             formId: formId,
-            emailTemplateId: emailTemplateId
+            emailTemplateId: emailTemplateId,
+            autoEmailAttachments: autoEmailAttachments
         )
         return try await client
             .from("openhouse_events")
@@ -1030,6 +1034,7 @@ final class DynamicFormService {
                 let location: String?
                 let startsAt: Date?
                 let emailTemplateId: UUID?
+                let autoEmailAttachments: [EmailTemplateAttachment]?
 
                 enum CodingKeys: String, CodingKey {
                     case id
@@ -1037,12 +1042,13 @@ final class DynamicFormService {
                     case location
                     case startsAt = "starts_at"
                     case emailTemplateId = "email_template_id"
+                    case autoEmailAttachments = "auto_email_attachments"
                 }
             }
 
             let event: EventEmailTemplate = try await client
                 .from("openhouse_events")
-                .select("id,title,location,starts_at,email_template_id")
+                .select("id,title,location,starts_at,email_template_id,auto_email_attachments")
                 .eq("id", value: eventId.uuidString)
                 .single()
                 .execute()
@@ -1182,11 +1188,13 @@ final class DynamicFormService {
                 let storagePath: String
                 let filename: String
                 let mimeType: String?
+                let sizeBytes: Int?
 
                 enum CodingKeys: String, CodingKey {
                     case storagePath = "storage_path"
                     case filename
                     case mimeType = "mime_type"
+                    case sizeBytes = "size_bytes"
                 }
             }
 
@@ -1220,11 +1228,12 @@ final class DynamicFormService {
                         submissionId: submissionId.uuidString,
                         workspace: "openhouse",
                         fromName: (template.fromName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (template.fromName ?? ""),
-                        attachments: template.attachments.map { a in
+                        attachments: (event.autoEmailAttachments ?? []).map { a in
                             Attachment(
                                 storagePath: a.storagePath,
                                 filename: a.filename,
-                                mimeType: a.mimeType
+                                mimeType: a.mimeType,
+                                sizeBytes: a.sizeBytes
                             )
                         }
                     )

@@ -4,6 +4,7 @@ type AttachmentRef = {
   storage_path: string;
   filename: string;
   mime_type?: string;
+  size_bytes?: number;
 };
 
 type SendBody = {
@@ -374,10 +375,36 @@ Deno.serve(async (req) => {
 
     const replyTo = user!.email ?? null;
 
+    // Supabase Edge Functions have strict CPU/memory limits; keep attachment sizes conservative.
+    const MAX_TOTAL_BYTES = 8 * 1024 * 1024; // 8MB
+    const MAX_FILE_BYTES = 6 * 1024 * 1024; // 6MB
+
+    const declaredTotal = attachmentRefs.reduce((sum, r) => sum + (typeof r.size_bytes === "number" ? r.size_bytes : 0), 0);
+    if (declaredTotal > MAX_TOTAL_BYTES) {
+      return new Response(
+        JSON.stringify({
+          error: "attachments_too_large",
+          message: `附件总大小过大（${declaredTotal} bytes），请缩小到 8MB 以内。`,
+        }),
+        { status: 413, headers: { "content-type": "application/json" } },
+      );
+    }
+
     const attachments = [] as { filename: string; mimeType?: string; contentBase64: string }[];
     for (const ref of attachmentRefs) {
       const storagePath = (ref.storage_path ?? "").trim();
       if (!storagePath) continue;
+
+      const declared = typeof ref.size_bytes === "number" ? ref.size_bytes : null;
+      if (declared && declared > MAX_FILE_BYTES) {
+        return new Response(
+          JSON.stringify({
+            error: "attachment_too_large",
+            message: `附件过大（${declared} bytes），请缩小到 6MB 以内。`,
+          }),
+          { status: 413, headers: { "content-type": "application/json" } },
+        );
+      }
 
       const { data: blob, error: dlErr } = await admin.storage
         .from("email_attachments")

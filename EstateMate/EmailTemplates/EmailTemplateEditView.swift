@@ -299,98 +299,8 @@ struct EmailTemplateEditView: View {
                         }
                     }
 
-                    if !attachments.isEmpty || attachmentStatusMessage != nil || isUploadingAttachment {
-                        EMCard {
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    Text("附件")
-                                        .font(.headline)
-                                        .foregroundStyle(EMTheme.ink)
-
-                                    Spacer()
-
-                                    Button {
-                                        hideKeyboard()
-                                        if mode.templateId == nil {
-                                            attachmentStatusMessage = "请先保存模板，再添加附件"
-                                            return
-                                        }
-                                        isAttachmentPickerPresented = true
-                                    } label: {
-                                        Label("添加", systemImage: "paperclip")
-                                            .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(EMTheme.accent)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(isLoading || isUploadingAttachment)
-                                }
-
-                                if let attachmentStatusMessage {
-                                    Text(attachmentStatusMessage)
-                                        .font(.caption)
-                                        .foregroundStyle(EMTheme.ink2)
-                                }
-
-                                if isUploadingAttachment {
-                                    HStack(spacing: 10) {
-                                        ProgressView()
-                                        Text("正在上传附件…")
-                                            .font(.caption)
-                                            .foregroundStyle(EMTheme.ink2)
-                                        Spacer()
-                                    }
-                                }
-
-                                ForEach(attachments) { a in
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "doc")
-                                            .foregroundStyle(EMTheme.ink2)
-
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(a.filename)
-                                                .font(.subheadline)
-                                                .foregroundStyle(EMTheme.ink)
-                                                .lineLimit(1)
-
-                                            if let size = a.sizeBytes, size > 0 {
-                                                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                                                    .font(.caption2)
-                                                    .foregroundStyle(EMTheme.ink2)
-                                            }
-                                        }
-
-                                        Spacer()
-
-                                        Button(role: .destructive) {
-                                            Task { await removeAttachment(a) }
-                                        } label: {
-                                            Image(systemName: "trash")
-                                                .font(.footnote.weight(.semibold))
-                                        }
-                                        .buttonStyle(.plain)
-                                        .disabled(isUploadingAttachment || isLoading)
-                                    }
-
-                                    if a.id != attachments.last?.id {
-                                        Divider().overlay(EMTheme.line)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Button {
-                            hideKeyboard()
-                            if mode.templateId == nil {
-                                attachmentStatusMessage = "请先保存模板，再添加附件"
-                                return
-                            }
-                            isAttachmentPickerPresented = true
-                        } label: {
-                            Text("添加附件")
-                        }
-                        .buttonStyle(EMSecondaryButtonStyle())
-                        .disabled(isLoading || isUploadingAttachment)
-                    }
+                    // NOTE: Attachments are no longer managed on email templates.
+                    // They are now bound to activities (events) for auto-reply emails.
 
                     if !variables.isEmpty {
                         EMCard {
@@ -544,6 +454,7 @@ struct EmailTemplateEditView: View {
                 Text("你有未保存的修改（且当前内容不完整，无法保存）。是否直接退出？")
             }
         }
+        /*
         .fileImporter(
             isPresented: $isAttachmentPickerPresented,
             allowedContentTypes: [.pdf, .image, .data],
@@ -556,6 +467,7 @@ struct EmailTemplateEditView: View {
                 attachmentStatusMessage = "选择失败：\(error.localizedDescription)"
             }
         }
+        */
         .task(id: mode) {
             await loadIfNeeded()
         }
@@ -599,7 +511,8 @@ struct EmailTemplateEditView: View {
                     bodyAttributed = NSAttributedString(string: unescapeCommonNewlines(t.body))
                 }
                 variables = t.variables
-                attachments = t.attachments
+                // Attachments are no longer managed on templates.
+                attachments = []
                 fromName = (t.fromName ?? "")
 
                 initialSnapshot = currentSnapshot
@@ -629,7 +542,7 @@ struct EmailTemplateEditView: View {
             subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
             bodyPlain: bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines),
             variables: variables,
-            attachments: attachments
+            attachments: []
         )
     }
 
@@ -1200,7 +1113,7 @@ struct EmailTemplateEditView: View {
                 text: plainRendered.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "(无正文)" : plainRendered,
                 html: html,
                 fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fromName.trimmingCharacters(in: .whitespacesAndNewlines),
-                attachments: attachments,
+                attachments: [],
                 workspace: workspace
             )
 
@@ -1232,7 +1145,7 @@ struct EmailTemplateEditView: View {
                         subject: s,
                         body: bodyHTML,
                         variables: variables,
-                        attachments: attachments,
+                        attachments: [],
                         fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                         isArchived: nil
                     )
@@ -1252,7 +1165,7 @@ struct EmailTemplateEditView: View {
                         subject: s,
                         body: bodyHTML,
                         variables: variables,
-                        attachments: attachments,
+                        attachments: [],
                         fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                 )
