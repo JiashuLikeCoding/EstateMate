@@ -693,7 +693,8 @@ struct OpenHouseEventEditView: View {
                 autoEmailAttachments.append(item)
             }
 
-            attachmentStatusMessage = "已添加附件（记得点保存）"
+            // Auto-save so the next submission email will include attachments.
+            await saveAutoEmailAttachmentsOnly()
         } catch {
             attachmentStatusMessage = "上传失败：\(error.localizedDescription)"
         }
@@ -702,15 +703,43 @@ struct OpenHouseEventEditView: View {
     private func removeAutoEmailAttachment(_ a: EmailTemplateAttachment) async {
         autoEmailAttachments.removeAll { $0.storagePath == a.storagePath }
 
+        // Auto-save so the next submission email will reflect the change.
+        await saveAutoEmailAttachmentsOnly()
+
         // Best-effort delete from Storage as well.
         do {
             try await client.storage
                 .from("email_attachments")
                 .remove(paths: [a.storagePath])
-            attachmentStatusMessage = "已移除附件（记得点保存）"
         } catch {
             // It's OK if we can't delete immediately.
-            attachmentStatusMessage = "已移除附件（Storage 删除失败：\(error.localizedDescription)）"
+            print("[AutoEmailAttachments] storage delete failed: \(error)")
+        }
+    }
+
+    private func saveAutoEmailAttachmentsOnly() async {
+        guard let formId = selectedFormId else { return }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let updated = try await service.updateEvent(
+                id: event.id,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                location: location.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                startsAt: startsAt,
+                endsAt: hasTimeRange ? (endsAt < startsAt ? startsAt : endsAt) : nil,
+                host: host.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                assistant: assistant.trimmingCharacters(in: .whitespacesAndNewlines).nilIfBlank,
+                formId: formId,
+                emailTemplateId: selectedEmailTemplateId,
+                autoEmailAttachments: autoEmailAttachments
+            )
+            event = updated
+            attachmentStatusMessage = "附件已保存"
+        } catch {
+            attachmentStatusMessage = "附件保存失败：\(error.localizedDescription)"
         }
     }
 }
