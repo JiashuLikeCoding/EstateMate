@@ -11,6 +11,7 @@ import Storage
 
 struct OpenHouseEventEditView: View {
     private let MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024
+    private let MAX_TOTAL_ATTACHMENT_BYTES = 8 * 1024 * 1024
     @Environment(\.dismiss) private var dismiss
 
     private let service = DynamicFormService()
@@ -634,7 +635,10 @@ struct OpenHouseEventEditView: View {
         defer { isUploadingAttachment = false }
 
         var rejectedOversize: [String] = []
+        var rejectedTotal: [String] = []
         var uploadedCount = 0
+
+        var runningTotalBytes: Int = autoEmailAttachments.compactMap { $0.sizeBytes }.reduce(0, +)
 
         do {
             for url in urls {
@@ -665,6 +669,12 @@ struct OpenHouseEventEditView: View {
 
                 if data.count > MAX_ATTACHMENT_BYTES {
                     rejectedOversize.append(filenameDisplay)
+                    continue
+                }
+
+                // Total size check (existing + newly added in this batch)
+                if runningTotalBytes + data.count > MAX_TOTAL_ATTACHMENT_BYTES {
+                    rejectedTotal.append(filenameDisplay)
                     continue
                 }
 
@@ -709,22 +719,36 @@ struct OpenHouseEventEditView: View {
 
                 autoEmailAttachments.removeAll { $0.storagePath == item.storagePath }
                 autoEmailAttachments.append(item)
+                runningTotalBytes += data.count
                 uploadedCount += 1
             }
 
             let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+            let totalLimit = ByteCountFormatter.string(fromByteCount: Int64(MAX_TOTAL_ATTACHMENT_BYTES), countStyle: .file)
 
             if uploadedCount > 0 {
                 await saveAutoEmailAttachmentsOnly()
 
+                var problems: [String] = []
                 if rejectedOversize.isEmpty == false {
-                    attachmentStatusIsError = true
-                    attachmentStatusMessage = "添加失败（已跳过）：以下文件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                    problems.append("以下文件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))")
                 }
-            } else if rejectedOversize.isEmpty == false {
+                if rejectedTotal.isEmpty == false {
+                    problems.append("以下文件导致总大小超限（总大小不能超过\(totalLimit)）：\(rejectedTotal.joined(separator: "、"))")
+                }
+
+                if problems.isEmpty == false {
+                    attachmentStatusIsError = true
+                    attachmentStatusMessage = "添加失败（已跳过）：" + problems.joined(separator: "；")
+                }
+            } else if rejectedOversize.isEmpty == false || rejectedTotal.isEmpty == false {
                 // Nothing uploaded; keep the rejection message (do not overwrite with "附件已保存").
                 attachmentStatusIsError = true
-                attachmentStatusMessage = "添加失败：附件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                if rejectedOversize.isEmpty == false {
+                    attachmentStatusMessage = "添加失败：附件过大（不能超过\(limit)）：\(rejectedOversize.joined(separator: "、"))"
+                } else {
+                    attachmentStatusMessage = "添加失败：总大小超限（总大小不能超过\(totalLimit)）：\(rejectedTotal.joined(separator: "、"))"
+                }
             }
         } catch {
             attachmentStatusIsError = true

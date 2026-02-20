@@ -66,6 +66,7 @@ struct OpenHouseEventHubView: View {
 
 private struct OpenHouseEventCreateCardView: View {
     private let MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024
+    private let MAX_TOTAL_ATTACHMENT_BYTES = 8 * 1024 * 1024
     private let service = DynamicFormService()
     private let client = SupabaseClientProvider.client
 
@@ -571,73 +572,101 @@ private struct OpenHouseEventCreateCardView: View {
         attachmentStatusIsError = false
         defer { isUploadingAttachment = false }
 
-        do {
-            for url in urls {
-                let didAccess = url.startAccessingSecurityScopedResource()
-                defer {
-                    if didAccess { url.stopAccessingSecurityScopedResource() }
-                }
+        // Track running total in the selection list (pending attachments)
+        var runningTotalBytes: Int = pendingAutoEmailAttachments.map { $0.sizeBytes }.reduce(0, +)
 
-                let filenameRaw = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
-                let filename = filenameRaw.removingPercentEncoding ?? filenameRaw
-                let ext = url.pathExtension
+        var rejectedOversize: [String] = []
+        var rejectedTotal: [String] = []
 
-                let mimeType: String? = {
-                    if let ut = UTType(filenameExtension: ext),
-                       let preferred = ut.preferredMIMEType {
-                        return preferred
-                    }
-                    if ext.lowercased() == "pdf" { return "application/pdf" }
-                    return "application/octet-stream"
-                }()
-
-                let sizeBytes: Int = {
-                    // Try metadata first (fast)
-                    if let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
-                       let fs = values.fileSize, fs > 0 {
-                        return fs
-                    }
-
-                    // Fallback: coordinate read to fetch fileSize or content length.
-                    let coordinator = NSFileCoordinator()
-                    var readError: NSError?
-                    var resultSize: Int?
-                    coordinator.coordinate(readingItemAt: url, options: [], error: &readError) { readURL in
-                        if let values = try? readURL.resourceValues(forKeys: [.fileSizeKey]), let fs = values.fileSize, fs > 0 {
-                            resultSize = fs
-                        } else if let data = try? Data(contentsOf: readURL) {
-                            resultSize = data.count
-                        }
-                    }
-                    if readError != nil { return 0 }
-                    return resultSize ?? 0
-                }()
-
-                // If we still can't determine size, do a best-effort read to enforce the limit.
-                let effectiveSize = sizeBytes > 0 ? sizeBytes : (try? Data(contentsOf: url).count) ?? 0
-
-                if effectiveSize > MAX_ATTACHMENT_BYTES {
-                    let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
-                    attachmentStatusIsError = true
-                    attachmentStatusMessage = "添加失败：附件过大（不能超过\(limit)）：\(filename)"
-                    continue
-                }
-
-                let item = PendingAttachment(
-                    tempURL: url,
-                    filename: filename,
-                    mimeType: mimeType,
-                    sizeBytes: sizeBytes
-                )
-
-                pendingAutoEmailAttachments.append(item)
+        for url in urls {
+            let didAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didAccess { url.stopAccessingSecurityScopedResource() }
             }
 
-            attachmentStatusIsError = false
-            attachmentStatusMessage = "已添加附件（创建后会自动上传绑定）"
-        } catch {
-            attachmentStatusMessage = "处理失败：\(error.localizedDescription)"
+            let filenameRaw = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+            let filename = filenameRaw.removingPercentEncoding ?? filenameRaw
+            let ext = url.pathExtension
+
+            let mimeType: String? = {
+                if let ut = UTType(filenameExtension: ext),
+                   let preferred = ut.preferredMIMEType {
+                    return preferred
+                }
+                if ext.lowercased() == "pdf" { return "application/pdf" }
+                return "application/octet-stream"
+            }()
+
+            let sizeBytes: Int = {
+                // Try metadata first (fast)
+                if let values = try? url.resourceValues(forKeys: [.fileSizeKey]),
+                   let fs = values.fileSize, fs > 0 {
+                    return fs
+                }
+
+                // Fallback: coordinate read to fetch fileSize or content length.
+                let coordinator = NSFileCoordinator()
+                var readError: NSError?
+                var resultSize: Int?
+                coordinator.coordinate(readingItemAt: url, options: [], error: &readError) { readURL in
+                    if let values = try? readURL.resourceValues(forKeys: [.fileSizeKey]), let fs = values.fileSize, fs > 0 {
+                        resultSize = fs
+                    } else if let data = try? Data(contentsOf: readURL) {
+                        resultSize = data.count
+                    }
+                }
+                if readError != nil { return 0 }
+                return resultSize ?? 0
+            }()
+
+            // If we still can't determine size, do a best-effort read to enforce the limit.
+            let effectiveSize = sizeBytes > 0 ? sizeBytes : (try? Data(contentsOf: url).count) ?? 0
+
+            if effectiveSize > MAX_ATTACHMENT_BYTES {
+                rejectedOversize.append(filename)
+                continue
+            }
+
+            if runningTotalBytes + effectiveSize > MAX_TOTAL_ATTACHMENT_BYTES {
+                rejectedTotal.append(filename)
+                continue
+            }
+
+            let item = PendingAttachment(
+                tempURL: url,
+                filename: filename,
+                mimeType: mimeType,
+                sizeBytes: effectiveSize
+            )
+
+            pendingAutoEmailAttachments.append(item)
+            runningTotalBytes += effectiveSize
         }
+
+        let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+        let totalLimit = ByteCountFormatter.string(fromByteCount: Int64(MAX_TOTAL_ATTACHMENT_BYTES), countStyle: .file)
+
+        if !rejectedOversize.isEmpty || !rejectedTotal.isEmpty {
+            attachmentStatusIsError = true
+
+            var parts: [String] = []
+            if !rejectedOversize.isEmpty {
+                parts.append("单个附件不能超过\(limit)：\(rejectedOversize.joined(separator: ", "))")
+            }
+            if !rejectedTotal.isEmpty {
+                parts.append("总大小不能超过\(totalLimit)：\(rejectedTotal.joined(separator: ", "))")
+            }
+
+            if pendingAutoEmailAttachments.isEmpty {
+                attachmentStatusMessage = "添加失败：\(parts.joined(separator: "；"))"
+            } else {
+                attachmentStatusMessage = "已添加部分附件（创建后会自动上传绑定）；已跳过：\(parts.joined(separator: "；"))"
+            }
+            return
+        }
+
+        attachmentStatusIsError = false
+        attachmentStatusMessage = pendingAutoEmailAttachments.isEmpty ? nil : "已添加附件（创建后会自动上传绑定）"
     }
 
     private func removePendingAttachment(_ a: PendingAttachment) {
