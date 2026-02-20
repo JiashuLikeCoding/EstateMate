@@ -5,7 +5,6 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
-import PhotosUI
 
 private extension Array {
     subscript(safe index: Int) -> Element? {
@@ -143,10 +142,6 @@ struct FormBuilderCanvasView: View {
     @State private var showArchiveConfirm: Bool = false
     @State private var isArchiving: Bool = false
 
-    @State private var showBackgroundSheet: Bool = false
-    @State private var showPhotoPicker: Bool = false
-    @State private var pickedPhotoItem: PhotosPickerItem? = nil
-    @State private var showCamera: Bool = false
 
     private var grouping: Grouping {
         // Grouping rule: a `.splice` connects the closest non-splice field above it with the closest non-splice field below it.
@@ -199,10 +194,13 @@ struct FormBuilderCanvasView: View {
 
     var body: some View {
         ZStack {
-            if let bg = state.presentation.background {
-                EMFormBackgroundView(background: bg)
-                    .ignoresSafeArea()
-            }
+            Color.clear
+                .ignoresSafeArea()
+                .overlay(
+                    EMFormBackgroundView(background: .default)
+                        .clipped()
+                )
+                .allowsHitTesting(false)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -217,61 +215,6 @@ struct FormBuilderCanvasView: View {
                         .font(.headline)
 
                     EMTextField(title: "表单名称", text: $state.formName)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("背景图片")
-                            .font(.footnote.weight(.medium))
-                            .foregroundStyle(EMTheme.ink2)
-
-                        Button {
-                            hideKeyboard()
-                            showBackgroundSheet = true
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(backgroundSummary)
-                                    .font(.callout)
-                                    .foregroundStyle(EMTheme.ink)
-
-                                Spacer(minLength: 0)
-
-                                Image(systemName: "chevron.down")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(EMTheme.ink2)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                    .fill(EMTheme.paper2)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: EMTheme.radiusSmall, style: .continuous)
-                                    .stroke(EMTheme.line, lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        if state.presentation.background != nil {
-                            HStack(spacing: 12) {
-                                Text("透明度")
-                                    .font(.footnote.weight(.medium))
-                                    .foregroundStyle(EMTheme.ink2)
-
-                                Slider(
-                                    value: Binding(
-                                        get: { state.presentation.background?.opacity ?? 0.65 },
-                                        set: { v in
-                                            if state.presentation.background == nil {
-                                                state.presentation.background = .default
-                                            }
-                                            state.presentation.background?.opacity = v
-                                        }
-                                    ),
-                                    in: 0...1
-                                )
-                            }
-                        }
-                    }
                 }
 
                 EMCard {
@@ -400,37 +343,6 @@ struct FormBuilderCanvasView: View {
                     fields: state.fields,
                     presentation: state.presentation
                 )
-            }
-        }
-        .sheet(isPresented: $showBackgroundSheet) {
-            NavigationStack {
-                FormBackgroundPickerSheet(
-                    formId: state.formId,
-                    background: Binding(
-                        get: { state.presentation.background },
-                        set: { state.presentation.background = $0 }
-                    ),
-                    onPickPhoto: {
-                        showBackgroundSheet = false
-                        showPhotoPicker = true
-                    },
-                    onPickCamera: {
-                        showBackgroundSheet = false
-                        showCamera = true
-                    }
-                )
-            }
-            .presentationDetents([.medium, .large])
-        }
-        .photosPicker(isPresented: $showPhotoPicker, selection: $pickedPhotoItem, matching: .images)
-        .onChange(of: pickedPhotoItem) { _, newValue in
-            guard let item = newValue else { return }
-            Task { await handlePickedPhoto(item) }
-        }
-        .sheet(isPresented: $showCamera) {
-            CameraPicker { image in
-                guard let image else { return }
-                Task { await handlePickedUIImage(image) }
             }
         }
     }
@@ -790,50 +702,6 @@ struct FormBuilderCanvasView: View {
             }
         }
     }
-
-    private var backgroundSummary: String {
-        guard let bg = state.presentation.background else { return "无" }
-        switch bg.kind {
-        case .builtIn:
-            // Keep UI simple: only expose "paper" to users.
-            // Legacy keys (grid/moss) are treated as paper.
-            return "内置：纸感"
-        case .custom:
-            return "自定义图片"
-        }
-    }
-
-    private func handlePickedPhoto(_ item: PhotosPickerItem) async {
-        do {
-            // Prefer Data to avoid temp file juggling.
-            guard let data = try await item.loadTransferable(type: Data.self),
-                  let img = UIImage(data: data)
-            else {
-                throw NSError(domain: "PhotoPicker", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法读取图片"])
-            }
-            await handlePickedUIImage(img)
-        } catch {
-            state.errorMessage = error.localizedDescription
-        }
-    }
-
-    private func handlePickedUIImage(_ image: UIImage) async {
-        guard let formId = state.formId else {
-            state.errorMessage = "请先保存表单，然后再设置自定义背景图片"
-            return
-        }
-
-        do {
-            let path = try await service.uploadFormBackground(formId: formId, image: image)
-            let opacity = max(state.presentation.background?.opacity ?? 0.22, 0.22)
-            state.presentation.background = .init(kind: .custom, builtInKey: nil, storagePath: path, opacity: opacity)
-            state.errorMessage = nil
-        } catch {
-            state.errorMessage = error.localizedDescription
-        }
-    }
-
-
 
     private func save() async {
         state.isSaving = true

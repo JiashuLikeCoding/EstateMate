@@ -299,10 +299,13 @@ struct OpenHouseKioskFillView: View {
     var body: some View {
         EMScreen(nil) {
             ZStack {
-                if let bg = form.schema.presentation?.background {
-                    EMFormBackgroundView(background: bg)
-                        .ignoresSafeArea()
-                }
+                Color.clear
+                    .ignoresSafeArea()
+                    .overlay(
+                        EMFormBackgroundView(background: .default)
+                            .clipped()
+                    )
+                    .allowsHitTesting(false)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {

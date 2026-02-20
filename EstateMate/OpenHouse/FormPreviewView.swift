@@ -51,10 +51,13 @@ struct FormPreviewView: View {
     var body: some View {
         EMScreen(nil) {
             ZStack {
-                if let bg = presentation.background {
-                    EMFormBackgroundView(background: bg)
-                        .ignoresSafeArea()
-                }
+                Color.clear
+                    .ignoresSafeArea()
+                    .overlay(
+                        EMFormBackgroundView(background: .default)
+                            .clipped()
+                    )
+                    .allowsHitTesting(false)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
