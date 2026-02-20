@@ -464,6 +464,9 @@ struct OpenHouseEventUpdateV2: Encodable {
         if let host { try container.encode(host, forKey: .host) } else { try container.encodeNil(forKey: .host) }
         if let assistant { try container.encode(assistant, forKey: .assistant) } else { try container.encodeNil(forKey: .assistant) }
         if let emailTemplateId { try container.encode(emailTemplateId, forKey: .emailTemplateId) } else { try container.encodeNil(forKey: .emailTemplateId) }
+
+        // Always persist attachments (event-bound, not template-bound)
+        try container.encode(autoEmailAttachments, forKey: .autoEmailAttachments)
     }
 }
 
