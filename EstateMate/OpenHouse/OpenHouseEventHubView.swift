@@ -330,7 +330,8 @@ private struct OpenHouseEventCreateCardView: View {
                 }
 
                 let limitText = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
-                Text("说明：必须先绑定邮件模版；单个附件不能超过\(limitText)。")
+                let totalText = ByteCountFormatter.string(fromByteCount: Int64(8 * 1024 * 1024), countStyle: .file)
+                Text("说明：必须先绑定邮件模版；单个附件不能超过\(limitText)，总大小不能超过\(totalText)。")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
 
