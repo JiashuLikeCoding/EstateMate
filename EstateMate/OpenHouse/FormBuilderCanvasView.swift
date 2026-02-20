@@ -143,7 +143,7 @@ struct FormBuilderCanvasView: View {
     @State private var showArchiveConfirm: Bool = false
     @State private var isArchiving: Bool = false
 
-    @State private var showBackgroundMenu: Bool = false
+    @State private var showBackgroundSheet: Bool = false
     @State private var showPhotoPicker: Bool = false
     @State private var pickedPhotoItem: PhotosPickerItem? = nil
     @State private var showCamera: Bool = false
@@ -198,13 +198,19 @@ struct FormBuilderCanvasView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                if let msg = state.errorMessage {
-                    Text(msg)
-                        .font(.callout)
-                        .foregroundStyle(messageColor(for: msg))
-                }
+        ZStack {
+            if let bg = state.presentation.background {
+                EMFormBackgroundView(background: bg)
+                    .ignoresSafeArea()
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if let msg = state.errorMessage {
+                        Text(msg)
+                            .font(.callout)
+                            .foregroundStyle(messageColor(for: msg))
+                    }
 
                 EMCard {
                     Text("表单信息")
@@ -219,7 +225,7 @@ struct FormBuilderCanvasView: View {
 
                         Button {
                             hideKeyboard()
-                            showBackgroundMenu = true
+                            showBackgroundSheet = true
                         } label: {
                             HStack(spacing: 10) {
                                 Text(backgroundSummary)
@@ -385,6 +391,7 @@ struct FormBuilderCanvasView: View {
                 Spacer(minLength: 140)
             }
             .padding(EMTheme.padding)
+            }
         }
         .fullScreenCover(isPresented: $showPreviewSheet) {
             NavigationStack {
@@ -395,30 +402,25 @@ struct FormBuilderCanvasView: View {
                 )
             }
         }
-        .confirmationDialog("选择背景", isPresented: $showBackgroundMenu, titleVisibility: .visible) {
-            Button("无背景") {
-                state.presentation.background = nil
+        .sheet(isPresented: $showBackgroundSheet) {
+            NavigationStack {
+                FormBackgroundPickerSheet(
+                    formId: state.formId,
+                    background: Binding(
+                        get: { state.presentation.background },
+                        set: { state.presentation.background = $0 }
+                    ),
+                    onPickPhoto: {
+                        showBackgroundSheet = false
+                        showPhotoPicker = true
+                    },
+                    onPickCamera: {
+                        showBackgroundSheet = false
+                        showCamera = true
+                    }
+                )
             }
-
-            Button("内置：纸感") {
-                state.presentation.background = .init(kind: .builtIn, builtInKey: "paper", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
-            }
-            Button("内置：淡网格") {
-                state.presentation.background = .init(kind: .builtIn, builtInKey: "grid", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
-            }
-            Button("内置：苔绿") {
-                state.presentation.background = .init(kind: .builtIn, builtInKey: "moss", storagePath: nil, opacity: state.presentation.background?.opacity ?? 0.12)
-            }
-
-            Button("从相册选择") {
-                showPhotoPicker = true
-            }
-
-            Button("拍照") {
-                showCamera = true
-            }
-
-            Button("取消", role: .cancel) {}
+            .presentationDetents([.medium, .large])
         }
         .photosPicker(isPresented: $showPhotoPicker, selection: $pickedPhotoItem, matching: .images)
         .onChange(of: pickedPhotoItem) { _, newValue in
@@ -826,7 +828,7 @@ struct FormBuilderCanvasView: View {
 
         do {
             let path = try await service.uploadFormBackground(formId: formId, image: image)
-            let opacity = state.presentation.background?.opacity ?? 0.12
+            let opacity = max(state.presentation.background?.opacity ?? 0.22, 0.22)
             state.presentation.background = .init(kind: .custom, builtInKey: nil, storagePath: path, opacity: opacity)
             state.errorMessage = nil
         } catch {
