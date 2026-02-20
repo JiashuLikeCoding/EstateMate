@@ -1317,7 +1317,8 @@ struct EmailTemplateEditView: View {
                     }
                 }()
 
-                let filename = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+                let rawName = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+                let filename = rawName.removingPercentEncoding ?? rawName
                 let ext = url.pathExtension
 
                 let mimeType: String? = {
@@ -1329,9 +1330,21 @@ struct EmailTemplateEditView: View {
                     return "application/octet-stream"
                 }()
 
-                let safeFilename = filename
-                    .replacingOccurrences(of: "/", with: "_")
-                    .replacingOccurrences(of: "\\\\", with: "_")
+                let safeFilename: String = {
+                    // Supabase Storage object keys are picky; avoid %, spaces, and non-ascii.
+                    let cleaned = filename
+                        .replacingOccurrences(of: "/", with: "_")
+                        .replacingOccurrences(of: "\\\\", with: "_")
+
+                    let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._- ")
+                    let ascii = cleaned.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }
+                    let collapsed = String(ascii)
+                        .replacingOccurrences(of: " ", with: "_")
+                        .replacingOccurrences(of: "__", with: "_")
+
+                    let trimmed = collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "._-"))
+                    return trimmed.isEmpty ? "attachment.pdf" : trimmed
+                }()
 
                 let path = "\(templateId.uuidString)/\(UUID().uuidString)_\(safeFilename)"
 
