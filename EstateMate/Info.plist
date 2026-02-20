@@ -16,8 +16,14 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>用于拍照设置表单背景图片</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>用于一键获取当前位置并填写活动策划地址。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>用于保存/上传背景图片</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于从相册选择图片作为表单背景</string>
 	<key>UIUserInterfaceStyle</key>
 	<string>Light</string>
 </dict>
