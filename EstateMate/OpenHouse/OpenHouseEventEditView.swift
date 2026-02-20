@@ -227,10 +227,17 @@ struct OpenHouseEventEditView: View {
                                 Spacer()
 
                                 Button(isUploadingAttachment ? "上传中..." : "添加") {
+                                    // Must bind an email template first.
+                                    guard selectedEmailTemplateId != nil else {
+                                        attachmentStatusIsError = true
+                                        let limit = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+                                        attachmentStatusMessage = "添加失败：请先绑定邮件模版（附件不能超过\(limit)）"
+                                        return
+                                    }
                                     isAttachmentPickerPresented = true
                                 }
                                 .buttonStyle(EMSecondaryButtonStyle())
-                                .disabled(isUploadingAttachment)
+                                .disabled(isUploadingAttachment || selectedEmailTemplateId == nil)
                             }
 
                             if let attachmentStatusMessage {
@@ -238,6 +245,11 @@ struct OpenHouseEventEditView: View {
                                     .font(.footnote)
                                     .foregroundStyle(attachmentStatusIsError ? .red : EMTheme.ink2)
                             }
+
+                            let limitText = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
+                            Text("说明：必须先绑定邮件模版；单个附件不能超过\(limitText)。")
+                                .font(.footnote)
+                                .foregroundStyle(EMTheme.ink2)
 
                             if !autoEmailAttachments.isEmpty {
                                 VStack(spacing: 8) {
