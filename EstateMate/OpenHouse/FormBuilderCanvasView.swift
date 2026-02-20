@@ -795,12 +795,9 @@ struct FormBuilderCanvasView: View {
         guard let bg = state.presentation.background else { return "无" }
         switch bg.kind {
         case .builtIn:
-            switch bg.builtInKey ?? "paper" {
-            case "paper": return "内置：纸感"
-            case "grid": return "内置：淡网格"
-            case "moss": return "内置：苔绿"
-            default: return "内置"
-            }
+            // Keep UI simple: only expose "paper" to users.
+            // Legacy keys (grid/moss) are treated as paper.
+            return "内置：纸感"
         case .custom:
             return "自定义图片"
         }

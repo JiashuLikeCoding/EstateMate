@@ -46,8 +46,6 @@ struct FormBackgroundPickerSheet: View {
                             Divider().overlay(EMTheme.line)
 
                             builtInOption(key: "paper", title: "纸感")
-                            builtInOption(key: "grid", title: "淡网格")
-                            builtInOption(key: "moss", title: "苔绿")
                         }
                     }
 
