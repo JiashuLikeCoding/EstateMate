@@ -98,7 +98,7 @@ struct FormBackgroundPickerSheet: View {
 
     private func builtInOption(key: String, title: String) -> some View {
         let isSelected = (background?.kind == .builtIn && background?.builtInKey == key)
-        let opacity = background?.opacity ?? 0.12
+        let opacity = background?.opacity ?? 0.65
 
         return backgroundOption(
             title: "内置：\(title)",

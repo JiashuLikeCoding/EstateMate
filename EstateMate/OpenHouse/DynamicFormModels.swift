@@ -289,7 +289,8 @@ struct FormBackground: Codable, Hashable {
     var opacity: Double
 
     static var `default`: FormBackground {
-        .init(kind: .builtIn, builtInKey: "paper", storagePath: nil, opacity: 0.12)
+        // Default opacity should be visually obvious.
+        .init(kind: .builtIn, builtInKey: "paper", storagePath: nil, opacity: 0.65)
     }
 }
 

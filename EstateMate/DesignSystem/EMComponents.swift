@@ -1050,14 +1050,14 @@ struct EMFormBackgroundView: View {
         case "grid":
             ZStack {
                 LinearGradient(
-                    colors: [Color.white, EMTheme.paper],
+                    colors: [EMTheme.paper, EMTheme.paper2],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
 
-                // A very subtle grid.
+                // A visible (but still tasteful) grid.
                 Canvas { context, size in
-                    let step: CGFloat = 22
+                    let step: CGFloat = 24
                     var path = Path()
                     for x in stride(from: 0, through: size.width, by: step) {
                         path.move(to: CGPoint(x: x, y: 0))
@@ -1067,20 +1067,20 @@ struct EMFormBackgroundView: View {
                         path.move(to: CGPoint(x: 0, y: y))
                         path.addLine(to: CGPoint(x: size.width, y: y))
                     }
-                    context.stroke(path, with: .color(EMTheme.line.opacity(0.55)), lineWidth: 0.5)
+                    context.stroke(path, with: .color(EMTheme.ink2.opacity(0.18)), lineWidth: 0.6)
                 }
             }
 
         case "moss":
             LinearGradient(
-                colors: [EMTheme.paper, accent.opacity(0.22), EMTheme.paper],
+                colors: [EMTheme.paper, accent.opacity(0.40), EMTheme.paper2.opacity(0.65)],
                 startPoint: .top,
                 endPoint: .bottom
             )
 
         default: // paper
             LinearGradient(
-                colors: [EMTheme.paper, EMTheme.paper2.opacity(0.7), EMTheme.paper],
+                colors: [EMTheme.paper, EMTheme.paper2, EMTheme.paper],
                 startPoint: .top,
                 endPoint: .bottom
             )

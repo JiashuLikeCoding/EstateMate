@@ -259,7 +259,7 @@ struct FormBuilderCanvasView: View {
 
                                 Slider(
                                     value: Binding(
-                                        get: { state.presentation.background?.opacity ?? 0.12 },
+                                        get: { state.presentation.background?.opacity ?? 0.65 },
                                         set: { v in
                                             if state.presentation.background == nil {
                                                 state.presentation.background = .default
@@ -267,7 +267,7 @@ struct FormBuilderCanvasView: View {
                                             state.presentation.background?.opacity = v
                                         }
                                     ),
-                                    in: 0...0.5
+                                    in: 0...1
                                 )
                             }
                         }
