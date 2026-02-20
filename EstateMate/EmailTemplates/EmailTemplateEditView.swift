@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 import Supabase
+import Foundation
 
 // WYSIWYG body editor
 
@@ -1292,7 +1293,29 @@ struct EmailTemplateEditView: View {
 
         do {
             for url in urls {
-                let data = try Data(contentsOf: url)
+                // fileImporter returns security-scoped URLs. We must access them properly,
+                // otherwise Data(contentsOf:) may fail with "no permission".
+                let didAccess = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didAccess { url.stopAccessingSecurityScopedResource() }
+                }
+
+                let data: Data = try {
+                    do {
+                        return try Data(contentsOf: url)
+                    } catch {
+                        // Fallback: coordinate read (some providers require it).
+                        let coordinator = NSFileCoordinator()
+                        var readError: NSError?
+                        var resultData: Data?
+                        coordinator.coordinate(readingItemAt: url, options: [], error: &readError) { readURL in
+                            resultData = try? Data(contentsOf: readURL)
+                        }
+                        if let readError { throw readError }
+                        if let resultData { return resultData }
+                        throw error
+                    }
+                }()
 
                 let filename = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
                 let ext = url.pathExtension
@@ -1306,7 +1329,11 @@ struct EmailTemplateEditView: View {
                     return "application/octet-stream"
                 }()
 
-                let path = "\(templateId.uuidString)/\(UUID().uuidString)_\(filename)"
+                let safeFilename = filename
+                    .replacingOccurrences(of: "/", with: "_")
+                    .replacingOccurrences(of: "\\\\", with: "_")
+
+                let path = "\(templateId.uuidString)/\(UUID().uuidString)_\(safeFilename)"
 
                 _ = try await client.storage
                     .from("email_attachments")
