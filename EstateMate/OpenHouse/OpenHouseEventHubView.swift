@@ -330,8 +330,28 @@ private struct OpenHouseEventCreateCardView: View {
                         .foregroundStyle(attachmentStatusIsError ? .red : EMTheme.ink2)
                 }
 
+                // Total size usage indicator
+                let usedBytes: Int = pendingAutoEmailAttachments.map { $0.sizeBytes }.reduce(0, +)
+                let usedText = ByteCountFormatter.string(fromByteCount: Int64(usedBytes), countStyle: .file)
+                let totalBytes = MAX_TOTAL_ATTACHMENT_BYTES
+                let totalText = ByteCountFormatter.string(fromByteCount: Int64(totalBytes), countStyle: .file)
+                let usageRatio = totalBytes == 0 ? 0 : Double(usedBytes) / Double(totalBytes)
+                let usageColor: Color = usageRatio >= 0.8 ? .orange : EMTheme.ink2
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Text("附件总大小：\(usedText) / \(totalText)")
+                            .font(.footnote)
+                            .foregroundStyle(usageColor)
+
+                        Spacer()
+                    }
+
+                    ProgressView(value: Double(usedBytes), total: Double(totalBytes))
+                        .tint(usageRatio >= 0.8 ? .orange : EMTheme.accent)
+                }
+
                 let limitText = ByteCountFormatter.string(fromByteCount: Int64(MAX_ATTACHMENT_BYTES), countStyle: .file)
-                let totalText = ByteCountFormatter.string(fromByteCount: Int64(8 * 1024 * 1024), countStyle: .file)
                 Text("说明：必须先绑定邮件模版；单个附件不能超过\(limitText)，总大小不能超过\(totalText)。")
                     .font(.footnote)
                     .foregroundStyle(EMTheme.ink2)
