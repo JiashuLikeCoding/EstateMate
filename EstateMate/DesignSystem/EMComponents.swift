@@ -1013,41 +1013,39 @@ struct EMFormBackgroundView: View {
     private let service = DynamicFormService()
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                switch background.kind {
-                case .builtIn:
-                    builtInView(key: background.builtInKey ?? "paper")
-                        .opacity(background.opacity)
+        ZStack {
+            switch background.kind {
+            case .builtIn:
+                builtInView(key: background.builtInKey ?? "paper")
+                    .opacity(background.opacity)
 
-                case .custom:
-                    if let path = background.storagePath,
-                       let url = service.publicURLForFormBackground(path: path) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .empty:
-                                Rectangle().fill(EMTheme.paper)
-                            case .success(let img):
-                                img
-                                    .resizable()
-                                    .scaledToFill()
-                            case .failure:
-                                Rectangle().fill(EMTheme.paper)
-                            @unknown default:
-                                Rectangle().fill(EMTheme.paper)
-                            }
+            case .custom:
+                if let path = background.storagePath,
+                   let url = service.publicURLForFormBackground(path: path) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle().fill(EMTheme.paper)
+                        case .success(let img):
+                            img
+                                .resizable()
+                                .scaledToFill()
+                        case .failure:
+                            Rectangle().fill(EMTheme.paper)
+                        @unknown default:
+                            Rectangle().fill(EMTheme.paper)
                         }
-                        .opacity(background.opacity)
-                    } else {
-                        Rectangle().fill(EMTheme.paper)
                     }
+                    .opacity(background.opacity)
+                } else {
+                    Rectangle().fill(EMTheme.paper)
                 }
             }
-            // Critical: ensure background never affects layout size.
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
         }
-        .ignoresSafeArea()
+        // Ensure background never affects layout size, even when used in small previews.
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder
