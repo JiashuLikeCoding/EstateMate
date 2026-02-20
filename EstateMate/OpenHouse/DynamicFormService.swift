@@ -1178,6 +1178,18 @@ final class DynamicFormService {
             }
 
             // 5) Invoke Edge Function (Gmail) with user's JWT.
+            struct Attachment: Encodable {
+                let storagePath: String
+                let filename: String
+                let mimeType: String?
+
+                enum CodingKeys: String, CodingKey {
+                    case storagePath = "storage_path"
+                    case filename
+                    case mimeType = "mime_type"
+                }
+            }
+
             struct SendBody: Encodable {
                 let to: String
                 let subject: String
@@ -1186,6 +1198,7 @@ final class DynamicFormService {
                 let submissionId: String
                 let workspace: String
                 let fromName: String?
+                let attachments: [Attachment]
             }
 
             let session = try await client.auth.session
@@ -1206,7 +1219,14 @@ final class DynamicFormService {
                         html: bodyHTML,
                         submissionId: submissionId.uuidString,
                         workspace: "openhouse",
-                        fromName: (template.fromName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (template.fromName ?? "")
+                        fromName: (template.fromName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : (template.fromName ?? ""),
+                        attachments: template.attachments.map { a in
+                            Attachment(
+                                storagePath: a.storagePath,
+                                filename: a.filename,
+                                mimeType: a.mimeType
+                            )
+                        }
                     )
                 )
             ) as EmptyResponse

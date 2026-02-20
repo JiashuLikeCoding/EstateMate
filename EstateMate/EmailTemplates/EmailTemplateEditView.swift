@@ -7,6 +7,8 @@
 
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
+import Supabase
 
 // WYSIWYG body editor
 
@@ -75,6 +77,11 @@ struct EmailTemplateEditView: View {
     @State private var bodyHTMLSourceIfUnedited: String? = nil
 
     @State private var variables: [EmailTemplateVariable] = []
+    @State private var attachments: [EmailTemplateAttachment] = []
+
+    @State private var isAttachmentPickerPresented: Bool = false
+    @State private var isUploadingAttachment: Bool = false
+    @State private var attachmentStatusMessage: String? = nil
 
     private struct Snapshot: Equatable {
         var workspace: EstateMateWorkspaceKind
@@ -83,6 +90,7 @@ struct EmailTemplateEditView: View {
         var subject: String
         var bodyPlain: String
         var variables: [EmailTemplateVariable]
+        var attachments: [EmailTemplateAttachment]
     }
 
     @State private var initialSnapshot: Snapshot? = nil
@@ -102,6 +110,8 @@ struct EmailTemplateEditView: View {
 
     private let service = EmailTemplateService()
     private let gmailService = CRMGmailIntegrationService()
+
+    private let client = SupabaseClientProvider.client
 
     var body: some View {
         EMScreen {
@@ -288,6 +298,99 @@ struct EmailTemplateEditView: View {
                         }
                     }
 
+                    if !attachments.isEmpty || attachmentStatusMessage != nil || isUploadingAttachment {
+                        EMCard {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("附件")
+                                        .font(.headline)
+                                        .foregroundStyle(EMTheme.ink)
+
+                                    Spacer()
+
+                                    Button {
+                                        hideKeyboard()
+                                        if mode.templateId == nil {
+                                            attachmentStatusMessage = "请先保存模板，再添加附件"
+                                            return
+                                        }
+                                        isAttachmentPickerPresented = true
+                                    } label: {
+                                        Label("添加", systemImage: "paperclip")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(EMTheme.accent)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(isLoading || isUploadingAttachment)
+                                }
+
+                                if let attachmentStatusMessage {
+                                    Text(attachmentStatusMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(EMTheme.ink2)
+                                }
+
+                                if isUploadingAttachment {
+                                    HStack(spacing: 10) {
+                                        ProgressView()
+                                        Text("正在上传附件…")
+                                            .font(.caption)
+                                            .foregroundStyle(EMTheme.ink2)
+                                        Spacer()
+                                    }
+                                }
+
+                                ForEach(attachments) { a in
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "doc")
+                                            .foregroundStyle(EMTheme.ink2)
+
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(a.filename)
+                                                .font(.subheadline)
+                                                .foregroundStyle(EMTheme.ink)
+                                                .lineLimit(1)
+
+                                            if let size = a.sizeBytes, size > 0 {
+                                                Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
+                                                    .font(.caption2)
+                                                    .foregroundStyle(EMTheme.ink2)
+                                            }
+                                        }
+
+                                        Spacer()
+
+                                        Button(role: .destructive) {
+                                            Task { await removeAttachment(a) }
+                                        } label: {
+                                            Image(systemName: "trash")
+                                                .font(.footnote.weight(.semibold))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(isUploadingAttachment || isLoading)
+                                    }
+
+                                    if a.id != attachments.last?.id {
+                                        Divider().overlay(EMTheme.line)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Button {
+                            hideKeyboard()
+                            if mode.templateId == nil {
+                                attachmentStatusMessage = "请先保存模板，再添加附件"
+                                return
+                            }
+                            isAttachmentPickerPresented = true
+                        } label: {
+                            Text("添加附件")
+                        }
+                        .buttonStyle(EMSecondaryButtonStyle())
+                        .disabled(isLoading || isUploadingAttachment)
+                    }
+
                     if !variables.isEmpty {
                         EMCard {
                             VStack(alignment: .leading, spacing: 10) {
@@ -440,6 +543,18 @@ struct EmailTemplateEditView: View {
                 Text("你有未保存的修改（且当前内容不完整，无法保存）。是否直接退出？")
             }
         }
+        .fileImporter(
+            isPresented: $isAttachmentPickerPresented,
+            allowedContentTypes: [.pdf, .image, .data],
+            allowsMultipleSelection: true
+        ) { result in
+            switch result {
+            case let .success(urls):
+                Task { await handlePickedAttachments(urls) }
+            case let .failure(error):
+                attachmentStatusMessage = "选择失败：\(error.localizedDescription)"
+            }
+        }
         .task(id: mode) {
             await loadIfNeeded()
         }
@@ -453,6 +568,7 @@ struct EmailTemplateEditView: View {
             // Create mode: do not auto-fill any content.
             // (Jason request) User must explicitly enter: name, from name, subject, body.
             variables = []
+            attachments = []
             initialSnapshot = currentSnapshot
             return
         }
@@ -482,6 +598,7 @@ struct EmailTemplateEditView: View {
                     bodyAttributed = NSAttributedString(string: unescapeCommonNewlines(t.body))
                 }
                 variables = t.variables
+                attachments = t.attachments
                 fromName = (t.fromName ?? "")
 
                 initialSnapshot = currentSnapshot
@@ -510,7 +627,8 @@ struct EmailTemplateEditView: View {
             fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
             subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
             bodyPlain: bodyAttributed.string.trimmingCharacters(in: .whitespacesAndNewlines),
-            variables: variables
+            variables: variables,
+            attachments: attachments
         )
     }
 
@@ -1081,6 +1199,7 @@ struct EmailTemplateEditView: View {
                 text: plainRendered.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "(无正文)" : plainRendered,
                 html: html,
                 fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : fromName.trimmingCharacters(in: .whitespacesAndNewlines),
+                attachments: attachments,
                 workspace: workspace
             )
 
@@ -1112,6 +1231,7 @@ struct EmailTemplateEditView: View {
                         subject: s,
                         body: bodyHTML,
                         variables: variables,
+                        attachments: attachments,
                         fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines),
                         isArchived: nil
                     )
@@ -1131,6 +1251,7 @@ struct EmailTemplateEditView: View {
                         subject: s,
                         body: bodyHTML,
                         variables: variables,
+                        attachments: attachments,
                         fromName: fromName.trimmingCharacters(in: .whitespacesAndNewlines)
                     )
                 )
@@ -1158,7 +1279,74 @@ struct EmailTemplateEditView: View {
             errorMessage = "归档失败：\(error.localizedDescription)"
         }
     }
+
+    private func handlePickedAttachments(_ urls: [URL]) async {
+        guard let templateId = mode.templateId else {
+            attachmentStatusMessage = "请先保存模板，再添加附件"
+            return
+        }
+
+        isUploadingAttachment = true
+        attachmentStatusMessage = nil
+        defer { isUploadingAttachment = false }
+
+        do {
+            for url in urls {
+                let data = try Data(contentsOf: url)
+
+                let filename = (url.lastPathComponent.isEmpty ? "附件" : url.lastPathComponent)
+                let ext = url.pathExtension
+
+                let mimeType: String? = {
+                    if let ut = UTType(filenameExtension: ext),
+                       let preferred = ut.preferredMIMEType {
+                        return preferred
+                    }
+                    if ext.lowercased() == "pdf" { return "application/pdf" }
+                    return "application/octet-stream"
+                }()
+
+                let path = "\(templateId.uuidString)/\(UUID().uuidString)_\(filename)"
+
+                _ = try await client.storage
+                    .from("email_attachments")
+                    .upload(path, data: data, options: FileOptions(contentType: mimeType, upsert: true))
+
+                let item = EmailTemplateAttachment(
+                    storagePath: path,
+                    filename: filename,
+                    mimeType: mimeType,
+                    sizeBytes: data.count
+                )
+
+                // Replace if same path exists (shouldn't), otherwise append.
+                attachments.removeAll { $0.storagePath == item.storagePath }
+                attachments.append(item)
+            }
+
+            attachmentStatusMessage = "已添加附件（记得点保存）"
+        } catch {
+            attachmentStatusMessage = "上传失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func removeAttachment(_ a: EmailTemplateAttachment) async {
+        // Remove from local list; do not force-save here.
+        attachments.removeAll { $0.storagePath == a.storagePath }
+
+        // Best-effort delete from Storage as well.
+        do {
+            try await client.storage
+                .from("email_attachments")
+                .remove(paths: [a.storagePath])
+        } catch {
+            // Keep silent; user can still save the template state.
+        }
+
+        attachmentStatusMessage = "已移除附件（记得点保存）"
+    }
 }
+
 
 #Preview {
     NavigationStack {

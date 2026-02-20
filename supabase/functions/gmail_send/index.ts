@@ -1,11 +1,18 @@
 import { requireUser, supabaseServiceClient } from "../_shared/supabase.ts";
 
+type AttachmentRef = {
+  storage_path: string;
+  filename: string;
+  mime_type?: string;
+};
+
 type SendBody = {
   to: string;
   subject: string;
   text?: string;
   html?: string;
   fromName?: string;
+  attachments?: AttachmentRef[];
   submissionId: string;
   workspace?: string; // crm|openhouse
   threadId?: string;
@@ -45,6 +52,21 @@ function rfc2047EncodeHeaderValue(value: string): string {
   return `=?UTF-8?B?${base64EncodeUtf8(value)}?=`;
 }
 
+function base64EncodeBytes(bytes: Uint8Array): string {
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+function wrapBase64Lines(b64: string, lineLength = 76): string {
+  const s = b64.replace(/\s+/g, "");
+  const out: string[] = [];
+  for (let i = 0; i < s.length; i += lineLength) {
+    out.push(s.slice(i, i + lineLength));
+  }
+  return out.join("\r\n");
+}
+
 function buildRfc822Message(params: {
   from: string;
   to: string;
@@ -54,6 +76,7 @@ function buildRfc822Message(params: {
   replyTo?: string | null;
   inReplyTo?: string | null;
   references?: string | null;
+  attachments?: { filename: string; mimeType?: string; contentBase64: string }[];
 }): string {
   // Minimal RFC 822 message. Gmail API will accept this format.
   // Use CRLF line endings.
@@ -90,6 +113,63 @@ function buildRfc822Message(params: {
   if (params.replyTo) headers.push(`Reply-To: ${params.replyTo}`);
   if (params.inReplyTo) headers.push(`In-Reply-To: ${params.inReplyTo}`);
   if (params.references) headers.push(`References: ${params.references}`);
+
+  const atts = params.attachments ?? [];
+  const hasAttachments = atts.length > 0;
+
+  if (hasAttachments) {
+    const mixedBoundary = `em_mixed_${crypto.randomUUID()}`;
+
+    headers.push(`Content-Type: multipart/mixed; boundary="${mixedBoundary}"`);
+
+    const parts: string[] = [];
+
+    // Body part
+    if (params.html && params.html.trim().length > 0) {
+      const altBoundary = `em_alt_${crypto.randomUUID()}`;
+
+      parts.push(`--${mixedBoundary}`);
+      parts.push(`Content-Type: multipart/alternative; boundary="${altBoundary}"`);
+      parts.push("");
+
+      parts.push(`--${altBoundary}`);
+      parts.push(`Content-Type: text/plain; charset="UTF-8"`);
+      parts.push(`Content-Transfer-Encoding: 7bit`);
+      parts.push("");
+      parts.push(params.text);
+
+      parts.push(`--${altBoundary}`);
+      parts.push(`Content-Type: text/html; charset="UTF-8"`);
+      parts.push(`Content-Transfer-Encoding: 7bit`);
+      parts.push("");
+      parts.push(params.html);
+
+      parts.push(`--${altBoundary}--`);
+    } else {
+      parts.push(`--${mixedBoundary}`);
+      parts.push(`Content-Type: text/plain; charset="UTF-8"`);
+      parts.push(`Content-Transfer-Encoding: 7bit`);
+      parts.push("");
+      parts.push(params.text);
+    }
+
+    // Attachments
+    for (const a of atts) {
+      const mime = (a.mimeType ?? "application/octet-stream").trim() || "application/octet-stream";
+      const filename = a.filename || "attachment";
+
+      parts.push(`--${mixedBoundary}`);
+      parts.push(`Content-Type: ${mime}; name="${filename}"`);
+      parts.push(`Content-Disposition: attachment; filename="${filename}"`);
+      parts.push(`Content-Transfer-Encoding: base64`);
+      parts.push("");
+      parts.push(wrapBase64Lines(a.contentBase64));
+    }
+
+    parts.push(`--${mixedBoundary}--`);
+
+    return `${headers.join("\r\n")}\r\n\r\n${parts.join("\r\n")}`;
+  }
 
   if (params.html && params.html.trim().length > 0) {
     headers.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
@@ -187,6 +267,7 @@ Deno.serve(async (req) => {
     const text = (body.text ?? "").toString();
     const html = body.html?.toString();
     const fromName = (body.fromName ?? "").toString().trim();
+    const attachmentRefs = body.attachments ?? [];
 
     if (!to || !subject || !submissionId) {
       return new Response(JSON.stringify({ error: "bad_request" }), {
@@ -293,6 +374,27 @@ Deno.serve(async (req) => {
 
     const replyTo = user!.email ?? null;
 
+    const attachments = [] as { filename: string; mimeType?: string; contentBase64: string }[];
+    for (const ref of attachmentRefs) {
+      const storagePath = (ref.storage_path ?? "").trim();
+      if (!storagePath) continue;
+
+      const { data: blob, error: dlErr } = await admin.storage
+        .from("email_attachments")
+        .download(storagePath);
+
+      if (dlErr || !blob) {
+        throw new Error(`attachment_download_failed: ${dlErr?.message ?? storagePath}`);
+      }
+
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      attachments.push({
+        filename: ref.filename || "attachment",
+        mimeType: ref.mime_type,
+        contentBase64: base64EncodeBytes(buf),
+      });
+    }
+
     const rfc822 = buildRfc822Message({
       from: fromHeader,
       to,
@@ -302,6 +404,7 @@ Deno.serve(async (req) => {
       replyTo,
       inReplyTo: inReplyTo || null,
       references: references || null,
+      attachments,
     });
 
     const raw = base64UrlEncode(rfc822);

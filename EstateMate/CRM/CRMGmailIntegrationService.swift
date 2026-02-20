@@ -272,27 +272,44 @@ final class CRMGmailIntegrationService {
         text: String,
         html: String?,
         fromName: String?,
+        attachments: [EmailTemplateAttachment] = [],
         workspace: EstateMateWorkspaceKind = .openhouse
     ) async throws -> SendResponse {
+        struct Attachment: Encodable {
+            let storagePath: String
+            let filename: String
+            let mimeType: String?
+
+            enum CodingKeys: String, CodingKey {
+                case storagePath = "storage_path"
+                case filename
+                case mimeType = "mime_type"
+            }
+        }
+
         struct Body: Encodable {
             let to: String
             let subject: String
             let text: String
             let html: String?
             let fromName: String?
+            let attachments: [Attachment]
             let workspace: String
         }
 
+        let payload = Body(
+            to: to,
+            subject: subject,
+            text: text,
+            html: html,
+            fromName: fromName,
+            attachments: attachments.map { Attachment(storagePath: $0.storagePath, filename: $0.filename, mimeType: $0.mimeType) },
+            workspace: workspace.rawValue
+        )
+
         return try await invokeWithTimeout(
             "gmail_send_test",
-            body: Body(
-                to: to,
-                subject: subject,
-                text: text,
-                html: html,
-                fromName: fromName,
-                workspace: workspace.rawValue
-            )
+            body: payload
         )
     }
 

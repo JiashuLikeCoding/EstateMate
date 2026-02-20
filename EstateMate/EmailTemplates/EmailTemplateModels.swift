@@ -43,6 +43,22 @@ struct EmailTemplateVariable: Codable, Hashable, Identifiable {
     }
 }
 
+struct EmailTemplateAttachment: Codable, Hashable, Identifiable {
+    var id: String { storagePath }
+
+    var storagePath: String
+    var filename: String
+    var mimeType: String?
+    var sizeBytes: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case storagePath = "storage_path"
+        case filename
+        case mimeType = "mime_type"
+        case sizeBytes = "size_bytes"
+    }
+}
+
 struct EmailTemplateRecord: Codable, Identifiable, Hashable {
     let id: UUID
     let createdBy: UUID?
@@ -52,6 +68,8 @@ struct EmailTemplateRecord: Codable, Identifiable, Hashable {
     var subject: String
     var body: String
     var variables: [EmailTemplateVariable]
+
+    var attachments: [EmailTemplateAttachment]
 
     /// Optional per-template sender display name. When empty, fallback to workspace settings.
     var fromName: String?
@@ -69,6 +87,7 @@ struct EmailTemplateRecord: Codable, Identifiable, Hashable {
         case subject
         case body
         case variables
+        case attachments
         case fromName = "from_name"
         case isArchived = "is_archived"
         case createdAt = "created_at"
@@ -82,6 +101,7 @@ struct EmailTemplateInsert: Encodable {
     var subject: String
     var body: String
     var variables: [EmailTemplateVariable]
+    var attachments: [EmailTemplateAttachment]
     var fromName: String?
 
     enum CodingKeys: String, CodingKey {
@@ -90,6 +110,7 @@ struct EmailTemplateInsert: Encodable {
         case subject
         case body
         case variables
+        case attachments
         case fromName = "from_name"
     }
 }
@@ -100,6 +121,7 @@ struct EmailTemplateUpdate: Encodable {
     var subject: String?
     var body: String?
     var variables: [EmailTemplateVariable]?
+    var attachments: [EmailTemplateAttachment]?
     var fromName: String?
     var isArchived: Bool?
 
@@ -109,8 +131,29 @@ struct EmailTemplateUpdate: Encodable {
         case subject
         case body
         case variables
+        case attachments
         case fromName = "from_name"
         case isArchived = "is_archived"
+    }
+
+    init(
+        workspace: EstateMateWorkspaceKind? = nil,
+        name: String? = nil,
+        subject: String? = nil,
+        body: String? = nil,
+        variables: [EmailTemplateVariable]? = nil,
+        attachments: [EmailTemplateAttachment]? = nil,
+        fromName: String? = nil,
+        isArchived: Bool? = nil
+    ) {
+        self.workspace = workspace
+        self.name = name
+        self.subject = subject
+        self.body = body
+        self.variables = variables
+        self.attachments = attachments
+        self.fromName = fromName
+        self.isArchived = isArchived
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -120,6 +163,7 @@ struct EmailTemplateUpdate: Encodable {
         if let subject { try c.encode(subject, forKey: .subject) }
         if let body { try c.encode(body, forKey: .body) }
         if let variables { try c.encode(variables, forKey: .variables) }
+        if let attachments { try c.encode(attachments, forKey: .attachments) }
         if let fromName { try c.encode(fromName, forKey: .fromName) }
         if let isArchived { try c.encode(isArchived, forKey: .isArchived) }
     }
